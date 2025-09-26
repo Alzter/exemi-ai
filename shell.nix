@@ -43,6 +43,9 @@ let
                             dependencies = imbalPrevAttrs.dependencies ++ [ final_.sklearn-compat ];
                             doCheck = false;
                           });
+#                           pdfplumber = prev_.pdfplumber.overridePythonAttrs(prevAttrs: {
+#                             doCheck=false;
+#                           });
                           # cut-cross-entropy = prev_.cut-cross-entropy.overrideAttrs(cutFinalAttrs: cutPrevAttrs: {
                           #   triton = final_.torch-bin.triton;
                             # pythonRemoveDeps = [
@@ -61,6 +64,7 @@ pkgs.mkShell {
         tmux
         lunarvim
         gh
+        ghostscript
         (python312.withPackages (p: with p; [
             python-dotenv
             ipykernel
@@ -95,6 +99,13 @@ pkgs.mkShell {
             scipy
             einops
             evaluate
+            camelot
+            ghostscript
+            pypdfium2
+            pyqt5
+            pypdf
+            pdfminer-six
+            pdfplumber
 #             rouge_score
         ]
         ))
