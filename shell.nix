@@ -106,6 +106,7 @@ pkgs.mkShell {
             pypdf
             pdfminer-six
             pdfplumber
+            tzlocal
 #             rouge_score
         ]
         ))
