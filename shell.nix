@@ -1,114 +1,64 @@
 let
-    pkgs = import (fetchTarball "https://github.com/NixOS/nixpkgs/archive/ed30f8aba416.tar.gz") {
-        config = {
-            enableCuda = true;
-            allowUnfree = true;
+  pkgs = import <nixpkgs> {
+    config = {
+      enableCuda = true;
+      allowUnfree = true;
+    };
+
+    # Override PyTorch to use a pre-compiled version (torch-bin)
+    overlays = [
+    (
+      final: prev: rec {
+        python312 = prev.python312.override {
+          self = python312;
+          packageOverrides = final_: prev_: {
+            torch = final_.torch-bin.overrideAttrs(torch-binFinalAttrs: torch-binPrevAttrs: {
+              passthru = torch-binPrevAttrs.passthru // {
+                cudaPackages = pkgs.cudaPackages;
+                rocmSupport = true; # No idea what this is or if it works, ostensibly some newfangled GPU acceleration technology
+                cudaSupport = true; # This is pain
+              };
+            });
+            torchvision = final_.torchvision-bin;
+            torchaudio = final_.torchaudio-bin;
+          };
         };
-
-        overlays = [ # Modify Python library to have overrides
-            (
-                final: prev: rec {
-                    python312 = prev.python312.override {
-                        self = python312;
-                        packageOverrides = final_: prev_: {
-                          torch = final_.torch-bin.overrideAttrs(torch-binFinalAttrs: torch-binPrevAttrs: {
-                            passthru = torch-binPrevAttrs.passthru // {
-                              cudaPackages = pkgs.cudaPackages;
-                              cudaSupport = true;
-                            };
-                          });
-                          torchvision = final_.torchvision-bin;
-                          torchaudio = final_.torchaudio-bin;
-                          trl = final_.callPackage ./build/trl/default.nix { };
-                          unsloth = final_.callPackage ./build/unsloth/default.nix { };
-                          unsloth-zoo = final_.callPackage ./build/unsloth-zoo/default.nix { };
-                          tyro = final_.callPackage ./build/tyro/default.nix { };
-                          cut-cross-entropy = final_.callPackage ./build/cut-cross-entropy/default.nix { };
-                          sklearn-compat = final_.buildPythonPackage rec { # Use pre-compiled version of sklearn-compat
-                            pname = "sklearn_compat";
-                            version = "0.1.3";
-                            format = "wheel";
-
-                            src = final_.fetchPypi {
-                                inherit pname version format;
-                                sha256 = "sha256-qKr473EZiMvWPxh8VWC18Wsl32Y6qh0tDhKRNB0zn4A=";
-                                dist = "py3";
-                                python = "py3";
-                            };
-
-                            propagatedBuildInputs = with final_; [ scikit-learn ];
-#                             doCheck = false;
-                          };
-                          imbalanced-learn = prev_.imbalanced-learn.overridePythonAttrs(imbalPrevAttrs: {
-                            dependencies = imbalPrevAttrs.dependencies ++ [ final_.sklearn-compat ];
-                            doCheck = false;
-                          });
-#                           pdfplumber = prev_.pdfplumber.overridePythonAttrs(prevAttrs: {
-#                             doCheck=false;
-#                           });
-                          # cut-cross-entropy = prev_.cut-cross-entropy.overrideAttrs(cutFinalAttrs: cutPrevAttrs: {
-                          #   triton = final_.torch-bin.triton;
-                            # pythonRemoveDeps = [
-                            #   "triton" # PyTorch has its own Triton
-                            # ];
-                          # });
-                       };
-                    };
-                }
-            )
-        ];
-};
+      }
+    )];
+  };
 in
 pkgs.mkShell {
-    buildInputs = with pkgs; [
-        tmux
-        lunarvim
-        gh
-        ghostscript
-        (python312.withPackages (p: with p; [
-            python-dotenv
-            ipykernel
-            jupyter
-            pip
-            numpy
-            pandas
-            torch
-            torchvision
-            torchaudio
-            tqdm
-            matplotlib
-            bitsandbytes
-            transformers
-            peft
-            accelerate
-            datasets
-            trl
-            scikit-learn
-            pytest
-            openpyxl
-            xlrd
-            imbalanced-learn
-            litellm
-            tyro
-            cut-cross-entropy
-            unsloth
-            unsloth-zoo
-            pillow
-            protobuf
-            boto3
-            scipy
-            einops
-            evaluate
-            camelot
-            ghostscript
-            pypdfium2
-            pyqt5
-            pypdf
-            pdfminer-six
-            pdfplumber
-            tzlocal
-#             rouge_score
-        ]
-        ))
-    ];
+  buildInputs = with pkgs; [
+  
+  nodejs
+  yarn
+  vite
+
+  (python312.withPackages (p: with p; [
+    python-dotenv # .env file for secret reading
+
+    # Jupyter:
+    ipykernel
+    jupyter
+
+    # Data science:
+    pip
+    numpy
+    pandas
+    scipy
+    tqdm
+    tzlocal
+    matplotlib
+
+    # ML:
+    # smolagents
+    torch
+    torchvision
+    torchaudio
+    transformers
+    
+    fastapi
+    llama-cpp-python
+  ]))
+  ];
 }
