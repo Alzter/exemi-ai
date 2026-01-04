@@ -1,4 +1,5 @@
 notebooks/files/
+shell_old.nix
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

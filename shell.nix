@@ -36,6 +36,7 @@ pkgs.mkShell {
 
   (python312.withPackages (p: with p; [
     python-dotenv # .env file for secret reading
+    python-multipart # Needed for FastAPI OAuth2
 
     # Jupyter:
     ipykernel
