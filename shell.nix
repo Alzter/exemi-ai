@@ -58,6 +58,7 @@ pkgs.mkShell {
     transformers
     
     fastapi
+    fastapi-cli
     llama-cpp-python
   ]))
   ];
