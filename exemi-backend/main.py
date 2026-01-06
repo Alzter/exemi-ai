@@ -1,11 +1,25 @@
 from typing import Union
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.security import OAuth2PasswordBearer
+from fastapi.middleware.cors import CORSMiddleware
 
 import requests
 
 app = FastAPI()
+
+origins = [
+    "http://localhost:5173",
+    "https://localhost:5173"
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/")
 def read_root():
@@ -28,3 +42,17 @@ async def is_token_valid(provider : str, access_token : str) -> bool:
     })
     return response.status_code == 200
 
+@app.post("/login/")
+async def login(credentials:dict):
+
+    provider = credentials["provider"]
+    access_token = credentials["token"]
+
+    legit = await is_token_valid(provider, access_token)
+
+    print(legit)
+
+    if not legit:
+        return HTTPException(status_code = 401, detail=f"Canvas Access Token for {provider} installation is invalid.")
+    
+    return "Authorised"

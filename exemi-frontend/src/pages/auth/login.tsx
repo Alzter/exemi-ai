@@ -2,14 +2,15 @@ import { useState } from 'react';
 const baseURL = import.meta.env.VITE_BACKEND_API_URL;
 
 type LoginForm = {
+    provider : string;
     token : string;
-    // username : string;
 };
 
 export default function Login(){
 
     const [form, setForm] = useState<LoginForm>({
-        token:""
+        provider:"swinburne",
+        token:"",
     });
 
     // const [token, setToken] = useState("");
@@ -35,8 +36,12 @@ export default function Login(){
         console.log(baseURL);
 
         const response = await fetch(baseURL + "/login", {
+            headers:{
+                "Content-Type":"application/json",
+                accept:"application/json"
+            },
             method:"POST",
-            body:JSON.stringify(form)
+            body:JSON.stringify(form),
         });
 
         if (!response.ok){
@@ -46,11 +51,19 @@ export default function Login(){
         }
 
         const data = await response.json();
-        console.log("Responee:", data);
+        console.log("Response:", data);
     }
 
     return (
         <form onSubmit={handleSubmit}>
+            <label>PROVIDER:
+                <input
+                    name="provider"
+                    type="text"
+                    value={form.provider}
+                    onChange={handleChange}
+                />
+            </label>
             <label>TOKEN:
                 <input
                     name="token"
