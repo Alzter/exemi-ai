@@ -53,6 +53,6 @@ async def login(credentials:dict):
     print(legit)
 
     if not legit:
-        return HTTPException(status_code = 401, detail=f"Canvas Access Token for {provider} installation is invalid.")
+        return HTTPException(status_code = 401, detail=f"Canvas access token for {provider} installation is invalid.")
     
     return "Authorised"

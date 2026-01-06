@@ -55,25 +55,27 @@ export default function Login(){
     }
 
     return (
-        <form onSubmit={handleSubmit}>
-            <label>PROVIDER:
-                <input
-                    name="provider"
-                    type="text"
-                    value={form.provider}
-                    onChange={handleChange}
-                />
-            </label>
-            <label>TOKEN:
-                <input
-                    name="token"
-                    type="password"
-                    value={form.token}
-                    onChange={handleChange}
-                />
-            </label>
-            <button type="submit">Go</button>
-            {/* <input type="submit" value="Go"/> */}
-        </form>
+        <div>
+            <form onSubmit={handleSubmit}>
+                <label>Enter your University name:
+                    <input
+                        name="provider"
+                        type="text"
+                        value={form.provider}
+                        onChange={handleChange}
+                    />
+                </label>
+                <label>Enter your Canvas token:
+                    <input
+                        name="token"
+                        type="password"
+                        value={form.token}
+                        onChange={handleChange}
+                    />
+                </label>
+                <button type="submit">Log In</button>
+                {/* <input type="submit" value="Go"/> */}
+            </form>
+        </div>
     )
 }
