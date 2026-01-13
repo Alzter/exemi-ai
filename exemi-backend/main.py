@@ -1,10 +1,11 @@
-from typing import Union
-
-from fastapi import FastAPI, HTTPException
-from fastapi.security import OAuth2PasswordBearer
-from fastapi.middleware.cors import CORSMiddleware
-
 import requests
+
+from typing import Union, Annotated
+
+from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
 app = FastAPI()
 
@@ -20,6 +21,69 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+fake_users_db = {
+    "1" : {
+        "username":"1",
+        "hashed_password":"fakehashedabc",
+        "disabled":False
+        },
+    "2": {
+        "username":"2",
+        "hashed_password":"fakehasheddef",
+        "disabled":True
+        }
+}
+
+class User(BaseModel):
+    username: str 
+    canvas_token : str | None = None
+    disabled : bool | None = None
+
+# Identical class to User, only hashed_password is mandatory.
+class UserInDB(User):
+    hashed_password: str
+    
+def get_user(db, username : str):
+    if username in db:
+        user_dict = db[username]
+        # Create a UserInDB class using fields from user_dict.
+        # This will bork if required fields are missing!!!
+        return UserInDB(**user_dict)
+
+def fake_hash_password(password : str):
+    # TODO: This is insecure
+    return "fakehashed" + password
+
+def fake_decode_token(token : Annotated[str, Depends(oauth2_scheme)]):
+    # TODO: This is insecure (why?)
+    user = get_user(fake_users_db, token)
+    return user
+
+async def get_current_user(token : Annotated[str, Depends(oauth2_scheme)]):
+    user = fake_decode_token(token)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate":"Bearer"}
+        )
+    return user
+
+async def get_current_active_user(current_user : Annotated[User, Depends(get_current_user)]):
+    if current_user.disabled:
+        raise HTTPException(status_code=400, detail="Inactive user")
+    return current_user
+
+@app.get("/users/me")
+async def read_users_me(current_user : Annotated[User, Depends(get_current_active_user)]):
+    return current_user
+
+@app.get("/items/")
+async def read_items(token: Annotated[str, Depends(oauth2_scheme)]):
+    return {"token": token}
 
 @app.get("/")
 def read_root():
@@ -42,17 +106,36 @@ async def is_token_valid(provider : str, access_token : str) -> bool:
     })
     return response.status_code == 200
 
-@app.post("/login/")
-async def login(credentials:dict):
+@app.post("/token")
+async def login(form_data : Annotated[OAuth2PasswordRequestForm, Depends()]):
 
-    provider = credentials["provider"]
-    access_token = credentials["token"]
-
-    legit = await is_token_valid(provider, access_token)
-
-    print(legit)
-
-    if not legit:
-        return HTTPException(status_code = 401, detail=f"Canvas access token for {provider} installation is invalid.")
+    # Determine if user exists
+    user_dict = fake_users_db.get(form_data.username)
+    if not user_dict:
+        raise HTTPException(status_code=400, detail="Incorrect username or password")
     
-    return "Authorised"
+    # If user does exist, obtain their password hash
+    user = UserInDB(**user_dict)
+    hashed_password = fake_hash_password(form_data.password)
+    
+    # Hash the password provided and compare it to the real password hash
+    if not hashed_password == user.hashed_password:
+        raise HTTPException(status_code=400, detail="Incorrect username or password")
+     
+    # TODO: This is insecure, the access token shall not be the user's ID.
+    return {"access_token": user.username, "token_type":"bearer"}
+
+# @app.post("/login/")
+# async def login(credentials:dict):
+# 
+#     provider = credentials["provider"]
+#     access_token = credentials["token"]
+# 
+#     legit = await is_token_valid(provider, access_token)
+# 
+#     print(legit)
+# 
+#     if not legit:
+#         return HTTPException(status_code = 401, detail=f"Canvas access token for {provider} installation is invalid.")
+#     
+#     return "Authorised"
