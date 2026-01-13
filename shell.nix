@@ -33,6 +33,7 @@ pkgs.mkShell {
   nodejs
   yarn
   vite
+  ollama
 
   (python312.withPackages (p: with p; [
     python-dotenv # .env file for secret reading
@@ -53,14 +54,15 @@ pkgs.mkShell {
 
     # ML:
     # smolagents
-    torch
-    torchvision
-    torchaudio
-    transformers
+#     torch
+#     torchvision
+#     torchaudio
+#     transformers
     
     fastapi
     fastapi-cli
     llama-cpp-python
+    huggingface-hub
   ]))
   ];
 }
