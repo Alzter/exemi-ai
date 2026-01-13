@@ -77,7 +77,7 @@ def decode_canvas_response(response : requests.Response | list[dict]) -> pd.Data
         
         response = json.loads(response)
     
-    if not response:
+    if len(response) == 0:
         # Empty response
         return pd.DataFrame([])
     
