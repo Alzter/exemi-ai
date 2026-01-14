@@ -61,6 +61,7 @@ pkgs.mkShell {
     
     fastapi
     fastapi-cli
+    pyjwt
     llama-cpp-python
     huggingface-hub
   ]))

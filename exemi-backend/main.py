@@ -1,4 +1,5 @@
-import requests
+import requests, httpx
+from copy import copy
 
 from typing import Union, Annotated
 
@@ -6,6 +7,8 @@ from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+
+from datetime import datetime
 
 app = FastAPI()
 
@@ -45,7 +48,17 @@ class User(BaseModel):
 # Identical class to User, only hashed_password is mandatory.
 class UserInDB(User):
     hashed_password: str
-    
+
+class Message(BaseModel):
+    role : str
+    content : str
+    timestamp : datetime
+
+class Conversation(BaseModel):
+    messages : list[Message]
+    user : User
+    timestamp : datetime
+   
 def get_user(db, username : str):
     if username in db:
         user_dict = db[username]
@@ -101,9 +114,10 @@ async def is_token_valid(provider : str, access_token : str) -> bool:
     Returns:
         exists (bool): Returns true if the user's access token is valid for the given Canvas provider.
     """
-    response = requests.get(f"https://{provider}.instructure.com/api/v1/users/self", params={
+    async with httpx.AsyncClient(timeout=5) as client:
+        response = await client.get(f"https://{provider}.instructure.com/api/v1/users/self", params={
         "access_token":access_token,
-    })
+        })
     return response.status_code == 200
 
 @app.post("/token")
@@ -124,6 +138,43 @@ async def login(form_data : Annotated[OAuth2PasswordRequestForm, Depends()]):
      
     # TODO: This is insecure, the access token shall not be the user's ID.
     return {"access_token": user.username, "token_type":"bearer"}
+
+@app.post("/chat_start/")
+async def chat_start(user : Annotated[User, Depends(get_current_active_user)]):
+    """
+    Create a new conversation between a user and the assistant.
+    """
+    return Conversation(
+        messages = [],
+        user=user,
+        timestamp=datetime.now()
+    )
+
+def chat_add(conversation : Conversation, new_message : Message) -> Conversation:
+    """
+    Append a new message to an existing Conversation.
+    """
+    return conversation.model_copy(
+        update={
+            "messages": [*conversation.messages, new_message]
+        }
+    ) 
+
+@app.post("/chat/")
+async def chat(conversation : Conversation, query : str):
+    """
+    For a given conversation, add a user query and then generate an LLM response.
+    """
+
+    user_message = Message(role="user",content=query,timestamp=datetime.now())
+
+    new_conversation = chat_add(conversation, user_message)
+
+    assistant_message = Message(role="assistant",content="Hello! This is a placeholder!", timestamp=datetime.now())
+
+    new_conversation = chat_add(new_conversation, assistant_message)
+
+    return new_conversation
 
 # @app.post("/login/")
 # async def login(credentials:dict):
