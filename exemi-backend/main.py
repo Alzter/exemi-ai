@@ -3,12 +3,21 @@ from copy import copy
 
 from typing import Union, Annotated
 
+import jwt
+from jwt.exceptions import InvalidTokenError
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from pwdlib import PasswordHash
+password_hash = PasswordHash.recommended() # Argon2 password hash algorithm
+
 from datetime import datetime
+
+SECRET_KEY = "3be8f0c5dc7c22f135e283712251937d8f0aae7900310c9e47077ad4c4190737"
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 app = FastAPI()
 
@@ -30,7 +39,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 fake_users_db = {
     "1" : {
         "username":"1",
-        "hashed_password":"fakehashedabc",
+        "hashed_password":"$argon2id$v=19$m=65536,t=3,p=4$wagCPXjifgvUFBzq4hqe3w$CYaIb8sB+wtD+Vu/P4uod1+Qof8h+1g7bbDlBID48Rc",
         "disabled":False
         },
     "2": {
@@ -39,6 +48,13 @@ fake_users_db = {
         "disabled":True
         }
 }
+
+class Token(BaseModel):
+    access_token : str
+    token_type : str
+
+class TokenData(BaseModel):
+    username : str | None = None
 
 class User(BaseModel):
     username: str 
@@ -58,13 +74,25 @@ class Conversation(BaseModel):
     messages : list[Message]
     user : User
     timestamp : datetime
-   
+
+def verify_password(plain_password, hashed_password):
+    return password_hash.verify(plain_password, hashed_password)
+
+def get_password_hash(password):
+    return password_hash.hash(password)
+
 def get_user(db, username : str):
     if username in db:
         user_dict = db[username]
         # Create a UserInDB class using fields from user_dict.
         # This will bork if required fields are missing!!!
         return UserInDB(**user_dict)
+
+def authenticate_user(fake_db, username:str, password:str):
+    user = get_user(fake_db, username)
+    if not user: return False
+    if not verify_password(password, user.hashed_password): return False
+    return user
 
 def fake_hash_password(password : str):
     # TODO: This is insecure

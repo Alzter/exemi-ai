@@ -33,7 +33,7 @@ pkgs.mkShell {
   nodejs
   yarn
   vite
-  ollama
+  openssl_oqs
 
   (python312.withPackages (p: with p; [
     python-dotenv # .env file for secret reading
@@ -62,6 +62,7 @@ pkgs.mkShell {
     fastapi
     fastapi-cli
     pyjwt
+    pwdlib
     llama-cpp-python
     huggingface-hub
   ]))
