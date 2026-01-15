@@ -3,6 +3,8 @@ from copy import copy
 
 from typing import Union, Annotated
 
+from datetime import datetime, timedelta, timezone
+
 import jwt
 from jwt.exceptions import InvalidTokenError
 from fastapi import FastAPI, Depends, HTTPException, status
@@ -10,11 +12,19 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+# Password hashing hard-coded parameters.
+# This defines an Argon2 password hashing algorithm
+# which we use to permanently encrypt passwords.
+# TODO: how do we change the key pair for hashing?
 from pwdlib import PasswordHash
-password_hash = PasswordHash.recommended() # Argon2 password hash algorithm
+password_hash = PasswordHash.recommended()
 
-from datetime import datetime
-
+# JSON Web Token hard-coded parameters.
+# These parameters are used to sign JSON Web Tokens
+# so that we can validate access tokens as being
+# legitimately sent by us. This prevents attackers
+# from forging access tokens to our accounts to
+# breach our system.
 SECRET_KEY = "3be8f0c5dc7c22f135e283712251937d8f0aae7900310c9e47077ad4c4190737"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
@@ -39,7 +49,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 fake_users_db = {
     "1" : {
         "username":"1",
-        "hashed_password":"$argon2id$v=19$m=65536,t=3,p=4$wagCPXjifgvUFBzq4hqe3w$CYaIb8sB+wtD+Vu/P4uod1+Qof8h+1g7bbDlBID48Rc",
+        "hashed_password":password_hash.hash("abc"), # NOTE: this is insecure! Never leave a plaintext password anywhere it can be read. The point of hashing is to NEVER store plaintext passwords.
         "disabled":False
         },
     "2": {
@@ -75,42 +85,101 @@ class Conversation(BaseModel):
     user : User
     timestamp : datetime
 
-def verify_password(plain_password, hashed_password):
+def verify_password(plain_password, hashed_password) -> bool:
+    """
+    Wrapper for password_hash.verify(), where password_hash is an instance of PasswordHash.recommended().
+    Determines if a plaintext password matches a password hash.
+    """
     return password_hash.verify(plain_password, hashed_password)
 
 def get_password_hash(password):
+    """
+    Wrapper for password_hash.hash(), where password_hash is an instance of PasswordHash.recommended().
+    Creates a hash for a given password.
+    """
     return password_hash.hash(password)
 
-def get_user(db, username : str):
+def get_user(db, username : str) -> UserInDB | None:
+    """
+    Obtain a user from the database of users if they exist.
+
+    Args:
+        db (dict): Database of users.
+        username (str): The given username.
+    
+    Returns:
+        result (UserInDB | None): Returns the user object if they exist, else None.
+    """
     if username in db:
         user_dict = db[username]
         # Create a UserInDB class using fields from user_dict.
         # This will bork if required fields are missing!!!
         return UserInDB(**user_dict)
 
-def authenticate_user(fake_db, username:str, password:str):
+def authenticate_user(fake_db, username:str, password:str) -> UserInDB | bool:
+    """
+    Determine if a user's login attempt is legitimate.
+    Args:
+        fake_db (dict): Database of accounts, where each account has a username and hashed_password field.
+        username (str): The username provided by the user.
+        password (str): The plaintext password provided by the user.
+
+    Returns:
+        result (UserInDB | bool): Returns False if authentication failed, otherwise returns the user object.
+    """
+
     user = get_user(fake_db, username)
     if not user: return False
     if not verify_password(password, user.hashed_password): return False
     return user
 
-def fake_hash_password(password : str):
-    # TODO: This is insecure
-    return "fakehashed" + password
+def create_access_token(data:dict, expires_delta:timedelta=timedelta(minutes=15)) -> str:
+    """
+    Encode a JSON Web Token dict using encryption key SECRET_KEY and algorithm ALGORITHM.
 
-def fake_decode_token(token : Annotated[str, Depends(oauth2_scheme)]):
-    # TODO: This is insecure (why?)
-    user = get_user(fake_users_db, token)
-    return user
+    Args:
+        data (dict): The JSON Web Token to encode. Should have key "sub" (subject) which identifies the token bearer (user).
+        expires_delta (timedelta, optional): How long the access token should be valid for. Defaults to 15 minutes.
 
-async def get_current_user(token : Annotated[str, Depends(oauth2_scheme)]):
-    user = fake_decode_token(token)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-            headers={"WWW-Authenticate":"Bearer"}
-        )
+    Returns:
+        token (str): An encrypted access token.
+    """
+
+    to_encode = data.copy()
+    expire = datetime.now(timezone.utc) + expires_delta
+    to_encode.update({"exp":expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+async def get_current_user(token : Annotated[str, Depends(oauth2_scheme)]) -> UserInDB:
+    """
+    Get the object of the current authenticated user if one exists,
+    otherwise return a 401 (Unauthorized) response.
+
+    Args:
+        token (str): The current access token.
+    
+    Returns:
+        user (UserInDB): The current user who is logged in.
+    
+    Raises:
+        HTTPException: The user is not logged in, OR the user account is illegal. 
+    """
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate user credentials",
+        headers={"WWW-Authenticate":"Bearer"}
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username = payload.get("sub")
+        if username is None: raise credentials_exception
+        token_data = TokenData(username=username)
+    except InvalidTokenError: raise credentials_exception
+    
+    if token_data.username is None: raise credentials_exception
+    user = get_user(fake_users_db, username=token_data.username)
+    if user is None: raise credentials_exception
     return user
 
 async def get_current_active_user(current_user : Annotated[User, Depends(get_current_user)]):
@@ -149,23 +218,55 @@ async def is_token_valid(provider : str, access_token : str) -> bool:
     return response.status_code == 200
 
 @app.post("/token")
-async def login(form_data : Annotated[OAuth2PasswordRequestForm, Depends()]):
+async def login_for_access_token(form_data : Annotated[OAuth2PasswordRequestForm, Depends()]) -> Token:
+    """
+    Handle a user login attempt, returning an access token if the credentials were valid
+    and a 401 Unauthorized response if they were not.
 
-    # Determine if user exists
-    user_dict = fake_users_db.get(form_data.username)
-    if not user_dict:
-        raise HTTPException(status_code=400, detail="Incorrect username or password")
+    Args:
+        form_data (OAuth2PasswordRequestForm):
+            A login attempt with two fields: 'username' and 'password'.
     
-    # If user does exist, obtain their password hash
-    user = UserInDB(**user_dict)
-    hashed_password = fake_hash_password(form_data.password)
+    Returns:
+        token (Token): The user's access token if the login was successful.
     
-    # Hash the password provided and compare it to the real password hash
-    if not hashed_password == user.hashed_password:
-        raise HTTPException(status_code=400, detail="Incorrect username or password")
-     
-    # TODO: This is insecure, the access token shall not be the user's ID.
-    return {"access_token": user.username, "token_type":"bearer"}
+    Raises:
+        HTTPException: Raises 401 (Unauthorized) if login credentials were invalid.
+    """
+
+
+    user = authenticate_user(fake_users_db, form_data.username, form_data.password)
+    if not user: # authenticate_user will return False if login attempt is invalid, hence the falsy check here.
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
+    
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data = {"sub" : user.username}, expires_delta=access_token_expires
+    )
+    return Token(access_token = access_token, token_type="bearer")
+
+
+# async def login(form_data : Annotated[OAuth2PasswordRequestForm, Depends()]):
+# 
+#     # Determine if user exists
+#     user_dict = fake_users_db.get(form_data.username)
+#     if not user_dict:
+#         raise HTTPException(status_code=400, detail="Incorrect username or password")
+#     
+#     # If user does exist, obtain their password hash
+#     user = UserInDB(**user_dict)
+#     hashed_password = fake_hash_password(form_data.password)
+#     
+#     # Hash the password provided and compare it to the real password hash
+#     if not hashed_password == user.hashed_password:
+#         raise HTTPException(status_code=400, detail="Incorrect username or password")
+#      
+#     # TODO: This is insecure, the access token shall not be the user's ID.
+#     return {"access_token": user.username, "token_type":"bearer"}
 
 @app.post("/chat_start/")
 async def chat_start(user : Annotated[User, Depends(get_current_active_user)]):
