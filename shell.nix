@@ -1,30 +1,30 @@
 let
   pkgs = import <nixpkgs> {
     config = {
-      enableCuda = true;
+#       enableCuda = true;
       allowUnfree = true;
     };
 
     # Override PyTorch to use a pre-compiled version (torch-bin)
-    overlays = [
-    (
-      final: prev: rec {
-        python312 = prev.python312.override {
-          self = python312;
-          packageOverrides = final_: prev_: {
-            torch = final_.torch-bin.overrideAttrs(torch-binFinalAttrs: torch-binPrevAttrs: {
-              passthru = torch-binPrevAttrs.passthru // {
-                cudaPackages = pkgs.cudaPackages;
-                rocmSupport = true; # No idea what this is or if it works, ostensibly some newfangled GPU acceleration technology
-                cudaSupport = true; # This is pain
-              };
-            });
-            torchvision = final_.torchvision-bin;
-            torchaudio = final_.torchaudio-bin;
-          };
-        };
-      }
-    )];
+#     overlays = [
+#     (
+#       final: prev: rec {
+#         python312 = prev.python312.override {
+#           self = python312;
+#           packageOverrides = final_: prev_: {
+#             torch = final_.torch-bin.overrideAttrs(torch-binFinalAttrs: torch-binPrevAttrs: {
+#               passthru = torch-binPrevAttrs.passthru // {
+#                 cudaPackages = pkgs.cudaPackages;
+#                 rocmSupport = true; # No idea what this is or if it works, ostensibly some newfangled GPU acceleration technology
+#                 cudaSupport = true; # This is pain
+#               };
+#             });
+#             torchvision = final_.torchvision-bin;
+#             torchaudio = final_.torchaudio-bin;
+#           };
+#         };
+#       }
+#     )];
   };
 in
 pkgs.mkShell {
@@ -53,18 +53,22 @@ pkgs.mkShell {
     matplotlib
 
     # ML:
-    # smolagents
+#     smolagents
 #     torch
 #     torchvision
 #     torchaudio
 #     transformers
+    huggingface-hub
     
     fastapi
     fastapi-cli
     pyjwt
     pwdlib
     llama-cpp-python
-    huggingface-hub
+    sqlmodel
+    sqlalchemy
+    mariadb
+    cryptography
   ]))
   ];
 }

@@ -12,6 +12,8 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from sqlmodel import Field, Session, SQLModel, create_engine, select
+
 # Password hashing hard-coded parameters.
 # This defines an Argon2 password hashing algorithm
 # which we use to permanently encrypt passwords.
@@ -66,10 +68,11 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     username : str | None = None
 
-class User(BaseModel):
+class User(SQLModel, table=True):
     username: str 
     canvas_token : str | None = None
     disabled : bool | None = None
+    hashed_password : str
 
 # Identical class to User, only hashed_password is mandatory.
 class UserInDB(User):
@@ -249,24 +252,6 @@ async def login_for_access_token(form_data : Annotated[OAuth2PasswordRequestForm
     )
     return Token(access_token = access_token, token_type="bearer")
 
-
-# async def login(form_data : Annotated[OAuth2PasswordRequestForm, Depends()]):
-# 
-#     # Determine if user exists
-#     user_dict = fake_users_db.get(form_data.username)
-#     if not user_dict:
-#         raise HTTPException(status_code=400, detail="Incorrect username or password")
-#     
-#     # If user does exist, obtain their password hash
-#     user = UserInDB(**user_dict)
-#     hashed_password = fake_hash_password(form_data.password)
-#     
-#     # Hash the password provided and compare it to the real password hash
-#     if not hashed_password == user.hashed_password:
-#         raise HTTPException(status_code=400, detail="Incorrect username or password")
-#      
-#     # TODO: This is insecure, the access token shall not be the user's ID.
-#     return {"access_token": user.username, "token_type":"bearer"}
 
 @app.post("/chat_start/")
 async def chat_start(user : Annotated[User, Depends(get_current_active_user)]):
