@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, HTTPException, Query
 from sqlmodel import Field, Relationship, Session, SQLModel, create_engine, select
 
@@ -64,15 +65,18 @@ engine = create_engine(url, echo=True)
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
 
+@asynccontextmanager
+async def lifespan(app : FastAPI):
+    # Startup
+    create_db_and_tables()
+    yield
+    # Shutdown
+
+app = FastAPI(lifespan=lifespan)
+
 def get_session():
     with Session(engine) as session:
         yield session
-
-app = FastAPI()
-
-@app.on_event("startup")
-def on_startup():
-    create_db_and_tables()
 
 def fake_hash_password(password : str) -> str:
     return "hashed " + password
