@@ -8,42 +8,40 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlmodel import Field, Relationship, Session, SQLModel, create_engine, select
 from pwdlib import PasswordHash
 import jwt
+from jwt.exceptions import InvalidTokenError
 from dotenv import load_dotenv
 PasswordHasher = PasswordHash.recommended()
 # Used for HS256 symmetric encryption of user tokens.
 load_dotenv()
-SECRET_KEY = os.getenv("SECRET_KEY")
-if SECRET_KEY is None: raise Exception("JSON Web Token HS256 symmetric encryption key not found from .env file!")
+SECRET_KEY = os.environ["SECRET_KEY"]
 LOGIN_SESSION_EXPIRY = timedelta(minutes=30)
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 class Token(BaseModel):
     access_token : str
     token_type : str
 
-class UserBase(SQLModel):
-    admin : bool = Field(default=False)
-    disabled : bool = Field(default=False)
+class TokenData(BaseModel):
+    username : str | None = None
 
-class User(UserBase, table=True):
+class User(SQLModel, table=True):
     id : int | None = Field(primary_key=True, default=None)
+    admin : bool = Field(default = False)
+    disabled : bool = Field(default=False)
     password_hash : str = Field(max_length=255)
     magic_hash : str | None = Field(default=None, max_length=255)
 
-class UserPublic(UserBase):
+class UserPublic(SQLModel):
     id : int
+    admin : bool = False
+    disabled : bool = False
     password_hash : str
     magic_hash : str | None = None
 
-class UserCreate(UserBase):
+class UserCreate(SQLModel):
     password : str
     magic : str | None = None
 
 class UserUpdate(SQLModel):
-    id : int | None = None
-    admin : bool | None = None
-    disabled : bool | None = None
     password : str | None = None
     magic : str | None = None
 
@@ -66,26 +64,11 @@ async def lifespan(app : FastAPI):
 
 app = FastAPI(lifespan = lifespan)
 
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
 def get_session():
     with Session(engine) as session:
         yield session
-
-@app.post("/users/", response_model = UserPublic)
-def create_user(data : UserCreate, session : Session = Depends(get_session)):
-
-    extra_data = {
-        "password_hash" : PasswordHasher.hash(data.password)
-    }
-    
-    # TODO: Implement magic encryption at rest
-    if data.magic is not None: extra_data["magic_hash"] = data.magic
-
-    user = User.model_validate(data, update = extra_data)
-
-    session.add(user)
-    session.commit()
-    session.refresh(user)
-    return user
 
 @app.get("/users/", response_model = list[UserPublic])
 def get_users(offset : int = 0, limit : int = Query(default=100, limit=100), session : Session = Depends(get_session)):
@@ -99,32 +82,6 @@ def get_user(user_id : int, session : Session = Depends(get_session)):
     user = session.get(User, user_id)
     if not user: raise HTTPException(status_code=404, detail="User not found")
     return user
-
-@app.patch("/users/{user_id}", response_model = UserPublic)
-def update_user(user_id : int, new_data : UserUpdate, session : Session = Depends(get_session)):
-    user : User = get_user(user_id, session)
-    new_data_dict = new_data.model_dump(exclude_none=True)
-    
-    extra_data = {}
-    if new_data.password is not None:
-        extra_data["hashed_password"] = PasswordHasher.hash(new_data.password)
-
-    # TODO: Encrypt magic at rest!
-    if new_data.magic is not None:
-        extra_data["magic_hash"] = new_data.magic
-    
-    user.sqlmodel_update(new_data_dict, update=extra_data)
-    session.add(user)
-    session.commit()
-    session.refresh(user)
-    return user
-
-@app.delete("/users/{user_id}")
-def delete_user(user_id : int, session : Session = Depends(get_session)):
-    user : User = get_user(user_id, session)
-    session.delete(user)
-    session.commit()
-    return {"ok":True}
 
 def authenticate_user(username : str, password : str, session : Session = Depends(get_session)) -> User:
     """
@@ -162,36 +119,54 @@ def authenticate_user(username : str, password : str, session : Session = Depend
 
     return user 
 
+def create_access_token(data:dict, expires_delta:timedelta=timedelta(minutes=15)) -> str:
+    """
+    Encode a JSON Web Token dict using encryption key SECRET_KEY and algorithm ALGORITHM.
+
+    Args:
+        data (dict): The JSON Web Token to encode. Should have key "sub" (subject) which identifies the token bearer (user).
+        expires_delta (timedelta, optional): How long the access token should be valid for. Defaults to 15 minutes.
+
+    Returns:
+        token (str): An encrypted access token.
+    """
+
+    to_encode = data.copy()
+    expire = datetime.now(timezone.utc) + expires_delta
+    to_encode.update({"exp":expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm="HS256")
+    return encoded_jwt
+
 @app.post("/token/")
-def login(login_form_data : Annotated[OAuth2PasswordRequestForm, Depends()], session : Session = Depends(get_session)) -> str:
+def login(login_form_data : Annotated[OAuth2PasswordRequestForm, Depends()], session : Session = Depends(get_session)) -> Token:
     # Check the login credentials match an account. If not, raise an exception.
-    authenticate_user(login_form_data.username, login_form_data.password, session)
+    user = authenticate_user(login_form_data.username, login_form_data.password, session)
 
     json_web_token_data = {
-        "sub" : login_form_data.username,
+        "sub" : str(user.id),
         "exp" : datetime.now(timezone.utc) + LOGIN_SESSION_EXPIRY
     }
 
     token = jwt.encode(json_web_token_data, key=SECRET_KEY, algorithm="HS256")
-    
-    return token
 
+    return Token(access_token = token, token_type = "bearer") 
+
+@app.post("/users/self")
 async def get_current_user(token : str = Depends(oauth2_scheme), session : Session = Depends(get_session)) -> User:
     fail = HTTPException(
         status_code=401,
         detail="Please log in first",
         headers={"WWW-Authenticate":"Bearer"}
     )
+    json_web_token_data = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
     try:
-        json_web_token_data = jwt.decode(token, SECRET_KEY, algorithms="HS256")
         username = json_web_token_data.get("sub")
-        if username is None: raise fail 
-    except: raise fail 
-    
-    if not username.isnumeric(): raise fail
-    user_id = int(username)
+        if username is None: raise fail
+        if not username.isnumeric(): raise fail
+        user_id = int(username)
+        user = get_user(user_id, session)
+    except: raise fail
 
-    user = get_user(user_id, session)
     if user.disabled: raise fail 
     return user
 
@@ -200,3 +175,75 @@ async def is_admin(user : User = Depends(get_current_user)):
         status_code=401,
         detail="You must have administrator privileges to perform this action")
     return user
+
+# @app.get("/magic/")
+async def get_current_magic(user : User = Depends(get_current_user)) -> str:
+    # TODO: This error sucks
+    fail = HTTPException(
+        status_code = 401,
+        detail = "Please generate a new Canvas Token"
+    )
+    if not user.magic_hash: raise fail
+    try: magic = decrypt_magic_hash(user.magic_hash)
+    except: raise fail
+    return magic
+
+def encrypt_magic(magic : str, expiry : timedelta | None = timedelta(weeks=1)) -> str:
+    data = {"sub":magic}
+    if expiry is not None: data["exp"] = datetime.now(timezone.utc) + expiry
+    return jwt.encode(data, key=SECRET_KEY, algorithm="HS256")
+
+def decrypt_magic_hash(magic_hash : str) -> str:
+    fail = HTTPException(
+        status_code = 401,
+        detail = "An error occurred.",
+        headers = {"WWW-Authenticate":"Bearer"}
+        )
+    try:
+        magic_data = jwt.decode(magic_hash, key=SECRET_KEY, algorithms=["HS256"])
+        magic = magic_data.get("sub")
+        if not magic: raise fail
+    except: raise fail
+    return magic
+
+@app.post("/users/", response_model = UserPublic)
+def create_user(data : UserCreate, session : Session = Depends(get_session)):
+
+    extra_data = {
+        "password_hash" : PasswordHasher.hash(data.password)
+    }
+    
+    if data.magic is not None:
+        extra_data["magic_hash"] = encrypt_magic(data.magic) 
+
+    user = User.model_validate(data, update = extra_data)
+
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return user
+
+# @app.patch("/users/{user_id}", response_model = UserPublic)
+# def update_user(new_data : UserUpdate, user : User = Depends(get_current_user), session : Session = Depends(get_session)):
+#     new_data_dict = new_data.model_dump(exclude_none=True)
+#     
+#     extra_data = {}
+#     if new_data.password is not None:
+#         extra_data["hashed_password"] = PasswordHasher.hash(new_data.password)
+# 
+#     if new_data.magic is not None:
+#         extra_data["magic_hash"] = encrypt_magic(new_data.magic) 
+#     
+#     user.sqlmodel_update(new_data_dict, update=extra_data)
+#     session.add(user)
+#     session.commit()
+#     session.refresh(user)
+#     return user
+# 
+# @app.delete("/users/{user_id}")
+# def delete_user(user_id : int, session : Session = Depends(get_session)):
+#     user : User = get_user(user_id, session)
+#     session.delete(user)
+#     session.commit()
+#     return {"ok":True}
+
