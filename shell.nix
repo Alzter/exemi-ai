@@ -34,6 +34,7 @@ pkgs.mkShell {
   yarn
   vite
   openssl_oqs
+  ollama
 
   (python312.withPackages (p: with p; [
     python-dotenv # .env file for secret reading
