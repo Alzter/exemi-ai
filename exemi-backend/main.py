@@ -178,17 +178,16 @@ async def is_admin(user : User = Depends(get_current_user)):
 
 # @app.get("/magic/")
 async def get_current_magic(user : User = Depends(get_current_user)) -> str:
-    # TODO: This error sucks
     fail = HTTPException(
         status_code = 401,
-        detail = "Please generate a new Canvas Token"
+        detail = "Magic not found"
     )
     if not user.magic_hash: raise fail
     try: magic = decrypt_magic_hash(user.magic_hash)
     except: raise fail
     return magic
 
-def encrypt_magic(magic : str, expiry : timedelta | None = timedelta(weeks=1)) -> str:
+def encrypt_magic(magic : str, expiry : timedelta | None = timedelta(weeks=4)) -> str:
     data = {"sub":magic}
     if expiry is not None: data["exp"] = datetime.now(timezone.utc) + expiry
     return jwt.encode(data, key=SECRET_KEY, algorithm="HS256")
@@ -208,7 +207,6 @@ def decrypt_magic_hash(magic_hash : str) -> str:
 
 @app.post("/users/", response_model = UserPublic)
 def create_user(data : UserCreate, session : Session = Depends(get_session)):
-
     extra_data = {
         "password_hash" : PasswordHasher.hash(data.password)
     }
@@ -223,22 +221,22 @@ def create_user(data : UserCreate, session : Session = Depends(get_session)):
     session.refresh(user)
     return user
 
-# @app.patch("/users/{user_id}", response_model = UserPublic)
-# def update_user(new_data : UserUpdate, user : User = Depends(get_current_user), session : Session = Depends(get_session)):
-#     new_data_dict = new_data.model_dump(exclude_none=True)
-#     
-#     extra_data = {}
-#     if new_data.password is not None:
-#         extra_data["hashed_password"] = PasswordHasher.hash(new_data.password)
-# 
-#     if new_data.magic is not None:
-#         extra_data["magic_hash"] = encrypt_magic(new_data.magic) 
-#     
-#     user.sqlmodel_update(new_data_dict, update=extra_data)
-#     session.add(user)
-#     session.commit()
-#     session.refresh(user)
-#     return user
+@app.patch("/users/self", response_model = UserPublic)
+def update_user(new_data : UserUpdate, user : User = Depends(get_current_user), session : Session = Depends(get_session)):
+    new_data_dict = new_data.model_dump(exclude_none=True)
+    
+    extra_data = {}
+    if new_data.password is not None:
+        extra_data["hashed_password"] = PasswordHasher.hash(new_data.password)
+
+    if new_data.magic is not None:
+        extra_data["magic_hash"] = encrypt_magic(new_data.magic) 
+    
+    user.sqlmodel_update(new_data_dict, update=extra_data)
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return user
 # 
 # @app.delete("/users/{user_id}")
 # def delete_user(user_id : int, session : Session = Depends(get_session)):
