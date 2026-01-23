@@ -192,7 +192,7 @@ async def get_current_user(token : str = Depends(oauth2_scheme), session : Sessi
     user_id = int(username)
 
     user = get_user(user_id, session)
-    if user.disabled: raise HTTPException(status_code=400, detail="User is disabled")
+    if user.disabled: raise fail 
     return user
 
 async def is_admin(user : User = Depends(get_current_user)):
