@@ -1,29 +1,31 @@
 # Exemi
+Exemi is an AI-powered study assistance tool designed to help students with ADHD improve their planning and time management skills.
+It utilises open-source large language models (LLMs) to provide study assistance tailored to students' unique conditions.
+It also integrates with Canvas LMS to automatically retrieve students' assignment information.
 
-## Supported Platforms
-Currently, only NixOS is supported for running Exemi, however other platforms are planned soon.
+## Dependencies
+To run Exemi, you will need the [Nix](https://nixos.org/) package manager installed.
+Nix works best on Linux systems: compatibility is not guaranteed for Windows or Mac systems.
 
 ## Installation
-To install Exemi, you must clone this repository and then install all dependencies.
-
-### NixOS
-Clone this repository and ``cd`` into the local folder. Run this command to install all dependencies:
-
+Clone this repository, then open ``bash`` and ``cd`` into the install directory.
+Run the following command to install all dependencies for Exemi.
 ```bash
 nix-build shell.nix
 ```
 
-## Running 
-### NixOS
-To start Exemi, run this command:
+## Running
+To start Exemi, run:
 ```bash
 nix-shell
 sh run.sh
 ```
-To shut down Exemi, terminate the process with CTRL+C.
+To stop Exemi, terminate the process with CTRL+C.
 
 ## Architecture Design
-Frontend: Vite + React
-Middleware: FastAPI
-Backend: Python
-Database: MariaDB
+- Frontend: Vite + React (TypeScript)
+- Backend: FastAPI + SQLModel (Python)
+- Database: MariaDB (SQL)
+
+## License
+Exemi is licensed under the GNU General Public License v3, meaning you are free to modify or redistribute it as you see fit so long as you retain the same license.
