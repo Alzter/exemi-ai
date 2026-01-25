@@ -13,39 +13,7 @@ LOGIN_SESSION_EXPIRY = timedelta(minutes=30)
 router = APIRouter()
 oauth2_scheme = get_oauth2_scheme()
 from .magic import encrypt_magic, decrypt_magic_hash 
-
-class Token(BaseModel):
-    access_token : str
-    token_type : str
-
-class TokenData(BaseModel):
-    username : str | None = None
-
-class UserBase(SQLModel):
-    magic_provider : str | None = Field(default=None, max_length=255, index=True)
-
-class User(UserBase, table=True):
-    id : int | None = Field(primary_key=True, default=None)
-    admin : bool = Field(default = False)
-    disabled : bool = Field(default=False)
-    password_hash : str = Field(max_length=255)
-    magic_hash : str | None = Field(default=None, max_length=255)
-
-class UserPublic(UserBase):
-    id : int
-    admin : bool = False
-    disabled : bool = False
-    password_hash : str
-    magic_hash : str | None = None
-
-class UserCreate(UserBase):
-    password : str
-    magic : str | None = None
-
-class UserUpdate(SQLModel):
-    password : str | None = None
-    magic : str | None = None
-    magic_provider : str | None = None
+from ..models import User, UserCreate, UserUpdate, UserPublic, Token, TokenData
 
 # @router.get("/users/", response_model = list[UserPublic])
 def get_users(offset : int = 0, limit : int = Query(default=100, limit=100), session : Session = Depends(get_session)):
