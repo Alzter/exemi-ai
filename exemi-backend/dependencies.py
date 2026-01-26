@@ -72,10 +72,10 @@ async def is_magic_valid(provider : str, magic : str) -> bool:
         })
     return response.status_code == 200
 
-async def encrypt_magic(magic : str, magic_provider : str | None, expiry : timedelta | None = timedelta(weeks=4)) -> str:
-    if magic_provider is None: raise HTTPException(status_code=400, detail="magic_provider must be given when providing a magic")
+async def encrypt_magic(magic : str, university_name : str | None, expiry : timedelta | None = timedelta(weeks=4)) -> str:
+    if university_name is None: raise HTTPException(status_code=400, detail="university_name must be given when providing a magic")
 
-    legit = await is_magic_valid(magic_provider, magic)
+    legit = await is_magic_valid(university_name, magic)
 
     if not legit:
         raise HTTPException(
@@ -103,20 +103,20 @@ def decrypt_magic_hash(magic_hash : str) -> str:
 
 async def get_current_magic(user : User = Depends(get_current_user)) -> str:
     """
-    Given a user is logged in, obtain their magic and magic_provider in plaintext.
+    Given a user is logged in, obtain their magic and university_name in plaintext.
 
     Args:
         user (User): The current logged in user.
     
     Raises:
-        HTTPException: If the user does not have a magic or magic_provider set, raises a 404 Exception.
+        HTTPException: If the user does not have a magic or university_name set, raises a 404 Exception.
 
     Returns:
         magic (str): The user's magic in plaintext.
     """
-    magic_hash, magic_provider = user.magic_hash, user.magic_provider
+    magic_hash, university_name = user.magic_hash, user.university_name
     if magic_hash is None: raise HTTPException(status_code=404,detail="User does not have a magic")
-    if magic_provider is None: raise HTTPException(status_code=404, detail="User does not have a magic_provider")
+    if university_name is None: raise HTTPException(status_code=404, detail="User does not have a university_name")
     magic = decrypt_magic_hash(magic_hash)
     return magic
 

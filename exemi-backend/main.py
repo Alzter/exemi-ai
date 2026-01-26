@@ -4,7 +4,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query
 # from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlmodel import Field, Relationship, Session, SQLModel, create_engine, select
 from fastapi.middleware.cors import CORSMiddleware
-from .routers import users, units 
+from .routers import universities, users, units 
 
 # # Establish a connection to the database.
 # # TODO: Make the connection URL specified elsewhere! 
@@ -24,6 +24,7 @@ async def lifespan(app : FastAPI):
     # Shutdown
 
 app = FastAPI(lifespan = lifespan)
+app.include_router(universities.router)
 app.include_router(users.router)
 app.include_router(units.router)
 

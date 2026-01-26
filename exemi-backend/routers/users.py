@@ -114,7 +114,7 @@ async def create_user(data : UserCreate, session : Session = Depends(get_session
     }
     
     if data.magic is not None:
-        extra_data["magic_hash"] = await encrypt_magic(data.magic, data.university) 
+        extra_data["magic_hash"] = await encrypt_magic(data.magic, data.university_name) 
 
     user = User.model_validate(data, update = extra_data)
 
@@ -132,7 +132,7 @@ async def update_user(new_data : UserUpdate, user : User = Depends(get_current_u
         extra_data["hashed_password"] = PasswordHasher.hash(new_data.password)
 
     if new_data.magic is not None:
-        extra_data["magic_hash"] = await encrypt_magic(new_data.magic, new_data.university) 
+        extra_data["magic_hash"] = await encrypt_magic(new_data.magic, new_data.university_name) 
     
     user.sqlmodel_update(new_data_dict, update=extra_data)
     session.add(user)

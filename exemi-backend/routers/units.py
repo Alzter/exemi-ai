@@ -18,7 +18,7 @@ async def canvas_get_units(exclude_complete_units : bool = False, exclude_orgini
     params = {"include":"term"}
     if exclude_complete_units: params["enrollment_state"] = "active"
     
-    raw_units = await query_canvas(path="courses", magic=magic, provider=current_user.university, max_items=50, params=params)
+    raw_units = await query_canvas(path="courses", magic=magic, provider=current_user.university_name, max_items=50, params=params)
     
     # Internally, Swinburne Organisation (ORG) units are assigned to enrollment term ID 1
     # Since we're only concerned with academic units, let's filter out organisation units
@@ -57,7 +57,7 @@ async def canvas_get_term(unit_id : int, current_user : User = Depends(get_curre
     # through Swinburne's official timetable!! FIXME
 
     params = {"include":"term"}
-    unit_data = await query_canvas(path=f"courses/{unit_id}", magic=magic, provider=current_user.university, max_items=50, params=params)
+    unit_data = await query_canvas(path=f"courses/{unit_id}", magic=magic, provider=current_user.university_name, max_items=50, params=params)
     term_df = decode_canvas_response( unit_data.term.to_list() )
     term_data = term_df.to_dict(orient='records')[0]
     
@@ -68,7 +68,7 @@ async def canvas_get_assignments(unit_id : int, current_user : User = Depends(ge
     path = f"courses/{unit_id}/assignment_groups"
     params = {"include":"assignments"}
 
-    assignment_groups = await query_canvas(path=path, magic=magic, provider=current_user.university, max_items=50, params=params)
+    assignment_groups = await query_canvas(path=path, magic=magic, provider=current_user.university_name, max_items=50, params=params)
     assignment_groups["course_id"] = unit_id
 
     raw_assignments = assignment_groups.assignments.explode().dropna().tolist()
@@ -179,7 +179,7 @@ async def create_units_from_canvas(session : Session = Depends(get_session), cur
     and recursively creates University, Term, and Assignment objects to populate the fields.
     """
     
-    university_name : str = current_user.university
+    university_name : str = current_user.university_name
     
     # TODO: Create a University object if one does not exist!
 

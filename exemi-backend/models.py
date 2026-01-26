@@ -3,9 +3,12 @@ from sqlmodel import SQLModel, Field, Relationship, Column
 from datetime import datetime, timezone
 from sqlalchemy.dialects.mysql import TEXT, LONGTEXT
 
+class University(SQLModel, table=True):
+    name : str = Field(primary_key=True, index=True, max_length=255)
+
 class UserBase(SQLModel):
     username : str = Field(max_length=255, unique=True)
-    university : str | None = Field(default=None, max_length=255, index=True)
+    university_name : str = Field(max_length=255, index=True, foreign_key='university.name')
 
 class User(UserBase, table=True):
     id : int | None = Field(primary_key=True, default=None)
@@ -28,15 +31,13 @@ class UserCreate(UserBase):
 class UserUpdate(SQLModel):
     password : str | None = None
     magic : str | None = None
-    university : str | None = None
-
-class University(SQLModel, table=True):
-    name : str = Field(primary_key=True, index=True, max_length=255)
+    university_name : str | None = None
 
 class TermBase(SQLModel):
     start_at : datetime
     end_at : datetime
     name : str = Field(max_length=255, unique=True)
+    university_name : str = Field(max_length=255, index=True, foreign_key='university.name')
 
 class Term(TermBase, table=True):
     id : int | None = Field(primary_key=True,default=None)
