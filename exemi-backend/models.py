@@ -1,6 +1,7 @@
 from pydantic import BaseModel
-from sqlmodel import SQLModel, Field, Relationship
+from sqlmodel import SQLModel, Field, Relationship, Column
 from datetime import datetime, timezone
+from sqlalchemy.dialects.mysql import TEXT, LONGTEXT
 
 class UserBase(SQLModel):
     username : str = Field(max_length=255, unique=True)
@@ -35,28 +36,37 @@ class University(SQLModel, table=True):
 class TermBase(SQLModel):
     start_at : datetime
     end_at : datetime
-    name : str = Field(max_length=255)
+    name : str = Field(max_length=255, unique=True)
 
 class Term(TermBase, table=True):
     id : int | None = Field(primary_key=True,default=None)
+    units : list["Unit"] = Relationship(back_populates="term")
 
-class TermPublic(TermBase): id : int
+class TermCreate(TermBase): pass
+
+class TermPublic(TermBase):
+    id : int
 
 class UnitBase(SQLModel):
     #university : str = Field(primary_key=True, index=True, max_length=255, foreign_key="university.name")
-    name : str = Field(max_length=255)
+    name : str = Field(max_length=255, unique=True)
+    term_id : int | None = Field(default=None, foreign_key="term.id")
 
 class Unit(UnitBase, table=True):
     id : int | None = Field(primary_key=True, default=None)
     assignments : list["Assignment"] = Relationship(back_populates="unit")
+    term : Term | None = Relationship(back_populates="units")
 
-class UnitPublic(UnitBase): id : int 
+class UnitCreate(UnitBase): pass
+
+class UnitPublic(UnitBase):
+    id : int
 
 class AssignmentBase(SQLModel):
     unit_id : int | None = Field(default=None, foreign_key="unit.id")
-    name : str = Field(max_length=255)
-    description : str = Field(max_length=2048)
-    due_at : datetime = Field()
+    name : str | None = Field(max_length=255, default=None)
+    description : str = Field(sa_column=Column(TEXT),default="")
+    due_at : datetime | None = Field(default=None)
     points : int = Field()
     is_group : bool = Field()
 
