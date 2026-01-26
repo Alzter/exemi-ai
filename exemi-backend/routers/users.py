@@ -1,19 +1,16 @@
-from pydantic import BaseModel
+from ..models import User, UserCreate, UserUpdate, UserPublic, Token
 from typing import Annotated
-from sqlmodel import SQLModel, Session, Field, Relationship, select
+from sqlmodel import Session, select
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.security import OAuth2PasswordRequestForm
 import jwt
-from ..dependencies import get_session, get_secret_key, get_oauth2_scheme
+from ..dependencies import get_session, get_secret_key, encrypt_magic
+from ..dependencies import get_current_user as root_get_current_user
 from datetime import datetime, timedelta, timezone
 from pwdlib import PasswordHash
 PasswordHasher = PasswordHash.recommended()
-SECRET_KEY = get_secret_key()
 LOGIN_SESSION_EXPIRY = timedelta(minutes=30)
 router = APIRouter()
-oauth2_scheme = get_oauth2_scheme()
-from .magic import encrypt_magic, decrypt_magic_hash 
-from ..models import User, UserCreate, UserUpdate, UserPublic, Token, TokenData
 
 # @router.get("/users/", response_model = list[UserPublic])
 def get_users(offset : int = 0, limit : int = Query(default=100, limit=100), session : Session = Depends(get_session)):
@@ -67,24 +64,6 @@ def authenticate_user(username : str, password : str, session : Session = Depend
 
     return user 
 
-def create_access_token(data:dict, expires_delta:timedelta=timedelta(minutes=15)) -> str:
-    """
-    Encode a JSON Web Token dict using encryption key SECRET_KEY and algorithm ALGORITHM.
-
-    Args:
-        data (dict): The JSON Web Token to encode. Should have key "sub" (subject) which identifies the token bearer (user).
-        expires_delta (timedelta, optional): How long the access token should be valid for. Defaults to 15 minutes.
-
-    Returns:
-        token (str): An encrypted access token.
-    """
-
-    to_encode = data.copy()
-    expire = datetime.now(timezone.utc) + expires_delta
-    to_encode.update({"exp":expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm="HS256")
-    return encoded_jwt
-
 @router.post("/token/")
 def login(login_form_data : Annotated[OAuth2PasswordRequestForm, Depends()], session : Session = Depends(get_session)) -> Token:
     # Check the login credentials match an account. If not, raise an exception.
@@ -95,42 +74,13 @@ def login(login_form_data : Annotated[OAuth2PasswordRequestForm, Depends()], ses
         "exp" : datetime.now(timezone.utc) + LOGIN_SESSION_EXPIRY
     }
 
-    token = jwt.encode(json_web_token_data, key=SECRET_KEY, algorithm="HS256")
+    token = jwt.encode(json_web_token_data, key=get_secret_key(), algorithm="HS256")
 
     return Token(access_token = token, token_type = "bearer") 
 
-@router.post("/users/self")
-async def get_current_user(token : str = Depends(oauth2_scheme), session : Session = Depends(get_session)) -> User:
-    fail = HTTPException(
-        status_code=401,
-        detail="Please log in first",
-        headers={"WWW-Authenticate":"Bearer"}
-    )
-    json_web_token_data = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-    try:
-        username = json_web_token_data.get("sub")
-        if username is None: raise fail
-        user = get_user(username, session)
-    except: raise fail
-
-    if user.disabled: raise fail 
-    return user
-
-async def is_admin(user : User = Depends(get_current_user)):
-    if not user.admin: raise HTTPException(
-        status_code=401,
-        detail="You must have administrator privileges to perform this action")
-    return user
-
-# @router.get("/users/self/magic")
-async def get_current_magic(user : User = Depends(get_current_user)):
-    magic_hash = user.magic_hash
-    if magic_hash is None: raise HTTPException(
-        status_code=404,
-        detail="User does not have a magic!"
-    )
-    magic = decrypt_magic_hash(magic_hash)
-    return magic
+@router.post("/users/self", response_model=UserPublic)
+async def get_current_user(current_user : User = Depends(root_get_current_user)):
+    return current_user # TODO: THIS IS BAD
 
 # @router.get("/users/{user_id}", response_model = UserPublic)
 # async def get_user_safe(user_id : int, current_user : User = Depends(get_current_user), session : Session = Depends(get_session)):
@@ -185,11 +135,11 @@ async def update_user(new_data : UserUpdate, user : User = Depends(get_current_u
     session.refresh(user)
     return user
 
-@router.get("/users/self/assignments")
-async def get_assignments(current_user : User = Depends(get_current_user)):
-    raise HTTPException(status_code=400, detail="Not yet implemented")
-    pass 
-
+# @router.get("/users/self/assignments")
+# async def get_assignments(current_user : User = Depends(get_current_user)):
+#     raise HTTPException(status_code=400, detail="Not yet implemented")
+#     pass 
+# 
 # @router.delete("/users/{user_id}")
 # def delete_user(user_id : int, session : Session = Depends(get_session)):
 #     user : User = get_user(user_id, session)
