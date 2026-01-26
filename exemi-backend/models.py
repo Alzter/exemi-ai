@@ -2,13 +2,6 @@ from pydantic import BaseModel
 from sqlmodel import SQLModel, Field, Relationship
 from datetime import datetime, timezone
 
-class Token(BaseModel):
-    access_token : str
-    token_type : str
-
-class TokenData(BaseModel):
-    username : str | None = None
-
 class UserBase(SQLModel):
     username : str = Field(max_length=255, unique=True)
     magic_provider : str | None = Field(default=None, max_length=255, index=True)
@@ -35,12 +28,13 @@ class UserUpdate(SQLModel):
     password : str | None = None
     magic : str | None = None
     magic_provider : str | None = None
+
 class UnitBase(SQLModel):
     name : str = Field(max_length=255)
-    start_at : datetime = Field()
-    end_at : datetime = Field() 
+    start_at : datetime | None = Field(default=None)
+    end_at : datetime | None = Field(default=None) 
 
-class Unit(SQLModel, table=True):
+class Unit(UnitBase, table=True):
     id : int | None = Field(primary_key=True, default=None)
     assignments : list["Assignment"] = Relationship(back_populates="unit")
 

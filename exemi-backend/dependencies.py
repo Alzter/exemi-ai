@@ -1,5 +1,6 @@
 import os
 import jwt
+from jwt.exceptions import ExpiredSignatureError
 import httpx
 from datetime import datetime, timezone, timedelta
 from sqlmodel import Session, create_engine, select
@@ -37,7 +38,15 @@ async def get_current_user(token : str = Depends(oauth2_scheme), session : Sessi
         detail="Please log in first",
         headers={"WWW-Authenticate":"Bearer"}
     )
-    json_web_token_data = jwt.decode(token, get_secret_key(), algorithms=["HS256"])
+    try:
+        json_web_token_data = jwt.decode(token, get_secret_key(), algorithms=["HS256"])
+    except ExpiredSignatureError:
+        raise HTTPException(
+            status_code=401,
+            detail="Login session has timed out. Please log in again",
+            headers={"WWW-Authenticate":"Bearer"}
+        )
+
     username = json_web_token_data.get("sub")
     if username is None: raise fail
     user = session.exec(
