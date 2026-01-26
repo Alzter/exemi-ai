@@ -77,6 +77,7 @@ def login(login_form_data : Annotated[OAuth2PasswordRequestForm, Depends()], ses
     token = jwt.encode(json_web_token_data, key=get_secret_key(), algorithm="HS256")
 
     return {
+        "access_token" : token,
         "token" : token,
         "token_type" : "bearer",
         "user" : user.id

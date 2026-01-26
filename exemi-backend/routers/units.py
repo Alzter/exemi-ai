@@ -4,13 +4,16 @@ from sqlmodel import Session, select
 from fastapi import APIRouter, Depends, HTTPException, Query
 from ..dependencies import get_session, get_secret_key, get_current_user, get_current_magic
 from ..canvas_api import query_canvas
-from pandas import DataFrame
+from fastapi.responses import JSONResponse
+import pandas as pd
 
 router = APIRouter()
 
-@router.get("/assignments/")
-async def get_assignments(current_user : User = Depends(get_current_user), magic : str = Depends(get_current_magic)):
-
-    units = await query_canvas(path="courses", magic=magic, provider = current_user.magic_provider, max_items=50)
+@router.get("/units/")
+async def get_units(exclude_complete_units : bool = False, current_user : User = Depends(get_current_user), magic : str = Depends(get_current_magic)):
+    params = {}
+    if exclude_complete_units: params["enrollment_state"] = "active"
     
-    return units
+    units = await query_canvas(path="courses", magic=magic, provider = current_user.magic_provider, max_items=50, params=params)
+    return units.fillna(value="").to_dict(orient='records')
+

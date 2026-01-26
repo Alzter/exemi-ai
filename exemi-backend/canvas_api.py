@@ -5,7 +5,6 @@ import pandas as pd
 from datetime import datetime
 from tzlocal import get_localzone
 from fastapi import HTTPException
-from fastapi.responses import JSONResponse
 
 """
 Decodes Canvas API responses into DataFrames for downstream use.
@@ -56,7 +55,7 @@ def process_canvas_dataframe(response : pd.DataFrame) -> pd.DataFrame:
     response = response.dropna(axis=1, how="all") # Drop columns with entirely NA values
     return response
     
-def decode_canvas_response(response : requests.Response | list[dict]) -> pd.DataFrame:
+def decode_canvas_response(response : requests.Response | httpx.Response | list[dict]) -> pd.DataFrame:
     """
     Converts raw Canvas API response into a DataFrame for downstream use,
     or raises Exception if the response is invalid.
@@ -67,26 +66,45 @@ def decode_canvas_response(response : requests.Response | list[dict]) -> pd.Data
     Returns:
         response_data (DataFrame): The response data.
     """
+    
+    if type(response) is list:
+        response_list = response
 
-    if type(response) is requests.Response:
-        if not response.ok: response.raise_for_status()
+    elif type(response) is requests.Response or type(response) is httpx.Response:
+        if not response.status_code == 200:
+            raise HTTPException(
+                status_code = response.status_code,
+                detail=response.text
+            )
+
+        try:
+            content = response.content
+            if not content: raise HTTPException(status_code=400, detail="Canvas API response contained no content")
+        except: raise HTTPException(status_code=400, detail="Canvas API response contained no content")
 
         # Canvas API will always respond in JSON format,
         # but we obtain the response in bytes, so it
         # must be decoded into a raw string and then
         # encoded into a JSON object.
         
-        response = response.content.decode('utf-8')
-        response = json.loads(response)
+        content = content.decode('utf-8')
+        response_json : dict | list = json.loads(content)
+
+        if type(response_json) is list:
+            response_list = response_json
+        else:
+            response_list = [response_json]
+
+    else:
+        raise ValueError("Response must be either a requests/httpx Response object or a list of dicts.")
     
-    if not response:
-        # Empty response
+    # Empty response
+    if not response_list:
         return pd.DataFrame([])
     
-    if type(response) is not list: response = [response]
-    response = pd.DataFrame(response)
-    response = process_canvas_dataframe(response)
-    return response
+    response_df = pd.DataFrame(response_list)
+    response_df = process_canvas_dataframe(response_df)
+    return response_df
 
 async def query_canvas(path : str, magic : str, provider : str, params : dict = {}, max_items : int = 100, timeout : int = 60) -> pd.DataFrame:
     """
@@ -128,12 +146,11 @@ async def query_canvas(path : str, magic : str, provider : str, params : dict = 
         )
     
     try:
-        data : DataFrame = decode_canvas_response(response)
+        data : pd.DataFrame = decode_canvas_response(response)
     except Exception as e:
         raise HTTPException(
             status_code = 500,
             detail = str(e)
         )
     
-    content = data.to_json(orient='records') 
-    return JSONResponse(content=content)
+    return data
