@@ -64,7 +64,7 @@ def authenticate_user(username : str, password : str, session : Session = Depend
 
     return user 
 
-@router.post("/token/")
+@router.post("/login/")
 def login(login_form_data : Annotated[OAuth2PasswordRequestForm, Depends()], session : Session = Depends(get_session)) -> Token:
     # Check the login credentials match an account. If not, raise an exception.
     user = authenticate_user(login_form_data.username, login_form_data.password, session)

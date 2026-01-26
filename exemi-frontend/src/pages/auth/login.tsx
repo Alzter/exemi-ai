@@ -1,16 +1,16 @@
 import { useState } from 'react';
-const baseURL = import.meta.env.VITE_BACKEND_API_URL;
+const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 
 type LoginForm = {
-    provider : string;
-    token : string;
+    username : string;
+    password : string;
 };
 
 export default function Login(){
 
     const [form, setForm] = useState<LoginForm>({
-        provider:"swinburne",
-        token:"",
+        username:"",
+        password:"",
     });
 
     // const [token, setToken] = useState("");
@@ -33,15 +33,19 @@ export default function Login(){
         event.preventDefault();
         console.log(form);
 
-        console.log(baseURL);
+        console.log(backendURL);
 
-        const response = await fetch(baseURL + "/login", {
+        const body = new URLSearchParams();
+        body.append("username", form.username);
+        body.append("password", form.password);
+
+        const response = await fetch(backendURL + "/login", {
             headers:{
-                "Content-Type":"application/json",
+                "Content-Type":"application/x-www-form-urlencoded",
                 accept:"application/json"
             },
             method:"POST",
-            body:JSON.stringify(form),
+            body: body.toString(),
         });
 
         if (!response.ok){
@@ -57,19 +61,19 @@ export default function Login(){
     return (
         <div>
             <form onSubmit={handleSubmit}>
-                <label>Enter your University name:
+                <label>Enter your participant ID:
                     <input
-                        name="provider"
+                        name="username"
                         type="text"
-                        value={form.provider}
+                        value={form.username}
                         onChange={handleChange}
                     />
                 </label>
-                <label>Enter your Canvas token:
+                <label>Enter your password:
                     <input
-                        name="token"
+                        name="password"
                         type="password"
-                        value={form.token}
+                        value={form.password}
                         onChange={handleChange}
                     />
                 </label>

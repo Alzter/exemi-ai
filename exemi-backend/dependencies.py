@@ -16,7 +16,7 @@ load_dotenv()
 url = "mariadb+mariadbconnector://root:root@127.0.0.1:3306/exemi"
 engine = create_engine(url, echo=True)
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
 def get_engine(): return engine
 

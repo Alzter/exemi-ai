@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, HTTPException, Query
 # from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlmodel import Field, Relationship, Session, SQLModel, create_engine, select
+from fastapi.middleware.cors import CORSMiddleware
 from .routers import users, assignments
 
 # # Establish a connection to the database.
@@ -25,6 +26,19 @@ async def lifespan(app : FastAPI):
 app = FastAPI(lifespan = lifespan)
 app.include_router(users.router)
 app.include_router(assignments.router)
+
+origins = [
+    "http://localhost:5173",
+    "https://localhost:5173"
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # def get_session():
 #     with Session(engine) as session:
