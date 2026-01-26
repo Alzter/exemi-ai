@@ -29,17 +29,28 @@ class UserUpdate(SQLModel):
     magic : str | None = None
     magic_provider : str | None = None
 
-class UnitBase(SQLModel):
+class University(SQLModel, table=True):
+    name : str = Field(primary_key=True, index=True, max_length=255)
+
+class TermBase(SQLModel):
+    start_at : datetime
+    end_at : datetime
     name : str = Field(max_length=255)
-    start_at : datetime | None = Field(default=None)
-    end_at : datetime | None = Field(default=None) 
+
+class Term(TermBase, table=True):
+    id : int | None = Field(primary_key=True,default=None)
+
+class TermPublic(TermBase): id : int
+
+class UnitBase(SQLModel):
+    #university : str = Field(primary_key=True, index=True, max_length=255, foreign_key="university.name")
+    name : str = Field(max_length=255)
 
 class Unit(UnitBase, table=True):
     id : int | None = Field(primary_key=True, default=None)
     assignments : list["Assignment"] = Relationship(back_populates="unit")
 
-class UnitPublic(UnitBase):
-    id : int 
+class UnitPublic(UnitBase): id : int 
 
 class AssignmentBase(SQLModel):
     unit_id : int | None = Field(default=None, foreign_key="unit.id")
