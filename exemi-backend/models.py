@@ -8,7 +8,7 @@ class University(SQLModel, table=True):
 
 class UserBase(SQLModel):
     username : str = Field(max_length=255, unique=True)
-    university_name : str = Field(max_length=255, index=True, foreign_key='university.name')
+    university_name : str | None = Field(default=None, max_length=255, index=True, foreign_key='university.name', ondelete="SET NULL")
 
 class User(UserBase, table=True):
     id : int | None = Field(primary_key=True, default=None)
@@ -37,11 +37,11 @@ class TermBase(SQLModel):
     start_at : datetime
     end_at : datetime
     name : str = Field(max_length=255, unique=True)
-    university_name : str = Field(max_length=255, index=True, foreign_key='university.name')
+    university_name : str = Field(max_length=255, index=True, foreign_key='university.name', ondelete="CASCADE")
 
 class Term(TermBase, table=True):
     id : int | None = Field(primary_key=True,default=None)
-    units : list["Unit"] = Relationship(back_populates="term")
+    units : list["Unit"] = Relationship(back_populates="term", cascade_delete=True)
 
 class TermCreate(TermBase): pass
 
@@ -51,12 +51,12 @@ class TermPublic(TermBase):
 class UnitBase(SQLModel):
     #university : str = Field(primary_key=True, index=True, max_length=255, foreign_key="university.name")
     name : str = Field(max_length=255, unique=True)
-    term_id : int | None = Field(default=None, foreign_key="term.id")
+    term_id : int | None = Field(default=None, foreign_key="term.id", ondelete="CASCADE")
 
 class Unit(UnitBase, table=True):
     id : int | None = Field(primary_key=True, default=None)
     assignments : list["Assignment"] = Relationship(back_populates="unit")
-    term : Term | None = Relationship(back_populates="units")
+    term : Term | None = Relationship(back_populates="units", cascade_delete=True)
 
 class UnitCreate(UnitBase): pass
 
@@ -64,7 +64,7 @@ class UnitPublic(UnitBase):
     id : int
 
 class AssignmentBase(SQLModel):
-    unit_id : int | None = Field(default=None, foreign_key="unit.id")
+    unit_id : int | None = Field(default=None, foreign_key="unit.id", ondelete="CASCADE")
     name : str | None = Field(max_length=255, default=None)
     description : str = Field(sa_column=Column(TEXT),default="")
     due_at : datetime | None = Field(default=None)
@@ -73,7 +73,7 @@ class AssignmentBase(SQLModel):
 
 class Assignment(AssignmentBase, table=True):
     id : int | None = Field(primary_key=True, default=None)
-    unit : Unit | None = Relationship(back_populates="assignments")
+    unit : Unit | None = Relationship(back_populates="assignments", cascade_delete=True)
 
 class AssignmentCreate(AssignmentBase): pass
 
