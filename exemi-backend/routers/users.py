@@ -23,8 +23,15 @@ def get_users(offset : int = 0, limit : int = Query(default=100, limit=100), ses
     return users
 
 # @router.get("/users/{user_id}", response_model = UserPublic)
-def sudo_get_user(user_id : int, session : Session = Depends(get_session)):
-    user = session.get(User, user_id)
+# def get_user(user_id : int, session : Session = Depends(get_session)):
+#     user = session.get(User, user_id)
+#     if not user: raise HTTPException(status_code=404, detail="User not found")
+#     return user
+
+def get_user(username : str, session : Session = Depends(get_session)):
+    user = session.exec(
+        select(User).where(User.username == username)
+    ).first()
     if not user: raise HTTPException(status_code=404, detail="User not found")
     return user
 
@@ -47,18 +54,14 @@ def authenticate_user(username : str, password : str, session : Session = Depend
         detail = "User ID or password is incorrect",
         headers = {"WWW-Authenticate": "Bearer"}
     )
-
-    # NOTE: We only use user IDs to log on, so all usernames must map to an int.
-    if not username.isnumeric(): raise fail
-
-    try:
-        id = int(username)
-        user = sudo_get_user(id, session)
-    # If the user does not exist, raise the same exception as an incorrect password
-    # so that people can't tell if it was the username or password that failed
-    except HTTPException:
-        raise fail
     
+    # If the user account does not exist, raise the same exception
+    # as if the password were incorrect to prevent attackers from
+    # being able to find which usernames are linked to accounts
+    try:
+        user = get_user(username, session)
+    except: raise fail
+
     password_match = PasswordHasher.verify(password, user.password_hash)
     if not password_match: raise fail
 
@@ -88,7 +91,7 @@ def login(login_form_data : Annotated[OAuth2PasswordRequestForm, Depends()], ses
     user = authenticate_user(login_form_data.username, login_form_data.password, session)
 
     json_web_token_data = {
-        "sub" : str(user.id),
+        "sub" : user.username,
         "exp" : datetime.now(timezone.utc) + LOGIN_SESSION_EXPIRY
     }
 
@@ -96,7 +99,7 @@ def login(login_form_data : Annotated[OAuth2PasswordRequestForm, Depends()], ses
 
     return Token(access_token = token, token_type = "bearer") 
 
-# @router.post("/users/self")
+@router.post("/users/self")
 async def get_current_user(token : str = Depends(oauth2_scheme), session : Session = Depends(get_session)) -> User:
     fail = HTTPException(
         status_code=401,
@@ -107,9 +110,7 @@ async def get_current_user(token : str = Depends(oauth2_scheme), session : Sessi
     try:
         username = json_web_token_data.get("sub")
         if username is None: raise fail
-        if not username.isnumeric(): raise fail
-        user_id = int(username)
-        user = sudo_get_user(user_id, session)
+        user = get_user(username, session)
     except: raise fail
 
     if user.disabled: raise fail 
@@ -121,16 +122,38 @@ async def is_admin(user : User = Depends(get_current_user)):
         detail="You must have administrator privileges to perform this action")
     return user
 
-@router.get("/users/{user_id}", response_model = UserPublic)
-async def get_user(user_id : int, current_user : User = Depends(get_current_user), session : Session = Depends(get_session)):
-    if not current_user.id == user_id and not current_user.admin: raise HTTPException(
-        status_code=401,
-        detail="You do not have permission to access that resource"
+# @router.get("/users/self/magic")
+async def get_current_magic(user : User = Depends(get_current_user)):
+    magic_hash = user.magic_hash
+    if magic_hash is None: raise HTTPException(
+        status_code=404,
+        detail="User does not have a magic!"
     )
-    return sudo_get_user(user_id, session)
+    magic = decrypt_magic_hash(magic_hash)
+    return magic
+
+# @router.get("/users/{user_id}", response_model = UserPublic)
+# async def get_user_safe(user_id : int, current_user : User = Depends(get_current_user), session : Session = Depends(get_session)):
+#     """
+#     Obtain the User object of the current user, OR of any given user IF the current user is an administrator.
+#     """
+#     if not current_user.id == user_id and not current_user.admin: raise HTTPException(
+#         status_code=401,
+#         detail="You do not have permission to access that resource"
+#     )
+#     return get_user(user_id, session)
 
 @router.post("/users/", response_model = UserPublic)
 async def create_user(data : UserCreate, session : Session = Depends(get_session)):
+    existing_user = session.exec(
+        select(User).where(User.username == data.username)
+    ).first()
+    if existing_user is not None:
+        raise HTTPException(
+            status_code = 400,
+            detail = "Username is already taken"
+        )
+
     extra_data = {
         "password_hash" : PasswordHasher.hash(data.password)
     }
@@ -145,11 +168,10 @@ async def create_user(data : UserCreate, session : Session = Depends(get_session
     session.refresh(user)
     return user
 
-@router.patch("/users/{user_id}", response_model = UserPublic)
-async def update_user(user_id : int, new_data : UserUpdate, user : User = Depends(get_current_user), session : Session = Depends(get_session)):
-    
+@router.patch("/users/self", response_model = UserPublic)
+async def update_user(new_data : UserUpdate, user : User = Depends(get_current_user), session : Session = Depends(get_session)):
     new_data_dict = new_data.model_dump(exclude_none=True)
-    
+
     extra_data = {}
     if new_data.password is not None:
         extra_data["hashed_password"] = PasswordHasher.hash(new_data.password)
@@ -162,6 +184,11 @@ async def update_user(user_id : int, new_data : UserUpdate, user : User = Depend
     session.commit()
     session.refresh(user)
     return user
+
+@router.get("/users/self/assignments")
+async def get_assignments(current_user : User = Depends(get_current_user)):
+    raise HTTPException(status_code=400, detail="Not yet implemented")
+    pass 
 
 # @router.delete("/users/{user_id}")
 # def delete_user(user_id : int, session : Session = Depends(get_session)):

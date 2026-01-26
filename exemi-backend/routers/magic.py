@@ -25,7 +25,7 @@ async def is_magic_valid(provider : str, access_token : str) -> bool:
     return response.status_code == 200
 
 async def encrypt_magic(magic : str, magic_provider : str | None, expiry : timedelta | None = timedelta(weeks=4)) -> str:
-    if magic_provider is None: raise HTTPException(status_code=418, detail="You cannot provide magic without a magic provider")
+    if magic_provider is None: raise HTTPException(status_code=400, detail="magic_provider must be given when providing a magic")
 
     legit = await is_magic_valid(magic_provider, magic)
 
