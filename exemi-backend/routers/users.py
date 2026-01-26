@@ -1,4 +1,4 @@
-from ..models import User, UserCreate, UserUpdate, UserPublic, Token
+from ..models import User, UserCreate, UserUpdate, UserPublic
 from typing import Annotated
 from sqlmodel import Session, select
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -65,7 +65,7 @@ def authenticate_user(username : str, password : str, session : Session = Depend
     return user 
 
 @router.post("/login/")
-def login(login_form_data : Annotated[OAuth2PasswordRequestForm, Depends()], session : Session = Depends(get_session)) -> Token:
+def login(login_form_data : Annotated[OAuth2PasswordRequestForm, Depends()], session : Session = Depends(get_session)):
     # Check the login credentials match an account. If not, raise an exception.
     user = authenticate_user(login_form_data.username, login_form_data.password, session)
 
@@ -76,7 +76,11 @@ def login(login_form_data : Annotated[OAuth2PasswordRequestForm, Depends()], ses
 
     token = jwt.encode(json_web_token_data, key=get_secret_key(), algorithm="HS256")
 
-    return Token(access_token = token, token_type = "bearer") 
+    return {
+        "token" : token,
+        "token_type" : "bearer",
+        "user" : user.id
+    }
 
 @router.post("/users/self", response_model=UserPublic)
 async def get_current_user(current_user : User = Depends(root_get_current_user)):

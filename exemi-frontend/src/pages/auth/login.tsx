@@ -55,7 +55,9 @@ export default function Login(){
         }
 
         const data = await response.json();
-        console.log("Response:", data);
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', data.user);
+        window.location.reload();
     }
 
     return (
