@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, HTTPException, Query
 # from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlmodel import Field, Relationship, Session, SQLModel, create_engine, select
-from .routers import users
+from .routers import users, assignments
 
 # # Establish a connection to the database.
 # # TODO: Make the connection URL specified elsewhere! 
@@ -24,6 +24,7 @@ async def lifespan(app : FastAPI):
 
 app = FastAPI(lifespan = lifespan)
 app.include_router(users.router)
+app.include_router(assignments.router)
 
 # def get_session():
 #     with Session(engine) as session:

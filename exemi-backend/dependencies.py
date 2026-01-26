@@ -92,11 +92,22 @@ def decrypt_magic_hash(magic_hash : str) -> str:
     except: raise fail
     return magic
 
-async def get_current_magic(user : User = Depends(get_current_user)):
-    magic_hash = user.magic_hash
-    if magic_hash is None: raise HTTPException(
-        status_code=404,
-        detail="User does not have a magic!"
-    )
+async def get_current_magic(user : User = Depends(get_current_user)) -> str:
+    """
+    Given a user is logged in, obtain their magic and magic_provider in plaintext.
+
+    Args:
+        user (User): The current logged in user.
+    
+    Raises:
+        HTTPException: If the user does not have a magic or magic_provider set, raises a 404 Exception.
+
+    Returns:
+        magic (str): The user's magic in plaintext.
+    """
+    magic_hash, magic_provider = user.magic_hash, user.magic_provider
+    if magic_hash is None: raise HTTPException(status_code=404,detail="User does not have a magic")
+    if magic_provider is None: raise HTTPException(status_code=404, detail="User does not have a magic_provider")
     magic = decrypt_magic_hash(magic_hash)
     return magic
+
