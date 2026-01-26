@@ -74,6 +74,8 @@ class Assignment(AssignmentBase, table=True):
     id : int | None = Field(primary_key=True, default=None)
     unit : Unit | None = Relationship(back_populates="assignments")
 
+class AssignmentCreate(AssignmentBase): pass
+
 class AssignmentPublic(AssignmentBase):
     id : int
 

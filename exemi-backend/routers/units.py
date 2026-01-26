@@ -1,4 +1,8 @@
-from ..models import User, UserCreate, UserUpdate, UserPublic, Unit, UnitCreate, UnitPublic, Term, TermCreate, TermPublic, Assignment, AssignmentPublic
+from ..models import User, UserCreate, UserUpdate, UserPublic
+# from ..models import University, UniversityCreate, UniversityPublic
+from ..models import Term, TermCreate, TermPublic
+from ..models import Unit, UnitCreate, UnitPublic
+from ..models import Assignment, AssignmentCreate, AssignmentPublic
 from typing import Annotated
 from sqlmodel import Session, select
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -86,6 +90,19 @@ async def canvas_get_assignments(unit_id : int, current_user : User = Depends(ge
     
     return assignments
 
+# @router.get("/universities/", response_model=list[UniversityPublic])
+# async def get_universities(session : Session = Depends(get_session)):
+#     universities = session.exec(select(University)).all()
+#     return universities
+# 
+# @router.post("/universities/", response_model=UniversityPublicWithUnits)
+# async def create_university(data : UniversityCreate, session : Session = Depends(get_session)):
+#     university = University.model_validate(data)
+#     session.add(university)
+#     session.commit()
+#     session.refresh(university)
+#     return university
+
 @router.get("/terms/", response_model=list[TermPublic])
 async def get_terms(offset : int = 0, limit : int = Query(default=100, limit=100), session : Session = Depends(get_session)):
     terms = session.exec(
@@ -132,7 +149,7 @@ async def create_unit(data : UnitCreate, session : Session = Depends(get_session
     session.refresh(unit)
     return unit
 
-@router.get("/assignments/", response_model=list[UnitPublic])
+@router.get("/assignments/", response_model=list[AssignmentPublic])
 async def get_assignments(offset : int = 0, limit : int = Query(default=100, limit=100), session : Session = Depends(get_session)):
     assignments = session.exec(
         select(Assignment).offset(offset).limit(limit)
@@ -148,54 +165,75 @@ async def get_assignment(name : str, session : Session = Depends(get_session)):
     return assignment 
 
 @router.post("/assignment/", response_model=AssignmentPublic)
-async def create_assignment(data : Assignment, session : Session = Depends(get_session)):
+async def create_assignment(data : AssignmentCreate, session : Session = Depends(get_session)):
     assignment = Assignment.model_validate(data)
     session.add(assignment)
     session.commit()
     session.refresh(assignment)
     return assignment
 
-@router.post("/units/", response_model = list[UnitPublic])
-async def create_units(session : Session = Depends(get_session), current_user : User = Depends(get_current_user), magic : str = Depends(get_current_magic)):
+@router.post("/canvas/units/", response_model = list[UnitPublic])
+async def create_units_from_canvas(session : Session = Depends(get_session), current_user : User = Depends(get_current_user), magic : str = Depends(get_current_magic)):
     """
     For a given Canvas user, creates Unit objects in the database for all their units
     and recursively creates University, Term, and Assignment objects to populate the fields.
     """
+    
+    university_name : str = current_user.magic_provider
+    
+    # TODO: Create a University object if one does not exist!
+
+    # existing_university : University = session.exec(select(University, university_name))
 
     units : list[UnitPublic] = await canvas_get_units(current_user=current_user,magic=magic)
     
     new_units = []
-    for unit in units:
+    for unit_data in units:
         
-        try:
-            # If unit already exists, do not create it!
-            existing_unit = session.exec(
-                select(Unit).where(Unit.name == unit.name)
-            ).first()
-            if existing_unit: continue
-            
-            term_data = canvas_get_term(unit.id, current_user=current_user,magic=magic)
-            
+        # If unit already exists, do not create it!
+        existing_unit = session.exec(
+            select(Unit).where(Unit.name == unit_data.name)
+        ).first()
+        if existing_unit:
+            continue
+        
+        term_data : Term = await canvas_get_term(unit_data.id, current_user=current_user,magic=magic)
+        
+        # If the unit's term does not exist, create it in the database
+        existing_term = session.exec(select(Term).where(Term.name == term_data.name)).first()
+        if not existing_term:
+            term = TermCreate.model_validate(term_data.model_dump())
+            existing_term = await create_term(term, session)
 
-            # # If the unit's term does NOT exist, create it!
-            # existing_term = session.exec(select(Term, unit.term_id)).first()
-            # if not existing_term:
-            #     term_data : Term = await canvas_get_term(unit.id, current_user=current_user,magic=magic)
-            #     existing_term = await create_term(term_data, session=session)
-            # 
-            # # Create the unit!
-            # db_unit = create_unit(unit, session=session)
+        # Create the unit
+        unit = UnitCreate.model_validate(unit_data.model_dump(), update={
+            "term_id" : existing_term.id
+        })
 
-            # assignments : list[AssignmentPublic] = await canvas_get_assignments(unit.id, current_user=current_user,magic=magic)
-            # for assignment in assignments:
-            #     await create_assignment(assignment, session=session)
+        existing_unit = await create_unit(unit, session)
+        
+        # TODO: Create assignments for the unit!
 
-            # # Update the Unit to have the assignments and term information.
-            # unit = unit.copy()
-            # #unit.assignments = assignments
-            # unit.term_id = existing_term.id
-            # new_units.append(unit)
+        new_units.append(existing_unit)
 
-        except: pass
+        # # If the unit's term does NOT exist, create it!
+        # existing_term = session.exec(select(Term, unit.term_id)).first()
+        # if not existing_term:
+        #     term_data : Term = await canvas_get_term(unit.id, current_user=current_user,magic=magic)
+        #     existing_term = await create_term(term_data, session=session)
+        # 
+        # # Create the unit!
+        # db_unit = create_unit(unit, session=session)
+
+        # assignments : list[AssignmentPublic] = await canvas_get_assignments(unit.id, current_user=current_user,magic=magic)
+        # for assignment in assignments:
+        #     await create_assignment(assignment, session=session)
+
+        # # Update the Unit to have the assignments and term information.
+        # unit = unit.copy()
+        # #unit.assignments = assignments
+        # unit.term_id = existing_term.id
+        # new_units.append(unit)
+
 
     return new_units

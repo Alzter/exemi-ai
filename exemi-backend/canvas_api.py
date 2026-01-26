@@ -2,7 +2,7 @@ import httpx
 import requests
 import json
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timezone
 from tzlocal import get_localzone
 from fastapi import HTTPException
 
@@ -33,12 +33,13 @@ def parse_iso_timestamps(data : pd.DataFrame) -> pd.DataFrame:
             except:
                 pass
 
-    def isotime_to_timestamp(value : str | None, use_local_timezone : bool = True, as_string : bool = False):
+    def isotime_to_timestamp(value : str | None, use_local_timezone : bool = False, as_string : bool = False):
         if type(value) is not str: return None
         
         time = datetime.fromisoformat(value)
         if use_local_timezone:
             time = time.astimezone(get_localzone())
+        else: time = time.astimezone(timezone.utc).replace(tzinfo=None)
 
         if as_string:
             time = time.strftime("%A, %d %B %Y, %I:%M %p")
