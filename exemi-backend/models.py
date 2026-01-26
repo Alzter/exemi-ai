@@ -5,7 +5,7 @@ from sqlalchemy.dialects.mysql import TEXT, LONGTEXT
 
 class UserBase(SQLModel):
     username : str = Field(max_length=255, unique=True)
-    magic_provider : str | None = Field(default=None, max_length=255, index=True)
+    university : str | None = Field(default=None, max_length=255, index=True)
 
 class User(UserBase, table=True):
     id : int | None = Field(primary_key=True, default=None)
@@ -28,7 +28,7 @@ class UserCreate(UserBase):
 class UserUpdate(SQLModel):
     password : str | None = None
     magic : str | None = None
-    magic_provider : str | None = None
+    university : str | None = None
 
 class University(SQLModel, table=True):
     name : str = Field(primary_key=True, index=True, max_length=255)
