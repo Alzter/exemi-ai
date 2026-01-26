@@ -3,18 +3,18 @@ from typing import Annotated
 from sqlmodel import Session, select
 from fastapi import APIRouter, Depends, HTTPException, Query
 from ..dependencies import get_session, get_secret_key, get_current_user, get_current_magic
-from ..canvas_api import query_canvas
+from ..canvas_api import query_canvas, decode_canvas_response
 from fastapi.responses import JSONResponse
 import pandas as pd
 
 router = APIRouter()
 
 @router.get("/units/", response_model=list[UnitPublic])
-async def get_units(exclude_complete_units : bool = False, exclude_orginisation_units : bool = True, current_user : User = Depends(get_current_user), magic : str = Depends(get_current_magic)):
+async def canvas_get_units(exclude_complete_units : bool = False, exclude_orginisation_units : bool = True, current_user : User = Depends(get_current_user), magic : str = Depends(get_current_magic)):
     params = {}
     if exclude_complete_units: params["enrollment_state"] = "active"
     
-    raw_units = await query_canvas(path="courses", magic=magic, provider = current_user.magic_provider, max_items=50, params=params)
+    raw_units = await query_canvas(path="courses", magic=magic, provider=current_user.magic_provider, max_items=50, params=params)
     
     # Internally, Swinburne Organisation (ORG) units are assigned to enrollment term ID 1
     # Since we're only concerned with academic units, let's filter out organisation units
@@ -38,5 +38,15 @@ async def get_units(exclude_complete_units : bool = False, exclude_orginisation_
     
     return units
 
+@router.get("/assignments/")
+async def canvas_get_assignments(unit_id : int, current_user : User = Depends(get_current_user), magic : str = Depends(get_current_magic)):
+    path = f"courses/{unit_id}/assignment_groups"
+    params = {"include":"assignments"}
+
+    assignment_groups = await query_canvas(path=path, magic=magic, provider=current_user.magic_provider, max_items=50, params=params)
+    assignment_groups["course_id"] = unit_id
+
+    assignments = assignment_groups.assignments.explode().dropna().tolist()
+    assignments = decode_canvas_response(assignments)
     
-    
+    return assignments.fillna("NAN").to_dict(orient='records')
