@@ -5,13 +5,23 @@ type LoginForm = {
     username : string;
     password : string;
 };
-
 export default function Login(){
-
+  
+    const [error, setError] = useState(null);
     const [form, setForm] = useState<LoginForm>({
         username:"",
         password:"",
     });
+    
+    function LoginError(){
+      if (error){
+        return (
+          <div className='error'>
+            <p>{error}</p>
+          </div>
+        )
+      } else { return null }
+    }
 
     // const [token, setToken] = useState("");
 
@@ -48,16 +58,16 @@ export default function Login(){
             body: body.toString(),
         });
 
+        const data = await response.json(); 
         if (!response.ok){
-            // TODO: Replace with an Error state, find
-            // a way to pass this up to the UI
-            throw new Error("Login request failed");
-        }
 
-        const data = await response.json();
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', data.user);
-        window.location.reload();
+            setError(data.detail);
+
+        } else {
+          localStorage.setItem('token', data.token);
+          localStorage.setItem('user', data.user);
+          window.location.reload();
+        }
     }
 
     return (
@@ -80,6 +90,7 @@ export default function Login(){
                     />
                 </label>
                 <button type="submit">Log In</button>
+                <LoginError/>
                 {/* <input type="submit" value="Go"/> */}
             </form>
         </div>
