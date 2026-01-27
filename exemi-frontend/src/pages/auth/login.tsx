@@ -49,34 +49,41 @@ export default function Login({setSession} : any){
         body.append("username", form.username);
         body.append("password", form.password);
 
-        const response = await fetch(backendURL + "/login", {
-            headers:{
-                "Content-Type":"application/x-www-form-urlencoded",
-                accept:"application/json"
-            },
-            method:"POST",
-            body: body.toString(),
-        });
+        try{
+            const response = await fetch(backendURL + "/login", {
+                headers:{
+                    "Content-Type":"application/x-www-form-urlencoded",
+                    accept:"application/json"
+                },
+                method:"POST",
+                body: body.toString(),
+            });
 
-        if (!response.ok){
-            let message = "System error! Please contact Alexander Small."
-            try {
-              const data = await response.json();
-              message = data.detail;
-            } catch {
-              // message += "Error message: " + await response.text();
+            if (!response.ok){
+                let message = "System error! Please contact Alexander Small."
+                try {
+                const data = await response.json();
+                message = data.detail;
+                } catch {
+                // message += "Error message: " + await response.text();
+                }
+                
+                setError(message);
+                return;
             }
-            
-            setError(message);
-            return;
+
+            if (response.ok){
+                const data = await response.json();
+                setSession({
+                    token : data.access_token,
+                    user_id : data.user_id
+                });
+            }
+        } catch (error) {
+            // Doomsday scenario
+            setError("System error! Exemi server is not running! Please contact Alexander Small.");
+            console.log(error);
         }
-
-        const data = await response.json();
-        setSession({
-            token : data.access_token,
-            user_id : data.user_id
-        });
-
     }
 
     return (
