@@ -24,6 +24,10 @@ export default function AppRouter() {
 
     const isLoggedIn = session.token !== null;
 
-    if (isLoggedIn) { return <LoggedInFlow/> }
-    else { return <Auth setSession={setSession}/> }
+    if (isLoggedIn) {
+        // TODO: Check if the user has a magic. If not, send them to onboarding to generate one.
+        return <LoggedInFlow/>
+    } else {
+        return <Auth setSession={setSession}/>
+    }
 }
