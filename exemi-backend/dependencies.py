@@ -66,7 +66,7 @@ async def is_magic_valid(provider : str, magic : str) -> bool:
     Returns:
         exists (bool): Returns true if the user's magic is valid for the given magic provider.
     """
-    async with httpx.AsyncClient(timeout=5) as client:
+    async with httpx.AsyncClient(timeout=15) as client:
         response = await client.get(f"https://{provider}.instructure.com/api/v1/users/self", params={
         "access_token":magic,
         })

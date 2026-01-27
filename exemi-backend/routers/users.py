@@ -4,8 +4,9 @@ from sqlmodel import Session, select
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.security import OAuth2PasswordRequestForm
 import jwt
-from ..dependencies import get_session, get_secret_key, encrypt_magic
+from ..dependencies import get_current_magic, get_session, get_secret_key, encrypt_magic
 from ..dependencies import get_current_user as root_get_current_user
+from ..dependencies import is_magic_valid as root_is_magic_valid
 from datetime import datetime, timedelta, timezone
 from pwdlib import PasswordHash
 PasswordHasher = PasswordHash.recommended()
@@ -83,9 +84,26 @@ def login(login_form_data : Annotated[OAuth2PasswordRequestForm, Depends()], ses
         "user" : user.id
     }
 
-@router.get("/users/self", response_model=UserPublic)
+@router.get("/users/self/", response_model=UserPublic)
 async def get_current_user(current_user : User = Depends(root_get_current_user)):
     return current_user # TODO: THIS IS BAD
+
+@router.get("/magic_valid/", response_model=bool)
+async def is_magic_valid(current_magic : str = Depends(get_current_magic), current_user : User = Depends(root_get_current_user)):
+    """
+    Determines if the user's current magic is valid. Returns 200 response if the magic is valid, else 401.
+
+    Returns:
+        True: If magic is valid, returns True.
+
+    Raises:
+        HTTPException: If magic is not valid or user is not authenticated, returns 401 exception.
+    """
+    university = current_user.university_name
+    if not university: raise HTTPException(status_code=401, detail="The current user must have a university assigned")
+    valid = root_is_magic_valid(magic=current_magic, provider=university)
+    if not valid: raise HTTPException(status_code=401, detail="The current user's magic is not valid")
+    return True
 
 # @router.get("/users/{user_id}", response_model = UserPublic)
 # async def get_user_safe(user_id : int, current_user : User = Depends(get_current_user), session : Session = Depends(get_session)):
@@ -124,7 +142,7 @@ async def create_user(data : UserCreate, session : Session = Depends(get_session
     return user
 
 @router.patch("/users/self", response_model = UserPublic)
-async def update_user(new_data : UserUpdate, user : User = Depends(get_current_user), session : Session = Depends(get_session)):
+async def update_user(new_data : UserUpdate, user : User = Depends(root_get_current_user), session : Session = Depends(get_session)):
     new_data_dict = new_data.model_dump(exclude_none=True)
 
     extra_data = {}
@@ -140,11 +158,6 @@ async def update_user(new_data : UserUpdate, user : User = Depends(get_current_u
     session.refresh(user)
     return user
 
-# @router.get("/users/self/assignments")
-# async def get_assignments(current_user : User = Depends(get_current_user)):
-#     raise HTTPException(status_code=400, detail="Not yet implemented")
-#     pass 
-# 
 # @router.delete("/users/{user_id}")
 # def delete_user(user_id : int, session : Session = Depends(get_session)):
 #     user : User = get_user(user_id, session)
