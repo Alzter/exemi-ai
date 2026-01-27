@@ -5,7 +5,8 @@ type LoginForm = {
     username : string;
     password : string;
 };
-export default function Login(){
+
+export default function Login({setSession} : any){
   
     const [error, setError] = useState<string | null>(null);
     const [form, setForm] = useState<LoginForm>({
@@ -71,9 +72,10 @@ export default function Login(){
         }
 
         const data = await response.json();
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', data.user);
-        window.location.reload();
+        setSession({
+            token : data.access_token,
+            user_id : data.user_id
+        });
 
     }
 

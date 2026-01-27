@@ -79,9 +79,8 @@ def login(login_form_data : Annotated[OAuth2PasswordRequestForm, Depends()], ses
 
     return {
         "access_token" : token,
-        "token" : token,
         "token_type" : "bearer",
-        "user" : user.id
+        "user_id" : user.id
     }
 
 @router.get("/users/self/", response_model=UserPublic)
