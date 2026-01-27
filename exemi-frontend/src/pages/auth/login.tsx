@@ -7,7 +7,7 @@ type LoginForm = {
 };
 export default function Login(){
   
-    const [error, setError] = useState(null);
+    const [error, setError] = useState<string | null>(null);
     const [form, setForm] = useState<LoginForm>({
         username:"",
         password:"",
@@ -41,9 +41,8 @@ export default function Login(){
 
     async function handleSubmit(event : React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
-        console.log(form);
-
-        console.log(backendURL);
+        // console.log(form);
+        // console.log(backendURL);
 
         const body = new URLSearchParams();
         body.append("username", form.username);
@@ -58,16 +57,24 @@ export default function Login(){
             body: body.toString(),
         });
 
-        const data = await response.json(); 
         if (!response.ok){
-
-            setError(data.detail);
-
-        } else {
-          localStorage.setItem('token', data.token);
-          localStorage.setItem('user', data.user);
-          window.location.reload();
+            let message = "System error! Please contact Alexander Small."
+            try {
+              const data = await response.json();
+              message = data.detail;
+            } catch {
+              // message += "Error message: " + await response.text();
+            }
+            
+            setError(message);
+            return;
         }
+
+        const data = await response.json();
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', data.user);
+        window.location.reload();
+
     }
 
     return (

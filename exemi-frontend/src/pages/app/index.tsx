@@ -8,24 +8,20 @@ export default function LoggedInFlow() {
   const [error, setError] = useState(null);
   const [user, setUser] = useState(null);
   
-  useEffect( () => {
-    fetchUser;
-  })
-
-  const fetchUser = async () => {
-    const response = await fetch(backendURL + "/users/self", {
-      headers: {
-        "Authorization" : "Bearer " + localStorage.getItem("token")
-      },
-      method: "POST",
-    })
+  // const fetchUser = async () => {
+  //   const response = await fetch(backendURL + "/users/self", {
+  //     headers: {
+  //       "Authorization" : "Bearer " + localStorage.getItem("token")
+  //     },
+  //     method: "POST",
+  //   })
     
-    if (!response.ok){
-      throw new Error("User not found");
-    }
-    const data = await response.json();
-    console.log(data);
-  }
+  //   if (!response.ok){
+  //     throw new Error("User not found");
+  //   }
+  //   const data = await response.json();
+  //   console.log(data);
+  // }
 
   return (
     <div>
