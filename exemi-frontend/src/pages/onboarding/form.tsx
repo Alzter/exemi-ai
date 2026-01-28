@@ -2,7 +2,6 @@ import {useState, useEffect} from 'react';
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 
 export default function MagicForm({session, setSession, setMagicValid} : any){
-
     type MagicForm = {
         university_name : string;
         magic : string;
@@ -93,7 +92,7 @@ export default function MagicForm({session, setSession, setMagicValid} : any){
                         onChange={handleChange}
                     />
                 </label>
-                <label>Enter the text here:
+                <label>
                     <input
                         name="magic"
                         type="password"
@@ -101,7 +100,7 @@ export default function MagicForm({session, setSession, setMagicValid} : any){
                         onChange={handleChange}
                     />
                 </label>
-                <button type="submit" disabled={isSubmitting}>Go</button>
+                <button type="submit" disabled={isSubmitting}>OK</button>
                 <LoginError/>
             </form>
         </div>

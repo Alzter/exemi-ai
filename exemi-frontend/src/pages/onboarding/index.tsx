@@ -1,29 +1,56 @@
-import {useState, useEffect} from 'react';
+import {useState, useEffect, type ReactNode} from 'react';
 import MagicForm from "./form";
 
 interface Slide {
   photoURL : string,
-  text : string
+  text : ReactNode
 }
+
+// Hard-coded garbage
+const UNIVERSITY = "swinburne";
+
+const CANVAS_SETTINGS_LINK = "https://" + UNIVERSITY + ".instructure.com/profile/settings"
 
 const slides : Slide[] = [
   {
-    photoURL: "/assets/onboarding_slides/test.png",
-    text:"TEST",
+    photoURL: "",
+    text:(<p>
+      To sign in with Canvas, we will need you to create an <strong>access token</strong> for your Canvas account.
+      </p>),
   },
   {
     photoURL: "/assets/onboarding_slides/test.png",
-    text:"TEST2",
+    text:(<p>
+      Click <a href={CANVAS_SETTINGS_LINK}>here</a> to open your Canvas account settings page.
+    </p>),
+  },
+  {
+    photoURL: "/assets/onboarding_slides/test.png",
+    text:(
+      <p>Scroll down to “Approved Integrations” and click “Add New Token”.</p>
+    )
+  },
+  {
+    photoURL: "/assets/onboarding_slides/test.png",
+    text:(
+      <p>Input these values into the fields:</p>
+    )
+  },
+  {
+    photoURL: "/assets/onboarding_slides/test.png",
+    text:(
+      <p>Copy the token text on the page.</p>
+    )
   },
   {
     photoURL: "",
-    text: "TEST3"
+    text:(
+      <p>Enter the copied text here:</p>
+    )
   }
 ]
 
 export default function Onboarding({session, setSession, setMagicValid} : any) {
-
-
 
   const [progress, setProgress] = useState<number>(0);
 
@@ -51,14 +78,15 @@ export default function Onboarding({session, setSession, setMagicValid} : any) {
   useEffect(() => {console.log(progress_bar_width)});
 
   return (
-    <div>
+    <div className="slideshow">
+      <h1>Sign in with Canvas</h1>
       <div className="slide_progress">
         <div className='slide_progress_fill' style={{ width: progress_bar_width }}/>
       </div>
 
-      <div className="slideshow">
-        <p>{text}</p>
-        {progress < slides.length - 1 ? (
+      <div>
+        {text}
+        {photoURL != "" ? (
             <img src={photoURL}/>
         ) : null}
       </div>
