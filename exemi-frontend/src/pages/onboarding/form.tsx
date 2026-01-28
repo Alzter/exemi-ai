@@ -82,7 +82,7 @@ export default function MagicForm({session, setSession, setMagicValid} : any){
 
     return (
         <div className='form'>
-            <form onSubmit={updateUserMagic}>
+            <form className='magic' onSubmit={updateUserMagic}>
                 {/* NOTE: The university_name text entry form is INVISIBLE for now. */}
                 <label style={{display:"none"}}>Enter your University name:
                     <input
@@ -100,7 +100,7 @@ export default function MagicForm({session, setSession, setMagicValid} : any){
                         onChange={handleChange}
                     />
                 </label>
-                <button type="submit" disabled={isSubmitting}>OK</button>
+                <button type="submit" disabled={isSubmitting || form.magic == ""}>OK</button>
                 <LoginError/>
             </form>
         </div>

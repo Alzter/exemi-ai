@@ -1,9 +1,17 @@
-/* form.css */
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
 
 * {
   box-sizing: border-box;
   font-family: system-ui, -apple-system, BlinkMacSystemFont,
                "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+a {
+  font-weight: 700;
 }
 
 div {
@@ -13,13 +21,13 @@ div {
 div.error{
   width:100%;
   background-color: #ffbbbb;
-  text-align: right;
+  text-align: center;
 }
 
 /* div.background{
   background-color: #f5f5f5;
   margin: 0;
-  min-height: 100vh;
+  min-height: 100dvh;
 } */
 
 div.form {
@@ -29,7 +37,35 @@ div.form {
 }
 
 div.slideshow{
+  display:flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  width:100%;
+  min-height:100dvh;
   text-align: center;
+}
+
+div.slideshow-header{
+  width:100%;
+}
+
+div.slideshow-content{
+  flex:1;
+  display:flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 80%;
+  overflow: hidden;
+  /* background-color: red; */
+}
+
+div.slideshow img{
+  max-width: 100%;
+  height:auto;
+  display:block;
+  border-radius: 5px;
 }
 
 div.slide_progress{
@@ -37,11 +73,13 @@ div.slide_progress{
   height:20px;
   border-radius: 8px;
   background-color: white;
-  padding-bottom:10px;
+  margin-bottom:20px;
+  /* box-shadow: 0 3px 3px rgba(0, 0, 0, 0.08); */
 }
 div.slide_progress_fill{
   background-color: #4f46e5;
   height:20px;
+  transition: width 0.5s ease;
 }
 
 form {
@@ -55,6 +93,11 @@ form {
   /* border-radius: 8px; */
   /* box-shadow: 0 3px 3px rgba(0, 0, 0, 0.08); */
   text-align: center;
+}
+
+form.magic{
+  max-width:100%;
+  width:100%;
 }
 
 form *{

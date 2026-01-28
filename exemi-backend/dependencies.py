@@ -80,7 +80,7 @@ async def encrypt_magic(magic : str, university_name : str | None, expiry : time
     if not legit:
         raise HTTPException(
             status_code=401,
-            detail="Magic is not valid",
+            detail="Canvas API token is invalid",
             headers={"WWW-Authenticate":"Bearer"}
         )
 
@@ -91,7 +91,7 @@ async def encrypt_magic(magic : str, university_name : str | None, expiry : time
 def decrypt_magic_hash(magic_hash : str) -> str:
     fail = HTTPException(
         status_code = 401,
-        detail = "Error decrypting magic. Please make another magic",
+        detail = "Error retrieving Canvas API token. Please create a new API token",
         headers = {"WWW-Authenticate":"Bearer"}
         )
     try:
@@ -115,8 +115,8 @@ async def get_current_magic(user : User = Depends(get_current_user)) -> str:
         magic (str): The user's magic in plaintext.
     """
     magic_hash, university_name = user.magic_hash, user.university_name
-    if magic_hash is None: raise HTTPException(status_code=404,detail="User does not have a magic")
-    if university_name is None: raise HTTPException(status_code=404, detail="User does not have a university_name")
+    if magic_hash is None: raise HTTPException(status_code=404,detail="User does not have a Canvas API token")
+    if university_name is None: raise HTTPException(status_code=404, detail="User does not have a university assigned, which is required to obtain their Canvas API token")
     magic = decrypt_magic_hash(magic_hash)
     return magic
 

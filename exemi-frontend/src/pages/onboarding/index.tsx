@@ -14,7 +14,7 @@ const CANVAS_SETTINGS_LINK = "https://" + UNIVERSITY + ".instructure.com/profile
 const slides : Slide[] = [
   {
     photoURL: "",
-    text:(<p>
+    text:(<p style={{fontSize:"1.5em"}}>
       To sign in with Canvas, we will need you to create an <strong>access token</strong> for your Canvas account.
       </p>),
   },
@@ -79,32 +79,33 @@ export default function Onboarding({session, setSession, setMagicValid} : any) {
 
   return (
     <div className="slideshow">
-      <h1>Sign in with Canvas</h1>
-      <div className="slide_progress">
-        <div className='slide_progress_fill' style={{ width: progress_bar_width }}/>
+      <div className="slideshow-header">
+        <h1>Sign in with Canvas</h1>
+        <div className="slide_progress">
+          <div className='slide_progress_fill' style={{ width: progress_bar_width }}/>
+        </div>
       </div>
 
-      <div>
-        {text}
-        {photoURL != "" ? (
-            <img src={photoURL}/>
+      <div className="slideshow-content">
+        <div>
+          {text}
+          {photoURL != "" ? (
+              <img src={photoURL}/>
+          ) : null}
+        </div>
+
+
+        
+        {progress == slides.length - 1 ? (
+          <MagicForm  session={session} setSession={setSession} setMagicValid={setMagicValid}/>
+        ) : null}
+
+        <button className="back" onClick={back}>{"<"} Back</button>
+        {progress < slides.length - 1 ? (
+          <button className="next" onClick={next}>Next {">"}</button>
         ) : null}
       </div>
-
-
-      
-      {progress == slides.length - 1 ? (
-        <MagicForm  session={session} setSession={setSession} setMagicValid={setMagicValid}/>
-      ) : null}
-
-      <button className="back" onClick={back}>{"<"} Back</button>
-      {progress < slides.length - 1 ? (
-        <button className="next" onClick={next}>Next {">"}</button>
-      ) : null}
-
-      {/* <Routes>
-        <Route path="/" element={<MagicForm session={session} setSession={setSession} setMagicValid={setMagicValid}/>}/>
-      </Routes> */}
+      <div style={{minHeight:100}}></div>
     </div>
   )
 }
