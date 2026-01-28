@@ -6,10 +6,9 @@ type LoginForm = {
     password : string;
 };
 
-export default function Login({setSession} : any){
+export default function Login({error, setError, setSession} : any){
     
     const [isSubmitting, setSubmitting] = useState<boolean>(false);
-    const [error, setError] = useState<string | null>(null);
     const [form, setForm] = useState<LoginForm>({
         username:"",
         password:"",

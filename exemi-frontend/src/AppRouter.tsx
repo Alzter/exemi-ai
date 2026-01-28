@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import Loading from './pages/loading';
-import Auth from './pages/auth';
+import Login from './pages/auth';
 import LoggedInFlow from './pages/app';
 import Onboarding from './pages/onboarding';
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
@@ -17,36 +17,66 @@ export default function AppRouter() {
         user_id : localStorage.getItem("user_id"),
     });
 
+    const [error, setError] = useState<string | null>(null);
     const [isMagicValid, setMagicValid] = useState<boolean | null>(null);
+    const [doUserUnitsExist, setUserUnitsExist] = useState<boolean | null>(null);
 
     const isLoggedIn = session.token !== null;
-    const isLoading = isLoggedIn && isMagicValid == null;
+    const isLoading = (isLoggedIn && isMagicValid == null) || (isMagicValid && doUserUnitsExist == null);
 
+    async function logOut() {
+        setSession({
+            token:null,
+            user_id:null
+        })
+    };
+
+    // If the backend API route /users/self does not return 200,
+    // log the user out immediately!
     async function logOutIfJWTExpires() {
         const response = await fetch(backendURL + "/users/self", {
             headers: { "Authorization" : "Bearer " + session.token},
             method: "GET",
         });
         if (!response.ok){
-            setSession({
-                token:null,
-                user_id:null
-            });
-        }
-    }
+            logOut();
+            setError("Your session has expired. Please log in again.");
+        };
+    };
     
     // Call the backend API to determine if the user's current magic is valid.
     async function checkIfUserMagicValid() {
-        const response = await fetch(backendURL + "/magic_valid", {
-            headers: {
-                "Authorization" : "Bearer " + session.token
-            },
-            method: "GET",
-            }
-        );
+        try{
+            const response = await fetch(backendURL + "/magic_valid", {
+                headers: {"Authorization" : "Bearer " + session.token},
+                method: "GET",
+            });
+            setMagicValid(response.ok);
 
-        setMagicValid(response.ok);
+        } catch {
+            logOut();
+            setError("System error verifying Canvas token! Please contact Alexander Small.");
+        }
     };
+
+    // Call the backend API to retrieve the user's units.
+    async function fetchUserUnits() {
+        try{
+            const response = await fetch(backendURL + "/canvas/units", {
+                headers: {"Authorization" : "Bearer " + session.token},
+                method: "POST",
+            });
+            if (!response.ok){
+                logOut();
+                setError("System error fetching units! Please contact Alexander Small.");
+            } else{
+                setUserUnitsExist(true);
+            }
+        } catch {
+            logOut();
+            setError("System error fetching units! Please contact Alexander Small.");
+        }
+    }
 
     // Synchronise user session (token) with local storage
     useEffect(() => {
@@ -56,13 +86,16 @@ export default function AppRouter() {
         else {localStorage.removeItem("user_id")}
         
         if (isLoggedIn){
+            setError(null);
             logOutIfJWTExpires();
-        }
+        } else {
+            setMagicValid(null);
+        };
         if (isLoggedIn && isMagicValid == null){
             checkIfUserMagicValid();
-        }
-        if (!isLoggedIn){
-            setMagicValid(null);
+        };
+        if (isMagicValid && doUserUnitsExist == null){
+            fetchUserUnits();
         }
     });
 
@@ -76,6 +109,6 @@ export default function AppRouter() {
             return <Onboarding session={session} setSession={setSession} setMagicValid={setMagicValid}/>
         }
     } else {
-        return <Auth setSession={setSession}/>
+        return <Login error={error} setError={setError} setSession={setSession}/>
     }
 }
