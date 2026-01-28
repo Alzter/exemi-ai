@@ -71,3 +71,7 @@ button {
 button:hover {
   background-color: #4338ca;
 }
+
+button:disabled{
+  background-color:#bcb8e0
+}

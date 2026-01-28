@@ -7,7 +7,8 @@ type LoginForm = {
 };
 
 export default function Login({setSession} : any){
-  
+    
+    const [isSubmitting, setSubmitting] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
     const [form, setForm] = useState<LoginForm>({
         username:"",
@@ -42,6 +43,7 @@ export default function Login({setSession} : any){
 
     async function handleSubmit(event : React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
+        setSubmitting(true);
         // console.log(form);
         // console.log(backendURL);
 
@@ -69,6 +71,7 @@ export default function Login({setSession} : any){
                 }
                 
                 setError(message);
+                setSubmitting(false);
                 return;
             }
 
@@ -78,11 +81,13 @@ export default function Login({setSession} : any){
                     token : data.access_token,
                     user_id : data.user_id
                 });
+                setSubmitting(false);
             }
         } catch (error) {
             // Doomsday scenario
             setError("System error! Exemi server is not running! Please contact Alexander Small.");
             console.log(error);
+            setSubmitting(false);
         }
     }
 
@@ -105,7 +110,7 @@ export default function Login({setSession} : any){
                         onChange={handleChange}
                     />
                 </label>
-                <button type="submit">Log In</button>
+                <button type="submit" disabled={isSubmitting}>Log In</button>
                 <LoginError/>
                 {/* <input type="submit" value="Go"/> */}
             </form>
