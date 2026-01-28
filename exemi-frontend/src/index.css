@@ -101,17 +101,33 @@ div.message-container{
   flex:1;
   display:flex;
   overflow: hidden;
+  overflow-y: scroll;
   /* background:lightblue; */
   padding:2em;
   flex-direction: column;
+  max-width: 750px;
+  margin:auto;
+  gap:1em;
 }
 
 div.message{
-  background-color: #eee;
+  /* background-color: #eee; */
   width:100%;
   display: block;
   padding:0 1em;
   text-align: justify;
+  /* border: 2px solid #ccc; */
+  /* box-shadow: 0 3px 3px rgba(0, 0, 0, 0.08); */
+}
+
+div.user-message{
+  background-color: #d8deff;
+  max-width:75%;
+  display: block;
+  padding:0 1em;
+  text-align: justify;
+  box-shadow: 0 3px 3px rgba(0, 0, 0, 0.08);
+  margin-left:auto;
 }
 
 form.login{

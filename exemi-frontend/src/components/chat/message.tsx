@@ -3,9 +3,11 @@ type MessageProps = {
     role : string
 }
 
-export default function Message({content} : MessageProps){
+export default function Message({content, role} : MessageProps){
+    let stylingClass = role == "user" ? "user-message" : "message"
+    
     return(
-        <div className="message">
+        <div className={stylingClass}>
             <p>
                 {content}
             </p>
