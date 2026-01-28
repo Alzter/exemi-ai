@@ -2,6 +2,8 @@
 
 export default function Loading(){
     return(
-        <p>Loading, please wait...</p>
+        <div className="form">
+            <p>Loading, please wait...</p>
+        </div>
     )
 }

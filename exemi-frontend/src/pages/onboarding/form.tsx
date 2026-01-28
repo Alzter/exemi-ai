@@ -81,15 +81,8 @@ export default function MagicForm({session, setSession, setMagicValid} : any){
 
     }
 
-    async function back(){
-        setSession({
-            token:null,
-            user_id:null
-        });
-    }
-
     return (
-        <div>
+        <div className='form'>
             <form onSubmit={updateUserMagic}>
                 {/* NOTE: The university_name text entry form is INVISIBLE for now. */}
                 <label style={{display:"none"}}>Enter your University name:
@@ -111,7 +104,6 @@ export default function MagicForm({session, setSession, setMagicValid} : any){
                 <button type="submit" disabled={isSubmitting}>Go</button>
                 <LoginError/>
             </form>
-            <button onClick={back}>Back</button>
         </div>
     );
 }
