@@ -45,7 +45,7 @@ const slides : Slide[] = [
   {
     photoURL: "",
     text:(
-      <p>Enter the copied text here:</p>
+      <p style={{fontSize:"1.5em"}}>Enter the copied text here:</p>
     )
   }
 ]
@@ -81,8 +81,8 @@ export default function Onboarding({session, setSession, setMagicValid} : any) {
     <div className="slideshow">
       <div className="slideshow-header">
         <h1>Sign in with Canvas</h1>
-        <div className="slide_progress">
-          <div className='slide_progress_fill' style={{ width: progress_bar_width }}/>
+        <div className="slide-progress">
+          <div className='slide-progress-fill' style={{ width: progress_bar_width }}/>
         </div>
       </div>
 

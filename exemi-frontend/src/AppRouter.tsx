@@ -61,21 +61,22 @@ export default function AppRouter() {
 
     // Call the backend API to retrieve the user's units.
     async function fetchUserUnits() {
-        try{
-            const response = await fetch(backendURL + "/canvas/units", {
-                headers: {"Authorization" : "Bearer " + session.token},
-                method: "POST",
-            });
-            if (!response.ok){
-                logOut();
-                setError("System error fetching units! Please contact Alexander Small.");
-            } else{
-                setUserUnitsExist(true);
-            }
-        } catch {
-            logOut();
-            setError("System error fetching units! Please contact Alexander Small.");
-        }
+        setUserUnitsExist(true);
+        // try{
+        //     const response = await fetch(backendURL + "/canvas/units", {
+        //         headers: {"Authorization" : "Bearer " + session.token},
+        //         method: "POST",
+        //     });
+        //     if (!response.ok){
+        //         logOut();
+        //         setError("System error fetching units! Please contact Alexander Small.");
+        //     } else{
+        //         setUserUnitsExist(true);
+        //     }
+        // } catch {
+        //     logOut();
+        //     setError("System error fetching units! Please contact Alexander Small.");
+        // }
     }
 
     // Synchronise user session (token) with local storage
