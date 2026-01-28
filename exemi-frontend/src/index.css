@@ -158,26 +158,38 @@ form.magic{
 form.chatbox{
   display:flex;
   flex-direction: row;
-  align-items: baseline;
+  align-items:baseline;
   width:100%;
   padding:2rem;
   /* background-color: aqua; */
 }
 
+form.chatbot text{
+  padding: 1rem 0rem;
+}
+
 form.chatbox button{
   max-width: fit-content;
+  padding: 0.5rem 1rem;
 }
 
 input, button {
   width: 100%;
-  padding: 0.75rem 1rem;
   font-size: 1rem;
   border-radius: 4px;
 }
 
+input{
+  padding:0.4rem 0.5rem;
+}
+
+button {
+  padding: 1rem 1rem;
+}
+
 input {
   margin-top: 0.5rem;
-  border: 1px solid #ccc;
+  border: 2px solid #aaa;
 }
 
 input:focus {

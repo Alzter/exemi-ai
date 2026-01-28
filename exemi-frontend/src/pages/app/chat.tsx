@@ -35,7 +35,7 @@ export default function ChatUI(){
 
             </div>
             <form className="chatbox" onClick={sendMessage}>
-                <input type="text" name="message" onChange={updateMessage} value={userMessage}/>
+                <input type="text" onChange={updateMessage} value={userMessage}/>
                 <button type="submit">Send</button>
             </form>
         </div>
