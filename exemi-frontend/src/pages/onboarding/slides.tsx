@@ -1,7 +1,7 @@
 import {useState, useEffect} from 'react';
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 
-export default function Slides({setSession} : any){
+export default function Slides({session, setSession} : any){
 
     type MagicForm = {
         university : string;

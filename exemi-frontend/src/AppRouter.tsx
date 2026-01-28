@@ -55,9 +55,9 @@ export default function AppRouter() {
     if (isLoggedIn) {
         // TODO: Check if the user has a magic. If not, send them to onboarding to generate one.
         if (isMagicValid){
-            return <LoggedInFlow setSession={setSession}/>
+            return <LoggedInFlow session={session} setSession={setSession}/>
         } else {
-            return <Onboarding setSession={setSession}/>
+            return <Onboarding session={session} setSession={setSession}/>
         }
     } else {
         return <Auth setSession={setSession}/>

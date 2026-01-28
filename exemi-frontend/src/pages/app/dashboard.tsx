@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 
-export default function Dashboard({setSession} : any) {
+export default function Dashboard({session, setSession} : any) {
 
   async function logOut(){
     setSession({
