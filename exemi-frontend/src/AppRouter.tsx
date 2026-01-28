@@ -57,7 +57,7 @@ export default function AppRouter() {
         if (isMagicValid){
             return <LoggedInFlow session={session} setSession={setSession}/>
         } else {
-            return <Onboarding session={session} setSession={setSession}/>
+            return <Onboarding session={session} setSession={setSession} setMagicValid={setMagicValid}/>
         }
     } else {
         return <Auth setSession={setSession}/>

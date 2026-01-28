@@ -1,7 +1,7 @@
 import {useState, useEffect} from 'react';
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 
-export default function MagicForm({session, setSession} : any){
+export default function MagicForm({session, setSession, setMagicValid} : any){
 
     type MagicForm = {
         university_name : string;
@@ -68,6 +68,10 @@ export default function MagicForm({session, setSession} : any){
             
             if (response.ok) {
                 setSubmitting(false);
+                // Triggers a recheck of the user's magic
+                // which if successful will send them to
+                // the dashboard page.
+                setMagicValid(null);
             }
 
         } catch{
