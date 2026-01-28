@@ -19,25 +19,25 @@ const slides : Slide[] = [
       </p>),
   },
   {
-    photoURL: "/assets/onboarding_slides/test.png",
+    photoURL: "/assets/onboarding_slides/1.png",
     text:(<p>
       Click <a href={CANVAS_SETTINGS_LINK}>here</a> to open your Canvas account settings page.
     </p>),
   },
   {
-    photoURL: "/assets/onboarding_slides/test.png",
+    photoURL: "/assets/onboarding_slides/2.png",
     text:(
-      <p>Scroll down to “Approved Integrations” and click “Add New Token”.</p>
+      <p>Scroll down to “Approved integrations” and click “New access token”.</p>
     )
   },
   {
-    photoURL: "/assets/onboarding_slides/test.png",
+    photoURL: "/assets/onboarding_slides/3.png",
     text:(
-      <p>Input these values into the fields:</p>
+      <p>Input these values into the fields, then click "Generate token".</p>
     )
   },
   {
-    photoURL: "/assets/onboarding_slides/test.png",
+    photoURL: "/assets/onboarding_slides/4.png",
     text:(
       <p>Copy the token text on the page.</p>
     )

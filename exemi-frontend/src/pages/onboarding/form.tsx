@@ -81,28 +81,26 @@ export default function MagicForm({session, setSession, setMagicValid} : any){
     }
 
     return (
-        <div className='form'>
-            <form className='magic' onSubmit={updateUserMagic}>
-                {/* NOTE: The university_name text entry form is INVISIBLE for now. */}
-                <label style={{display:"none"}}>Enter your University name:
-                    <input
-                        name="university_name"
-                        type="text"
-                        value={form.university_name}
-                        onChange={handleChange}
-                    />
-                </label>
-                <label>
-                    <input
-                        name="magic"
-                        type="password"
-                        value={form.magic}
-                        onChange={handleChange}
-                    />
-                </label>
-                <button type="submit" disabled={isSubmitting || form.magic == ""}>OK</button>
-                <LoginError/>
-            </form>
-        </div>
+        <form onSubmit={updateUserMagic}>
+            {/* NOTE: The university_name text entry form is INVISIBLE for now. */}
+            <label style={{display:"none"}}>Enter your University name:
+                <input
+                    name="university_name"
+                    type="text"
+                    value={form.university_name}
+                    onChange={handleChange}
+                />
+            </label>
+            <label>
+                <input
+                    name="magic"
+                    type="password"
+                    value={form.magic}
+                    onChange={handleChange}
+                />
+            </label>
+            <button type="submit" disabled={isSubmitting || form.magic == ""}>OK</button>
+            <LoginError/>
+        </form>
     );
 }

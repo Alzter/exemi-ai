@@ -93,6 +93,7 @@ export default function Login({setSession} : any){
 
     return (
         <div className='form'>
+            <h1>Exemi</h1>
             <form onSubmit={handleSubmit}>
                 <label>Enter your participant ID:
                     <input
