@@ -168,6 +168,10 @@ async def create_units_from_canvas(
     
     session.add_all(new_units)
     session.commit()
+
+    # TODO: Enrol the user in all active units
+    # by adding entries in the UsersUnits table! FIXME
+
     for unit in new_units:
         unit = session.refresh(unit)
     
@@ -190,7 +194,7 @@ async def create_units_from_canvas(
 #     
 #     return Term.model_validate(term_data)
 
-@router.get("/canvas/units/{unit_id}/assignments", response_model = list[AssignmentPublic])
+@router.get("/canvas/units/{unit_id}/assignments", response_model = list[Assignment])
 async def canvas_get_assignments(unit_id : int, current_user : User = Depends(get_current_user), magic : str = Depends(get_current_magic)):
     path = f"courses/{unit_id}/assignment_groups"
     params = {"include":"assignments"}
@@ -201,12 +205,16 @@ async def canvas_get_assignments(unit_id : int, current_user : User = Depends(ge
     raw_assignments = assignment_groups.assignments.explode().dropna().tolist()
     raw_assignments = decode_canvas_response(raw_assignments)
 
+
     assignments = []
     for assignment in raw_assignments.to_dict(orient='records'):
+        description = assignment.get("description")
+        if type(description) is not str: description = ""
+
         assignment_data = {
-            "id" : assignment.get("id"),
+            "canvas_id" : assignment.get("id"),
             "name" : assignment.get("name"),
-            "description" : assignment.get("description"),
+            "description" : description,
             "due_at" : assignment.get("due_at"),
             "is_group" : False, # TODO: FIX
             "points" : 0, # TODO: FIX
@@ -214,6 +222,26 @@ async def canvas_get_assignments(unit_id : int, current_user : User = Depends(ge
         }
         assignment_model = Assignment.model_validate(assignment_data)
         assignments.append(assignment_model)
+    
+    return assignments
+
+@router.get("/canvas/assignments", response_model = list[Assignment])
+async def canvas_get_all_assignments(
+    current_user : User = Depends(get_current_user),
+    magic : str = Depends(get_current_magic)
+):
+    units : list[Unit] = await canvas_get_units(current_user=current_user,magic=magic)
+    
+    assignments : list[Assignment] = []
+
+    for unit in units:
+        unit_assignments : list[Assignment] = await canvas_get_assignments(
+            unit.canvas_id,
+            current_user=current_user,
+            magic=magic
+        )
+
+        assignments.extend(unit_assignments)
     
     return assignments
 
