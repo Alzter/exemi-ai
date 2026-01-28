@@ -35,6 +35,7 @@ export default function ChatUI(){
 
             </div>
             <form className="chatbox" onClick={sendMessage}>
+                {/* TODO: User message box should wrap text and expand vertically */}
                 <input type="text" onChange={updateMessage} value={userMessage}/>
                 <button type="submit">Send</button>
             </form>
