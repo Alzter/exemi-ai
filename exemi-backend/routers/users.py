@@ -85,7 +85,7 @@ def login(login_form_data : Annotated[OAuth2PasswordRequestForm, Depends()], ses
 
 @router.get("/users/self", response_model=UserPublic)
 async def get_current_user(current_user : User = Depends(root_get_current_user)):
-    return current_user # TODO: THIS IS BAD
+    return current_user
 
 @router.get("/magic_valid", response_model=bool)
 async def is_magic_valid(current_magic : str = Depends(get_current_magic), current_user : User = Depends(root_get_current_user)):

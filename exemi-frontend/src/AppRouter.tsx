@@ -22,6 +22,19 @@ export default function AppRouter() {
     const isLoggedIn = session.token !== null;
     const isLoading = isLoggedIn && isMagicValid == null;
 
+    async function logOutIfJWTExpires() {
+        const response = await fetch(backendURL + "/users/self", {
+            headers: { "Authorization" : "Bearer " + session.token},
+            method: "GET",
+        });
+        if (!response.ok){
+            setSession({
+                token:null,
+                user_id:null
+            });
+        }
+    }
+    
     // Call the backend API to determine if the user's current magic is valid.
     async function checkIfUserMagicValid() {
         const response = await fetch(backendURL + "/magic_valid", {
@@ -42,6 +55,9 @@ export default function AppRouter() {
         if (session.user_id){ localStorage.setItem("user_id", session.user_id); }
         else {localStorage.removeItem("user_id")}
         
+        if (isLoggedIn){
+            logOutIfJWTExpires();
+        }
         if (isLoggedIn && isMagicValid == null){
             checkIfUserMagicValid();
         }
