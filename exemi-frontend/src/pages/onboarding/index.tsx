@@ -21,7 +21,7 @@ const slides : Slide[] = [
   {
     photoURL: "/assets/onboarding_slides/1.png",
     text:(<p>
-      Click <a href={CANVAS_SETTINGS_LINK}>here</a> to open your Canvas account settings page.
+      Click <a href={CANVAS_SETTINGS_LINK} target="_blank" rel="noopener noreferrer">here</a> to open your Canvas account settings page.
     </p>),
   },
   {

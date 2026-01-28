@@ -76,7 +76,8 @@ div.slideshow img{
 }
 
 div.slide-progress{
-  width:100%;
+  width:80%;
+  margin:auto;
   height:20px;
   border-radius: 8px;
   background-color: #ddd;
