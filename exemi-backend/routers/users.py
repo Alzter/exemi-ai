@@ -13,7 +13,7 @@ PasswordHasher = PasswordHash.recommended()
 LOGIN_SESSION_EXPIRY = timedelta(minutes=30)
 router = APIRouter()
 
-# @router.get("/users/", response_model = list[UserPublic])
+# @router.get("/users", response_model = list[UserPublic])
 def get_users(offset : int = 0, limit : int = Query(default=100, limit=100), session : Session = Depends(get_session)):
     users = session.exec(
         select(User).offset(offset).limit(limit)
@@ -65,7 +65,7 @@ def authenticate_user(username : str, password : str, session : Session = Depend
 
     return user 
 
-@router.post("/login/")
+@router.post("/login")
 def login(login_form_data : Annotated[OAuth2PasswordRequestForm, Depends()], session : Session = Depends(get_session)):
     # Check the login credentials match an account. If not, raise an exception.
     user = authenticate_user(login_form_data.username, login_form_data.password, session)
@@ -83,11 +83,11 @@ def login(login_form_data : Annotated[OAuth2PasswordRequestForm, Depends()], ses
         "user_id" : user.id
     }
 
-@router.get("/users/self/", response_model=UserPublic)
+@router.get("/users/self", response_model=UserPublic)
 async def get_current_user(current_user : User = Depends(root_get_current_user)):
     return current_user # TODO: THIS IS BAD
 
-@router.get("/magic_valid/", response_model=bool)
+@router.get("/magic_valid", response_model=bool)
 async def is_magic_valid(current_magic : str = Depends(get_current_magic), current_user : User = Depends(root_get_current_user)):
     """
     Determines if the user's current magic is valid. Returns 200 response if the magic is valid, else 401.
@@ -115,7 +115,7 @@ async def is_magic_valid(current_magic : str = Depends(get_current_magic), curre
 #     )
 #     return get_user(user_id, session)
 
-@router.post("/users/", response_model = UserPublic)
+@router.post("/users", response_model = UserPublic)
 async def create_user(data : UserCreate, session : Session = Depends(get_session)):
     existing_user = session.exec(
         select(User).where(User.username == data.username)

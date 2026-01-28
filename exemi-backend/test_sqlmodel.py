@@ -81,7 +81,7 @@ def get_session():
 def fake_hash_password(password : str) -> str:
     return "hashed " + password
 
-@app.post("/teams/", response_model=TeamPublicWithHeroes)
+@app.post("/teams", response_model=TeamPublicWithHeroes)
 def create_team(team:TeamCreate, session: Session = Depends(get_session)):
     # Convert the TeamCreate object into a Team object.
     # Note: model_validate is basically from_dict().
@@ -91,7 +91,7 @@ def create_team(team:TeamCreate, session: Session = Depends(get_session)):
     session.refresh(db_team)
     return db_team
 
-@app.get("/teams/", response_model=list[TeamPublic])
+@app.get("/teams", response_model=list[TeamPublic])
 def read_teams(offset : int = 0, limit : int = Query(default=100, le=100), session : Session = Depends(get_session)):
     teams = session.exec(
         select(Team).offset(offset).limit(limit)
@@ -123,7 +123,7 @@ def delete_team(team_id : int, session : Session = Depends(get_session)):
     session.commit()
     return {"ok":True}
 
-@app.post("/heroes/", response_model=HeroPublicWithTeam)
+@app.post("/heroes", response_model=HeroPublicWithTeam)
 def create_hero(hero : HeroCreate, session : Session = Depends(get_session)):
     hashed_password = fake_hash_password(hero.password)
     extra_data = {"hashed_password" : hashed_password}
@@ -133,7 +133,7 @@ def create_hero(hero : HeroCreate, session : Session = Depends(get_session)):
     session.refresh(db_hero)
     return db_hero
 
-@app.get("/heroes/", response_model=list[HeroPublic])
+@app.get("/heroes", response_model=list[HeroPublic])
 def read_heroes(offset : int = 0, limit : int = Query(default=100,le=100), session : Session = Depends(get_session)):
     heroes = session.exec(
         select(Hero).offset(offset).limit(limit)

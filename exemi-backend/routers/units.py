@@ -47,7 +47,7 @@ async def canvas_get_units(exclude_complete_units : bool = False, exclude_orgini
     
     return units
 
-@router.get("/canvas/units/{unit_id}/term/", response_model=TermPublic)
+@router.get("/canvas/units/{unit_id}/term", response_model=TermPublic)
 async def canvas_get_term(unit_id : int, current_user : User = Depends(get_current_user), magic : str = Depends(get_current_magic)):
     
     # TODO: Terms provide a start_at and end_at date.
@@ -63,7 +63,7 @@ async def canvas_get_term(unit_id : int, current_user : User = Depends(get_curre
     
     return Term.model_validate(term_data)
 
-@router.get("/canvas/units/{unit_id}/assignments/", response_model = list[AssignmentPublic])
+@router.get("/canvas/units/{unit_id}/assignments", response_model = list[AssignmentPublic])
 async def canvas_get_assignments(unit_id : int, current_user : User = Depends(get_current_user), magic : str = Depends(get_current_magic)):
     path = f"courses/{unit_id}/assignment_groups"
     params = {"include":"assignments"}
@@ -90,12 +90,12 @@ async def canvas_get_assignments(unit_id : int, current_user : User = Depends(ge
     
     return assignments
 
-# @router.get("/universities/", response_model=list[UniversityPublic])
+# @router.get("/universities", response_model=list[UniversityPublic])
 # async def get_universities(session : Session = Depends(get_session)):
 #     universities = session.exec(select(University)).all()
 #     return universities
 # 
-# @router.post("/universities/", response_model=UniversityPublicWithUnits)
+# @router.post("/universities", response_model=UniversityPublicWithUnits)
 # async def create_university(data : UniversityCreate, session : Session = Depends(get_session)):
 #     university = University.model_validate(data)
 #     session.add(university)
@@ -103,7 +103,7 @@ async def canvas_get_assignments(unit_id : int, current_user : User = Depends(ge
 #     session.refresh(university)
 #     return university
 
-@router.get("/terms/", response_model=list[TermPublic])
+@router.get("/terms", response_model=list[TermPublic])
 async def get_terms(offset : int = 0, limit : int = Query(default=100, limit=100), session : Session = Depends(get_session)):
     terms = session.exec(
         select(Term).offset(offset).limit(limit)
@@ -118,7 +118,7 @@ async def get_term(name : str, session : Session = Depends(get_session)):
     if not term: raise HTTPException(status_code=404, detail="Term not found")
     return term
 
-@router.post("/term/", response_model=TermPublic)
+@router.post("/term", response_model=TermPublic)
 async def create_term(data : TermCreate, session : Session = Depends(get_session)):
     term = Term.model_validate(data)
     session.add(term)
@@ -126,7 +126,7 @@ async def create_term(data : TermCreate, session : Session = Depends(get_session
     session.refresh(term)
     return term
 
-@router.get("/units/", response_model=list[UnitPublic])
+@router.get("/units", response_model=list[UnitPublic])
 async def get_units(offset : int = 0, limit : int = Query(default=100, limit=100), session : Session = Depends(get_session)):
     units = session.exec(
         select(Unit).offset(offset).limit(limit)
@@ -141,7 +141,7 @@ async def get_unit(name : str, session : Session = Depends(get_session)):
     if not unit: raise HTTPException(status_code=404, detail="Unit not found")
     return unit 
 
-@router.post("/unit/", response_model=UnitPublic)
+@router.post("/unit", response_model=UnitPublic)
 async def create_unit(data : UnitCreate, session : Session = Depends(get_session)):
     unit = Unit.model_validate(data)
     session.add(unit)
@@ -149,7 +149,7 @@ async def create_unit(data : UnitCreate, session : Session = Depends(get_session
     session.refresh(unit)
     return unit
 
-@router.get("/assignments/", response_model=list[AssignmentPublic])
+@router.get("/assignments", response_model=list[AssignmentPublic])
 async def get_assignments(offset : int = 0, limit : int = Query(default=100, limit=100), session : Session = Depends(get_session)):
     assignments = session.exec(
         select(Assignment).offset(offset).limit(limit)
@@ -164,7 +164,7 @@ async def get_assignment(name : str, session : Session = Depends(get_session)):
     if not assignment: raise HTTPException(status_code=404, detail="Assignment not found")
     return assignment 
 
-@router.post("/assignment/", response_model=AssignmentPublic)
+@router.post("/assignment", response_model=AssignmentPublic)
 async def create_assignment(data : AssignmentCreate, session : Session = Depends(get_session)):
     assignment = Assignment.model_validate(data)
     session.add(assignment)
@@ -172,7 +172,7 @@ async def create_assignment(data : AssignmentCreate, session : Session = Depends
     session.refresh(assignment)
     return assignment
 
-@router.post("/canvas/units/", response_model = list[UnitPublic])
+@router.post("/canvas/units", response_model = list[UnitPublic])
 async def create_units_from_canvas(session : Session = Depends(get_session), current_user : User = Depends(get_current_user), magic : str = Depends(get_current_magic)):
     """
     For a given Canvas user, creates Unit objects in the database for all their units

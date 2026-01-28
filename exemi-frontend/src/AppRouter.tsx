@@ -6,8 +6,8 @@ import Onboarding from './pages/onboarding';
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 
 type Session = {
-    token : string | null,
-    user_id : string | null
+    token : string | null;
+    user_id : string | null;
 }
 
 export default function AppRouter() {
@@ -24,7 +24,7 @@ export default function AppRouter() {
 
     // Call the backend API to determine if the user's current magic is valid.
     async function checkIfUserMagicValid() {
-        const response = await fetch(backendURL + "/magic_valid/", {
+        const response = await fetch(backendURL + "/magic_valid", {
             headers: {
                 "Authorization" : "Bearer " + session.token
             },
