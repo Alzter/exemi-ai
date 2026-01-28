@@ -54,6 +54,7 @@ class UnitBase(SQLModel):
     name : str = Field(max_length=255, unique=True)
     term_id : int | None = Field(default=None, foreign_key="term.id")
     canvas_id : int = Field()
+    canvas_term_id : int = Field()
 
 class Unit(UnitBase, table=True):
     id : int | None = Field(primary_key=True, default=None)
