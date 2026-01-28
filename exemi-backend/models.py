@@ -38,6 +38,7 @@ class TermBase(SQLModel):
     end_at : datetime
     name : str = Field(max_length=255, unique=True)
     university_name : str = Field(max_length=255, index=True, foreign_key='university.name')
+    canvas_id : int = Field()
 
 class Term(TermBase, table=True):
     id : int | None = Field(primary_key=True,default=None)
@@ -52,6 +53,7 @@ class UnitBase(SQLModel):
     #university : str = Field(primary_key=True, index=True, max_length=255, foreign_key="university.name")
     name : str = Field(max_length=255, unique=True)
     term_id : int | None = Field(default=None, foreign_key="term.id")
+    canvas_id : int = Field()
 
 class Unit(UnitBase, table=True):
     id : int | None = Field(primary_key=True, default=None)
@@ -70,6 +72,7 @@ class AssignmentBase(SQLModel):
     due_at : datetime | None = Field(default=None)
     points : int = Field()
     is_group : bool = Field()
+    canvas_id : int = Field()
 
 class Assignment(AssignmentBase, table=True):
     id : int | None = Field(primary_key=True, default=None)

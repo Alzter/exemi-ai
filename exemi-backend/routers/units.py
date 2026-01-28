@@ -13,6 +13,60 @@ import pandas as pd
 
 router = APIRouter()
 
+@router.get("/canvas/terms", response_model=list[Term])
+async def canvas_get_terms(current_user : User = Depends(get_current_user), magic : str = Depends(get_current_magic)):
+    params = {"include":"term"}
+    raw_units = await query_canvas(path="courses", magic=magic, provider=current_user.university_name, max_items=50, params=params)
+
+    raw_terms = decode_canvas_response(raw_units["term"].to_list())
+    raw_terms = raw_terms.drop_duplicates(subset="id").dropna()
+    
+    terms = []
+
+    for term in raw_terms.to_dict(orient='records'):
+        term_data = {
+            "canvas_id" : term.get("id"),
+            "name" : term.get("name"),
+            "university_name" : current_user.university_name,
+            "start_at" : term.get("start_at"),
+            "end_at" : term.get("end_at")
+        }
+
+        term_model = Term.model_validate(term_data)
+        terms.append(term_model)
+    
+    return terms
+
+@router.post("/canvas_terms", response_model=list[TermPublic])
+async def create_terms_from_canvas(session : Session = Depends(get_session), current_user : User = Depends(get_current_user), magic : str = Depends(get_current_magic)):
+    
+    """
+    Creates Term objects in the database to represent
+    all the Terms that the student has access to from
+    Canvas.
+    """
+
+    db_terms = []
+
+    canvas_terms : list[Term] = await canvas_get_terms(current_user, magic)
+    for term in canvas_terms:
+        
+        # If the term already exists in the DB, ignore it
+        term_exists = session.exec(
+            select(Term).where(Term.canvas_id == term.canvas_id).where(Term.university_name == term.university_name)
+        ).first()
+
+        if term_exists:
+            db_terms.append(term_exists)
+            continue
+        
+        session.add(term)
+        session.commit()
+        session.refresh(term)
+        db_terms.append(term)
+    
+    return db_terms
+
 @router.get("/canvas/units", response_model=list[UnitPublic])
 async def canvas_get_units(exclude_complete_units : bool = False, exclude_orginisation_units : bool = True, current_user : User = Depends(get_current_user), magic : str = Depends(get_current_magic)):
     params = {"include":"term"}
@@ -36,7 +90,8 @@ async def canvas_get_units(exclude_complete_units : bool = False, exclude_orgini
         if not term_dict: raise HTTPException(500, f"Unit {unit_name} does not have a term attached")
 
         unit_data = {
-            "id" : unit.get("id"),
+            "id" : 1,
+            "canvas_id" : unit.get("id"),
             "name" : unit_name,
             "assignments" : [],
             "term_id" : term_dict.get("id")
@@ -47,21 +102,21 @@ async def canvas_get_units(exclude_complete_units : bool = False, exclude_orgini
     
     return units
 
-@router.get("/canvas/units/{unit_id}/term", response_model=TermPublic)
-async def canvas_get_term(unit_id : int, current_user : User = Depends(get_current_user), magic : str = Depends(get_current_magic)):
-    
-    # TODO: Terms provide a start_at and end_at date.
-    # HOWEVER, the dates provided by SUT are often inaccurate!!
-    # Find a way to CROSS REFERENCE the term start and end dates
-    # using the name of the term (e.g., "Semester 1 2024")
-    # through Swinburne's official timetable!! FIXME
-
-    params = {"include":"term"}
-    unit_data = await query_canvas(path=f"courses/{unit_id}", magic=magic, provider=current_user.university_name, max_items=50, params=params)
-    term_df = decode_canvas_response( unit_data.term.to_list() )
-    term_data = term_df.to_dict(orient='records')[0]
-    
-    return Term.model_validate(term_data)
+# @router.get("/canvas/units/{unit_id}/term", response_model=TermPublic)
+# async def canvas_get_term(unit_id : int, current_user : User = Depends(get_current_user), magic : str = Depends(get_current_magic)):
+#     
+#     # TODO: Terms provide a start_at and end_at date.
+#     # HOWEVER, the dates provided by SUT are often inaccurate!!
+#     # Find a way to CROSS REFERENCE the term start and end dates
+#     # using the name of the term (e.g., "Semester 1 2024")
+#     # through Swinburne's official timetable!! FIXME
+# 
+#     params = {"include":"term"}
+#     unit_data = await query_canvas(path=f"courses/{unit_id}", magic=magic, provider=current_user.university_name, max_items=50, params=params)
+#     term_df = decode_canvas_response( unit_data.term.to_list() )
+#     term_data = term_df.to_dict(orient='records')[0]
+#     
+#     return Term.model_validate(term_data)
 
 @router.get("/canvas/units/{unit_id}/assignments", response_model = list[AssignmentPublic])
 async def canvas_get_assignments(unit_id : int, current_user : User = Depends(get_current_user), magic : str = Depends(get_current_magic)):
