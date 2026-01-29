@@ -8,8 +8,12 @@ run_backend() {
   fastapi dev main.py
 }
 
+run_llm() {
+  ollama serve
+}
+
 run() {
-  run_frontend & run_backend
+  run_frontend & run_backend & run_llm
 }
 
 run

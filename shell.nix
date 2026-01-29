@@ -60,6 +60,8 @@ pkgs.mkShell {
 #     torchaudio
 #     transformers
     huggingface-hub
+    instructor
+    litellm
     
     fastapi
     fastapi-cli
