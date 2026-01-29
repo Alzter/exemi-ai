@@ -1,35 +1,41 @@
-from ..models import User, Conversation, ConversationCreate, ConversationPublic, ConversationPublicWithMessages, Message, MessageCreate, MesssagePublic
+from ..models import User, Conversation, ConversationCreate, ConversationPublic, ConversationPublicWithMessages, Message, MessageCreate, MessagePublic
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select
 from ..dependencies import get_current_user, get_session
+from datetime import datetime, timezone
 
-router = AppRouter()
+router = APIRouter()
 
 @router.post("/conversation", response_model=ConversationPublic)
 async def create_conversation(
-    data : ConversationCreate,
+    # data : ConversationCreate,
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session)
 ):
     """
     Create a new conversation as the current user.
     """
-    conversation = Conversation.model_validate(data, update={
-        "user_id" : user.id
-    })
+
+    data = {
+        "user_id" : user.id,
+        "user" : user,
+        "created_at" : datetime.now(timezone.utc)
+    }
+
+    conversation = Conversation.model_validate(data)
 
     session.add(conversation)
     session.commit()
-    return session.refresh(conversation)
+    session.refresh(conversation)
+    return conversation
 
 @router.get("/conversation/{id}", response_model=ConversationPublicWithMessages)
-async def get_conversation(id : int, user_id : int | None = None, user : User = Depends(get_current_user), session : Session = Depends(get_session)):
+async def get_conversation(id : int, user : User = Depends(get_current_user), session : Session = Depends(get_session)):
     """
     Obtain an existing conversation with its messages.
 
     Args:
         id (int): The ID of the conversation to retrieve.
-        user_id (int, optional): The ID of the user who created the conversation. Defaults to the current user's ID.
     
     Raises:
         HTTPException:
@@ -39,15 +45,14 @@ async def get_conversation(id : int, user_id : int | None = None, user : User = 
     Returns:
         ConversationPublicWithMessages: The conversation with its messages included.
     """
-    if user_id is None: user_id == user.id
-    if user_id != user.id and not user.admin:
+
+    conversation = session.get(Conversation, id)
+
+    if not conversation: raise HTTPException(status_code=404, detail=f"Conversation not found with ID {id}")
+
+    if not conversation.user_id == user.id and not user.admin:
         raise HTTPException(status_code=401, detail="You are not authorised to view this conversation")
 
-    conversation = session.exec(
-        select(Conversation, id).where(Conversation.user_id == user_id)
-    ).first()
-
-    if not conversation: raise HTTPException(status_code=404, detail=f"Conversation not found with ID {id} for user {user_id}")
     return conversation
 
 @router.get("/conversations", response_model=list[ConversationPublicWithMessages])
@@ -71,7 +76,7 @@ async def get_conversations(
     Returns:
         list[ConversationPublicWithMessages]: The conversations with their messages included.
     """
-    if user_id is None: user_id == user.id
+    if user_id is None: user_id = user.id
     if user_id != user.id and not user.admin:
         raise HTTPException(status_code=401, detail="You are not authorised to view these conversations")
 
@@ -105,7 +110,7 @@ async def delete_conversation(
     session.commit()
     return {"ok" : True}
 
-@router.post("/message")
+@router.post("/message", response_model=MessagePublic)
 async def create_message(
     data : MessageCreate,
     user : User = Depends(get_current_user),
@@ -114,8 +119,13 @@ async def create_message(
     existing_conversation = session.get(Conversation, data.conversation_id)
     if not existing_conversation:
         raise HTTPException(status_code=400, detail="Conversation ID does not match an existing conversation")
-    message = Message.model_validate(data)
+    
+    message = Message.model_validate(data, update={
+        "created_at" : datetime.now(timezone.utc)
+    })
+
     session.add(message)
     session.commit()
-    return session.refresh(message)
+    session.refresh(message)
+    return message
 
