@@ -9,6 +9,7 @@ class University(SQLModel, table=True):
 class UserBase(SQLModel):
     username : str = Field(max_length=255, unique=True)
     university_name : str | None = Field(default=None, max_length=255, index=True, foreign_key='university.name', ondelete="SET NULL")
+    conversations : list["Conversation"] = Relationship(back_populates="user", cascade_delete=True)
 
 class User(UserBase, table=True):
     id : int | None = Field(primary_key=True, default=None)
@@ -84,3 +85,34 @@ class AssignmentCreate(AssignmentBase): pass
 class AssignmentPublic(AssignmentBase):
     id : int
 
+class ConversationBase(SQLModel):
+    created_at : datetime
+    summary : str | None = Field(sa_column=Column(TEXT),default=None)
+
+class Conversation(ConversationBase, table=True):
+    id : int | None = Field(primary_key=True, default=None)
+    user_id : int = Field(foreign_key='user.id', ondelete="CASCADE")
+    messages : list["Message"] = Relationship(back_populates="conversation", cascade_delete=True)
+
+class ConversationCreate(ConversationBase): pass
+
+class ConversationPublic(ConversationBase):
+    id : int
+    user_id : int
+
+class MessageBase(SQLModel):
+    conversation_id : int = Field(foreign_key='conversation.id', ondelete="CASCADE")
+    created_at : datetime
+    role : str = Field(max_length=30)
+    content : str = Field(sa_column=Column(TEXT))
+
+class Message(MessageBase):
+    id : int | None = Field(primary_key=True, default=None)
+
+class MessageCreate(MessageBase): pass
+
+class MessagePublic(MessageBase):
+    id : int
+
+class ConversationPublicWithMessages(ConversationPublic):
+    messages : list[Message] = []
