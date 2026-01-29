@@ -9,7 +9,6 @@ class University(SQLModel, table=True):
 class UserBase(SQLModel):
     username : str = Field(max_length=255, unique=True)
     university_name : str | None = Field(default=None, max_length=255, index=True, foreign_key='university.name', ondelete="SET NULL")
-    conversations : list["Conversation"] = Relationship(back_populates="user", cascade_delete=True)
 
 class User(UserBase, table=True):
     id : int | None = Field(primary_key=True, default=None)
@@ -17,6 +16,7 @@ class User(UserBase, table=True):
     disabled : bool = Field(default=False)
     password_hash : str = Field(max_length=255)
     magic_hash : str | None = Field(default=None, max_length=255)
+    conversations : list["Conversation"] = Relationship(back_populates="user", cascade_delete=True)
 
 class UserPublic(UserBase):
     id : int
@@ -106,7 +106,7 @@ class MessageBase(SQLModel):
     role : str = Field(max_length=30)
     content : str = Field(sa_column=Column(TEXT))
 
-class Message(MessageBase):
+class Message(MessageBase, table=True):
     id : int | None = Field(primary_key=True, default=None)
 
 class MessageCreate(MessageBase): pass
