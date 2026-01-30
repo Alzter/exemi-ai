@@ -1,4 +1,4 @@
-from ..models import User, Conversation, ConversationCreate, ConversationPublic, ConversationPublicWithMessages, Message, MessageCreate, MessagePublic
+from ..models import User, Conversation, ConversationCreate, ConversationPublic, ConversationPublicWithMessages, Message, MessageCreate, MessagePublic, MessageUpdate
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select
 from ..dependencies import get_current_user, get_session
@@ -86,21 +86,21 @@ async def delete_conversation(
     session : Session = Depends(get_session)
 ):
     """
-    Deletes a conversation for a given user, provided that the current user is an administrator.
+    Deletes a conversation for a given user.
 
     Args:
         id (int): The ID of the conversation to delete.
 
     Raises:
-        HTTPException: Returns a 401 if the user is not an administrator.
+        HTTPException: Returns a 401 if the user tries to delete another user's conversation and is not an administrator.
     
     Returns:
         dict: Successful response {"ok":True}.
     """
-    if not user.admin: raise HTTPException(status_code=401, detail="You are not authorised to delete this conversation")
-    conversation = session.exec(select(Conversation, id)).first()
+    conversation = session.get(Conversation, id)
     if not conversation: raise HTTPException(status_code=404, detail="Conversation not found")
 
+    if conversation.user_id != user.id and not user.admin: raise HTTPException(status_code=401, detail="You are not authorised to delete this conversation")
     session.delete(conversation)
     session.commit()
     return {"ok" : True}
@@ -126,6 +126,118 @@ async def add_message_to_conversation(
     session.commit()
     session.refresh(message)
 
+    return existing_conversation
+
+async def call_llm_response_to_conversation(
+    conversation_id : int,
+    user : User,
+    session : Session
+):
+    existing_conversation = session.get(Conversation, conversation_id)
+    if not existing_conversation: raise HTTPException(status_code=404, detail="Conversation not found")
+    
+    if existing_conversation.user_id != user.id and not user.admin:
+        raise HTTPException(status_code=401, detail="You are not authorised to add messages to another user's conversation")
+
+    # TODO: Add logic to call LLM to generate response. FIXME
+
+    time.sleep(2) # Placeholder cooldown just to test client-side prediction.
+    assistant_message_data = MessageCreate(
+        conversation_id = conversation_id,
+        role="assistant",
+        content="PLACEHOLDER TEXT FOR LLM RESPONSE. HELLO WORLD!"
+    )
+
+    new_conversation = await add_message_to_conversation(
+        assistant_message_data,
+        user=user,
+        session=session
+    )
+
+    return new_conversation
+    
+@router.patch("/message/{id}", response_model=ConversationPublicWithMessages)
+async def update_message_in_conversation(
+    message_id : int,
+    new_message_text : str,
+    user : User = Depends(get_current_user),
+    session : Session = Depends(get_session)
+):
+    """
+    Replace the content of a user message in a conversation
+    with new text. DELETES all messages after the edited
+    message and RETRIGGERS the LLM to respond to the
+    edited message.
+
+    Args:
+        message_id (int): The ID of the message to replace.
+        new_message_text (str): The new message text.
+    
+    Returns:
+        ConversationPublicWithMessages:
+            The conversation with the message updated.
+    """
+    existing_message = session.get(Message, message_id)
+    if not existing_message: raise HTTPException(status_code=404, detail="Message not found")
+    if not existing_message.role == "user": raise HTTPException(status_code=400, detail="You may not edit LLM messages")
+
+    existing_conversation = session.get(Conversation, existing_message.conversation_id)
+    if not existing_conversation: raise HTTPException(status_code=404, detail="Conversation not found")
+
+    if existing_conversation.user_id != user.id and not user.admin:
+        raise HTTPException(status_code=401, detail="You are not authorised to add messages to another user's conversation")
+    
+    existing_message.sqlmodel_update({"content" : new_message_text})
+
+    session.add(existing_message)
+    session.commit()
+    
+    session.refresh(existing_conversation)
+
+    messages_to_delete = session.exec(
+        select(Message).where(Message.conversation_id == existing_conversation.id).where(Message.id > existing_message.id)
+    ).all()
+    
+    if messages_to_delete:
+        for message in messages_to_delete:
+            session.delete(message)
+
+        session.commit()
+        session.refresh(existing_conversation)
+        
+        existing_conversation = await call_llm_response_to_conversation(
+            conversation_id = existing_conversation.id,
+            user=user,
+            session=session
+        )
+
+    return existing_conversation 
+
+@router.delete("/message", response_model=ConversationPublicWithMessages)
+async def delete_message_in_conversation(
+    message_id : int,
+    user : User = Depends(get_current_user),
+    session : Session = Depends(get_session)
+):
+    """
+    Delete a message from a conversation.
+
+    Args:
+        message_id (int): The ID of the message to delete.
+
+    Returns:
+        ConversationPublicWithMessages:
+            The conversation with the message removed.
+    """
+    existing_message = session.get(Message, message_id)
+    if not existing_message: raise HTTPException(status_code=404, detail="Message not found")
+    existing_conversation = session.get(Conversation, existing_message.conversation_id)
+    if not existing_conversation: raise HTTPException(status_code=404, detail="Conversation not found")
+    if existing_conversation.user_id != user.id and not user.admin:
+        raise HTTPException(status_code=401, detail="You are not authorised to remove messages from another user's conversation")
+    session.delete(existing_message)
+    session.commit()
+    session.refresh(existing_conversation)
     return existing_conversation
 
 @router.post("/conversation", response_model=ConversationPublicWithMessages)
@@ -205,24 +317,15 @@ async def continue_conversation(
         role="user",
         content=message_text
     )
-
+    
     new_conversation = await add_message_to_conversation(
         message_data,
         user=user,
         session=session
     )
-    
-    # TODO: Add logic to call LLM to generate response. FIXME
-    
-    time.sleep(2) # Placeholder cooldown just to test client-side prediction.
-    assistant_message_data = MessageCreate(
-        conversation_id = conversation_id,
-        role="assistant",
-        content="PLACEHOLDER TEXT FOR LLM RESPONSE. HELLO WORLD!"
-    )
 
-    new_conversation = await add_message_to_conversation(
-        assistant_message_data,
+    new_conversation = await call_llm_response_to_conversation(
+        conversation_id=new_conversation.id,
         user=user,
         session=session
     )

@@ -119,5 +119,8 @@ class MessagePublic(MessageBase):
     id : int
     created_at : datetime
 
+class MessageUpdate(SQLModel):
+    content : str = Field(sa_column=Column(TEXT))
+
 class ConversationPublicWithMessages(ConversationPublic):
     messages : list[Message] = []
