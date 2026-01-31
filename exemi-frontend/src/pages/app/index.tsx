@@ -7,7 +7,7 @@ export default function LoggedInFlow({session, setSession} : any) {
     <div>
       <Routes>
         <Route path="/" element={<Dashboard session={session} setSession={setSession}/>}/>
-        <Route path="chat/" element={<ChatUI/>}/>
+        <Route path="chat/" element={<ChatUI session={session} initialConversationID={null}/>}/>
       </Routes>
       </div>
   )

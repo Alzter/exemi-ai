@@ -1,4 +1,4 @@
-from ..models import User, Conversation, ConversationCreate, ConversationPublic, ConversationPublicWithMessages, Message, MessageCreate, MessagePublic, MessageUpdate
+from ..models import User, Conversation, NewMessage, ConversationPublic, ConversationPublicWithMessages, Message, MessageCreate, MessagePublic, MessageUpdate
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select
 from ..dependencies import get_current_user, get_session
@@ -156,7 +156,7 @@ async def call_llm_response_to_conversation(
 
     return new_conversation
     
-@router.patch("/message/{id}", response_model=ConversationPublicWithMessages)
+@router.patch("/message/{message_id}", response_model=ConversationPublicWithMessages)
 async def update_message_in_conversation(
     message_id : int,
     new_message_text : str,
@@ -213,7 +213,7 @@ async def update_message_in_conversation(
 
     return existing_conversation 
 
-@router.delete("/message", response_model=ConversationPublicWithMessages)
+@router.delete("/message/{message_id}", response_model=ConversationPublicWithMessages)
 async def delete_message_in_conversation(
     message_id : int,
     user : User = Depends(get_current_user),
@@ -242,7 +242,7 @@ async def delete_message_in_conversation(
 
 @router.post("/conversation", response_model=ConversationPublicWithMessages)
 async def start_conversation(
-    message_text : str,
+    new_message : NewMessage,
     # data : ConversationCreate,
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session)
@@ -278,17 +278,17 @@ async def start_conversation(
 
     conversation_with_response = await continue_conversation(
         conversation_id = conversation.id,
-        message_text=message_text,
+        new_message=new_message,
         user=user,
         session=session
     )
 
     return conversation_with_response
 
-@router.post("/conversation/{id}", response_model=ConversationPublicWithMessages)
+@router.post("/conversation/{conversation_id}", response_model=ConversationPublicWithMessages)
 async def continue_conversation(
     conversation_id : int,
-    message_text : str,
+    new_message : NewMessage,
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session)
 ):
@@ -315,7 +315,7 @@ async def continue_conversation(
     message_data = MessageCreate(
         conversation_id = conversation_id,
         role="user",
-        content=message_text
+        content=new_message.message_text
     )
     
     new_conversation = await add_message_to_conversation(

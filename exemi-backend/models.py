@@ -96,7 +96,8 @@ class Conversation(ConversationBase, table=True):
     created_at : datetime
     summary : str | None = Field(sa_column=Column(TEXT),default=None)
 
-class ConversationCreate(ConversationBase): pass
+class NewMessage(SQLModel):
+    message_text : str = Field(sa_column=Column(TEXT))
 
 class ConversationPublic(ConversationBase):
     id : int

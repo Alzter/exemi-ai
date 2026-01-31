@@ -3,7 +3,7 @@ type MessageProps = {
     role : string
 }
 
-export default function Message({content, role} : MessageProps){
+export default function MessageBox({content, role} : MessageProps){
     let stylingClass = role == "user" ? "user-message" : "message"
     
     return(

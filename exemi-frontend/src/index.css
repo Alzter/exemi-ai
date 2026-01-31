@@ -106,7 +106,9 @@ div.message-container{
   /* background:lightblue; */
   padding:2em;
   flex-direction: column;
+  min-width: 300px;
   max-width: 750px;
+  width:100%;
   margin:auto;
   gap:1em;
 }
