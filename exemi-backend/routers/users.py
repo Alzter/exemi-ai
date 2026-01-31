@@ -100,7 +100,7 @@ async def is_magic_valid(current_magic : str = Depends(get_current_magic), curre
     """
     university = current_user.university_name
     if not university: raise HTTPException(status_code=401, detail="The current user must have a university assigned")
-    valid = root_is_magic_valid(magic=current_magic, provider=university)
+    valid = await root_is_magic_valid(magic=current_magic, provider=university)
     if not valid: raise HTTPException(status_code=401, detail="The current user's magic is not valid")
     return True
 
