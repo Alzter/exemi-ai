@@ -71,7 +71,12 @@ export default function ChatUI({session, initialConversationID} : ChatUIProps){
         });
 
         if (!response.ok){
-            setError("System error! Please contact Alexander Small.");
+            let message = "System error! Please contact Alexander Small.";
+            const data = await response.json();
+            if (typeof data.detail === "string"){
+                message = data.detail;
+            }
+            setError(message);
             return;
         }
 

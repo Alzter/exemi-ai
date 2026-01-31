@@ -2,6 +2,7 @@ from ..models import User, Conversation, NewMessage, ConversationPublic, Convers
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select
 from ..dependencies import get_current_user, get_session
+from ..llm_api import chat
 from datetime import datetime, timezone
 import time
 
@@ -139,13 +140,23 @@ async def call_llm_response_to_conversation(
     if existing_conversation.user_id != user.id and not user.admin:
         raise HTTPException(status_code=401, detail="You are not authorised to add messages to another user's conversation")
 
-    # TODO: Add logic to call LLM to generate response. FIXME
+    existing_messages = session.exec(
+        select(Message).where(Message.conversation_id == existing_conversation.id)
+    )
 
-    time.sleep(2) # Placeholder cooldown just to test client-side prediction.
+    if not existing_messages:
+        raise HTTPException(status_code=400, detail="A conversation must have messages to call an LLM response!")
+
+    message_dict = [{
+        "role": message.role, "content": message.content
+    } for message in existing_messages]
+
+    response_text = await chat(messages=message_dict)
+
     assistant_message_data = MessageCreate(
         conversation_id = conversation_id,
         role="assistant",
-        content="PLACEHOLDER TEXT FOR LLM RESPONSE. HELLO WORLD!"
+        content=response_text
     )
 
     new_conversation = await add_message_to_conversation(

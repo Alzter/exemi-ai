@@ -54,8 +54,10 @@ export default function MagicForm({session, setSession, setMagicValid} : any){
             if (!response.ok){
                 let message = "System error! Please contact Alexander Small."
                 try {
-                const data = await response.json();
-                message = data.detail;
+                    const data = await response.json();
+                    if (typeof data.detail === "string"){
+                        message = data.detail;
+                    }
                 } catch {
                 // message += "Error message: " + await response.text();
                 }
