@@ -81,7 +81,7 @@ async def canvas_get_terms(current_user : User = Depends(get_current_user), magi
 #     return db_terms
 # 
 @router.get("/canvas/units", response_model=list[CanvasUnit])
-async def canvas_get_units(exclude_complete_units : bool = False, exclude_orginisation_units : bool = True, current_user : User = Depends(get_current_user), magic : str = Depends(get_current_magic)):
+async def canvas_get_units(exclude_complete_units : bool = True, exclude_orginisation_units : bool = True, current_user : User = Depends(get_current_user), magic : str = Depends(get_current_magic)):
     params = {"include":"term"}
     if exclude_complete_units: params["enrollment_state"] = "active"
     raw_units = await query_canvas(path="courses", magic=magic, provider=current_user.university_name, max_items=50, params=params)
@@ -89,6 +89,8 @@ async def canvas_get_units(exclude_complete_units : bool = False, exclude_orgini
     # return raw_units
     units = canvas_units_adapter.validate_json(raw_units)
     
+    # Internally, Swinburne Organisation units have term ID 1
+    # ("Default Term"), so we can exclude them with this check:
     if exclude_orginisation_units:
         units = [unit for unit in units if unit.enrollment_term_id != 1]
 
