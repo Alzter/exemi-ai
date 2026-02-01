@@ -13,6 +13,24 @@ import pandas as pd
 
 router = APIRouter()
 
+# def pandas_get(column, row, dtype):
+#     cell = column.get(row)
+#     if pd.isna(cell): return None
+
+def parse_pandas_datetime(cell):
+    """
+    There is a bug converting Pandas datetime columns
+    into SQLModel datetime | None columns. When a Pandas datetime
+    column has an empty value, it is represented as a NAT (not a time)
+    object. However, when SQLModel attempts to parse NAT, instead
+    of converting it to NULL in the DB, it raises the exception:
+    "TypeError: 'float' object cannot be interpreted as an integer."
+    To circumvent this, we must manually convert NAT to None
+    so that SQLModel properly converts it to NULL in the database.
+    """
+    if pd.isna(cell): return None
+    return cell
+
 @router.get("/canvas/terms", response_model=list[Term])
 async def canvas_get_terms(current_user : User = Depends(get_current_user), magic : str = Depends(get_current_magic)):
     params = {"include":"term"}
@@ -28,8 +46,8 @@ async def canvas_get_terms(current_user : User = Depends(get_current_user), magi
             "canvas_id" : term.get("id"),
             "name" : term.get("name"),
             "university_name" : current_user.university_name,
-            "start_at" : term.get("start_at"),
-            "end_at" : term.get("end_at")
+            "start_at" : parse_pandas_datetime(term.get("start_at")),
+            "end_at" : parse_pandas_datetime(term.get("end_at"))
         }
 
         term_model = Term.model_validate(term_data)
@@ -205,22 +223,25 @@ async def canvas_get_assignments(unit_id : int, current_user : User = Depends(ge
     raw_assignments = assignment_groups.assignments.explode().dropna().tolist()
     raw_assignments = decode_canvas_response(raw_assignments)
 
-
     assignments = []
     for assignment in raw_assignments.to_dict(orient='records'):
         description = assignment.get("description")
         if type(description) is not str: description = ""
-
+        
         assignment_data = {
             "canvas_id" : assignment.get("id"),
             "name" : assignment.get("name"),
             "description" : description,
-            "due_at" : assignment.get("due_at"),
-            "is_group" : False, # TODO: FIX
-            "points" : 0, # TODO: FIX
-            "unit_id" : unit_id
+            "due_at":parse_pandas_datetime(assignment.get("datetime")),
+            "is_group":False, # TODO: FIX
+            "points":0, # TODO: FIX
+            "unit_id":unit_id
         }
-        assignment_model = Assignment.model_validate(assignment_data)
+
+        try:
+            assignment_model = Assignment.model_validate(assignment_data)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error {assignment.get("id")} {str(e)}")
         assignments.append(assignment_model)
     
     return assignments
