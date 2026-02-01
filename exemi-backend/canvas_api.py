@@ -3,111 +3,13 @@ import requests
 import json
 import pandas as pd
 from datetime import datetime, timezone
-from tzlocal import get_localzone
 from fastapi import HTTPException
 
 """
-Decodes Canvas API responses into DataFrames for downstream use.
+Decodes Canvas API responses into strings for downstream use.
 """
 
-def parse_iso_timestamps(data : pd.DataFrame) -> pd.DataFrame:
-    """
-    Replace all string timestamps in a DataFrame with datetime objects.
-    All timestamps must comply with ISO-8601.
-
-    Args:
-        data (DataFrame): DataFrame containing ISO-8601 string timestamps.
-
-    Returns:
-        data (DataFrame): DataFrame containing datetime timestamps.
-    """
-
-    # Obtain all columns which can be converted
-    # into a timestamp through ugly brute-forcing
-    timestamp_columns = []
-    for key, value in data.iloc[0].to_dict().items():
-        if type(value) is str:
-            try:
-                datetime.fromisoformat(value)
-                timestamp_columns.append(key)
-            except:
-                pass
-
-    def isotime_to_timestamp(value : str | None, use_local_timezone : bool = False, as_string : bool = False):
-        if type(value) is not str: return None
-        
-        time = datetime.fromisoformat(value)
-        if use_local_timezone:
-            time = time.astimezone(get_localzone())
-        else: time = time.astimezone(timezone.utc).replace(tzinfo=None)
-
-        if as_string:
-            time = time.strftime("%A, %d %B %Y, %I:%M %p")
-            
-        return time
-    
-    for column in timestamp_columns:
-        data[column] = data[column].map(isotime_to_timestamp)
-
-    return data
-
-def process_canvas_dataframe(response : pd.DataFrame) -> pd.DataFrame:
-    response = parse_iso_timestamps(response) # Convert string timestamps to object
-    response = response.dropna(axis=1, how="all") # Drop columns with entirely NA values
-    return response
-    
-def decode_canvas_response(response : requests.Response | httpx.Response | list[dict]) -> pd.DataFrame:
-    """
-    Converts raw Canvas API response into a DataFrame for downstream use,
-    or raises Exception if the response is invalid.
-
-    Args:
-        response (Response | dict): The API response obtained from Canvas.
-
-    Returns:
-        response_data (DataFrame): The response data.
-    """
-    
-    if type(response) is list:
-        response_list = response
-
-    elif type(response) is requests.Response or type(response) is httpx.Response:
-        if not response.status_code == 200:
-            raise HTTPException(
-                status_code = response.status_code,
-                detail=response.text
-            )
-
-        try:
-            content = response.content
-            if not content: raise HTTPException(status_code=400, detail="Canvas API response contained no content")
-        except: raise HTTPException(status_code=400, detail="Canvas API response contained no content")
-
-        # Canvas API will always respond in JSON format,
-        # but we obtain the response in bytes, so it
-        # must be decoded into a raw string and then
-        # encoded into a JSON object.
-        
-        content = content.decode('utf-8')
-        response_json : dict | list = json.loads(content)
-
-        if type(response_json) is list:
-            response_list = response_json
-        else:
-            response_list = [response_json]
-
-    else:
-        raise ValueError("Response must be either a requests/httpx Response object or a list of dicts.")
-    
-    # Empty response
-    if not response_list:
-        return pd.DataFrame([])
-    
-    response_df = pd.DataFrame(response_list)
-    response_df = process_canvas_dataframe(response_df)
-    return response_df
-
-async def query_canvas(path : str, magic : str, provider : str, params : dict = {}, max_items : int = 100, timeout : int = 60) -> pd.DataFrame:
+async def query_canvas(path : str, magic : str, provider : str, params : dict = {}, max_items : int = 100, timeout : int = 60) -> str:
     """
     Obtain data from the Canvas API using a HTTP GET request.
     See https://developerdocs.instructure.com/services/canvas/resources for more information.
@@ -124,7 +26,7 @@ async def query_canvas(path : str, magic : str, provider : str, params : dict = 
         HTTPException: If the request does not return status 200 or times out, a HTTPException is raised.
     
     Returns:
-        data (DataFrame): The response from Canvas in DataFrame form.
+        data (list[dict]): The response from Canvas as a string.
     """
     params["access_token"] = magic
     params["per_page"] = max_items
@@ -145,13 +47,14 @@ async def query_canvas(path : str, magic : str, provider : str, params : dict = 
             status_code = response.status_code,
             detail=response.text
         )
-    
+
     try:
-        data : pd.DataFrame = decode_canvas_response(response)
-    except Exception as e:
-        raise HTTPException(
-            status_code = 500,
-            detail = str(e)
-        )
+        content = response.content
+        if not content: raise HTTPException(status_code=400, detail="Canvas API response contained no content")
+    except: raise HTTPException(status_code=400, detail="Canvas API response contained no content")
+
+    # Canvas API will always respond in JSON format,
+    # but we obtain the response in bytes, so it
+    # must be decoded into a raw string.
     
-    return data
+    return content.decode('utf-8')
