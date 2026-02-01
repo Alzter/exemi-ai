@@ -226,7 +226,7 @@ async def canvas_get_all_assignments(
     current_user : User = Depends(get_current_user),
     magic : str = Depends(get_current_magic)
 ):
-    units : list[CanvasUnit] = await canvas_get_units(current_user=current_user, magic=magic)
+    units : list[CanvasUnit] = await canvas_get_units(current_user=current_user, magic=magic, exclude_complete_units=True, exclude_orginisation_units=True)
     
     assignments = []
     for unit in units:
