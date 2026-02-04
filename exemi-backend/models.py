@@ -6,6 +6,12 @@ from sqlalchemy.dialects.mysql import TEXT, LONGTEXT
 class University(SQLModel, table=True):
     name : str = Field(primary_key=True, index=True, max_length=255)
 
+# Users to Units junction table (many to many)
+class UsersUnits(SQLModel, table=True):
+    __tablename__ = "users_units"
+    unit_id : int = Field(primary_key = True, foreign_key="unit.id")
+    user_id : int = Field(primary_key = True, foreign_key="user.id")
+
 class UserBase(SQLModel):
     username : str = Field(max_length=255, unique=True)
     university_name : str | None = Field(default=None, max_length=255, index=True, foreign_key='university.name', ondelete="SET NULL")
@@ -17,6 +23,7 @@ class User(UserBase, table=True):
     password_hash : str = Field(max_length=255)
     magic_hash : str | None = Field(default=None, max_length=255)
     conversations : list["Conversation"] = Relationship(back_populates="user", cascade_delete=True)
+    units : list["Unit"] = Relationship(back_populates="users", link_model=UsersUnits)
 
 class UserPublic(UserBase):
     id : int
@@ -64,6 +71,7 @@ class Unit(UnitBase, table=True):
     id : int | None = Field(primary_key=True, default=None)
     assignment_groups : list["AssignmentGroup"] = Relationship(back_populates="unit")
     term : Term = Relationship(back_populates="units")
+    users : list[User] = Relationship(back_populates="units", link_model=UsersUnits)
 
 class UnitCreate(UnitBase): pass
 
