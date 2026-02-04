@@ -20,6 +20,7 @@ class CanvasAssignment(BaseModel):
     description : str | None
     due_at : datetime | None
     points_possible : float | None
+    assignment_group_id : int
 
 class CanvasAssignmentGroup(BaseModel):
     id : int

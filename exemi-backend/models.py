@@ -35,10 +35,10 @@ class UserUpdate(SQLModel):
     university_name : str | None = None
 
 class TermBase(SQLModel):
+    university_name : str = Field(max_length=255, index=True, foreign_key='university.name')
     start_at : datetime
     end_at : datetime
     name : str = Field(max_length=255, unique=True)
-    university_name : str = Field(max_length=255, index=True, foreign_key='university.name')
     canvas_id : int = Field()
 
 class Term(TermBase, table=True):
@@ -50,40 +50,91 @@ class TermCreate(TermBase): pass
 class TermPublic(TermBase):
     id : int
 
+class TermUpdate(SQLModel):
+    start_at : datetime | None = None
+    end_at : datetime | None = None
+    name : str | None = None
+
 class UnitBase(SQLModel):
-    #university : str = Field(primary_key=True, index=True, max_length=255, foreign_key="university.name")
     name : str = Field(max_length=255, unique=True)
-    term_id : int | None = Field(default=None, foreign_key="term.id")
+    term_id : int = Field(foreign_key="term.id")
     canvas_id : int = Field()
-    canvas_term_id : int = Field()
 
 class Unit(UnitBase, table=True):
     id : int | None = Field(primary_key=True, default=None)
-    assignments : list["Assignment"] = Relationship(back_populates="unit")
-    term : Term | None = Relationship(back_populates="units")
+    assignment_groups : list["AssignmentGroup"] = Relationship(back_populates="unit")
+    term : Term = Relationship(back_populates="units")
 
 class UnitCreate(UnitBase): pass
 
 class UnitPublic(UnitBase):
     id : int
 
+class UnitUpdate(SQLModel):
+    name : str | None = None
+
+class TermPublicWithUnits(TermPublic):
+    units : list[Unit] = []
+
+class UnitPublicWithTerm(UnitPublic):
+    term : TermPublic | None = None
+
+class AssignmentGroupBase(SQLModel):
+    unit_id : int = Field(foreign_key="unit.id")
+    name : str | None = Field(max_length=255, default=None)
+    group_weight : float
+    canvas_id : int = Field()
+
+class AssignmentGroup(AssignmentGroupBase, table=True):
+    __tablename__ = "assignment_group"
+    id : int | None = Field(primary_key=True, default=None)
+    unit : Unit = Relationship(back_populates="assignment_groups")
+    assignments : list["Assignment"] = Relationship(back_populates="group")
+
+class AssignmentGroupCreate(AssignmentGroupBase): pass
+
+class AssignmentGroupPublic(AssignmentGroupBase):
+    id : int
+
+class AssignmentGroupUpdate(SQLModel):
+    name : str | None = None
+    group_weight : float | None = None
+
+class UnitPublicWithAssignmentGroups(UnitPublic):
+    assignment_groups : list[AssignmentGroupPublic] = []
+
+class AssignmentGroupPublicWithUnit(AssignmentGroupPublic):
+    unit : UnitPublic
+
 class AssignmentBase(SQLModel):
-    unit_id : int | None = Field(default=None, foreign_key="unit.id")
+    group_id : int = Field(foreign_key="assignment_group.id")
+    canvas_id : int = Field()
     name : str | None = Field(max_length=255, default=None)
     description : str = Field(sa_column=Column(TEXT),default="")
     due_at : datetime | None = Field(default=None)
-    points : int = Field()
+    points : float = Field(default=0)
     is_group : bool = Field()
-    canvas_id : int = Field()
 
 class Assignment(AssignmentBase, table=True):
     id : int | None = Field(primary_key=True, default=None)
-    unit : Unit | None = Relationship(back_populates="assignments")
+    group : AssignmentGroup | None = Relationship(back_populates="assignments")
 
 class AssignmentCreate(AssignmentBase): pass
 
 class AssignmentPublic(AssignmentBase):
     id : int
+
+class AssignmentUpdate(SQLModel):
+    name : str | None = None
+    description : str | None = None
+    due_at : datetime | None = None
+    points : float | None = None
+
+class AssignmentGroupPublicWithAssignments(AssignmentGroupPublic):
+    assignments : list[AssignmentPublic] = []
+
+class AssignmentPublicWithGroup(AssignmentPublic):
+    group : AssignmentGroupPublic
 
 class ConversationBase(SQLModel):
     pass
