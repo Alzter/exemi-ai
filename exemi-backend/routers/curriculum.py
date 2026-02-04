@@ -35,7 +35,6 @@ async def canvas_get_terms(current_user : User = Depends(get_current_user), magi
 
     return terms
 
-# 
 # @router.post("/canvas/terms", response_model=list[TermPublic])
 # async def create_terms_from_canvas(
 #     session: Session = Depends(get_session),
@@ -52,14 +51,14 @@ async def canvas_get_terms(current_user : User = Depends(get_current_user), magi
 #     new_terms: list[Term] = []
 # 
 #     # Get terms from Canvas
-#     canvas_terms: list[Term] = await canvas_get_terms(current_user=current_user, magic=magic)
+#     canvas_terms: list[CanvasTerm] = await canvas_get_terms(current_user=current_user, magic=magic)
 # 
 #     for term in canvas_terms:
 #         # Check if term already exists
 #         existing_term = session.exec(
 #             select(Term)
-#             .where(Term.canvas_id == term.canvas_id)
-#             .where(Term.university_name == term.university_name)
+#             .where(Term.canvas_id == term.id)
+#             .where(Term.university_name == current_user.university_name)
 #         ).first()
 # 
 #         if existing_term:
@@ -79,9 +78,14 @@ async def canvas_get_terms(current_user : User = Depends(get_current_user), magi
 #     db_terms.extend(new_terms)
 # 
 #     return db_terms
-# 
+
 @router.get("/canvas/units", response_model=list[CanvasUnit])
-async def canvas_get_units(exclude_complete_units : bool = True, exclude_orginisation_units : bool = True, current_user : User = Depends(get_current_user), magic : str = Depends(get_current_magic)):
+async def canvas_get_units(
+    exclude_complete_units : bool = True,
+    exclude_orginisation_units : bool = True,
+    current_user : User = Depends(get_current_user),
+    magic : str = Depends(get_current_magic)
+):
     params = {"include":"term"}
     if exclude_complete_units: params["enrollment_state"] = "active"
     raw_units = await query_canvas(path="courses", magic=magic, provider=current_user.university_name, max_items=50, params=params)
@@ -176,7 +180,11 @@ async def canvas_get_units(exclude_complete_units : bool = True, exclude_orginis
 # #     return Term.model_validate(term_data)
 # 
 @router.get("/canvas/units/{unit_id}/assignment_groups", response_model = list[CanvasAssignmentGroup])
-async def canvas_get_assignment_groups(unit_id : int, current_user : User = Depends(get_current_user), magic : str = Depends(get_current_magic)):
+async def canvas_get_assignment_groups(
+    unit_id : int,
+    current_user : User = Depends(get_current_user),
+    magic : str = Depends(get_current_magic)
+):
     path = f"courses/{unit_id}/assignment_groups"
     params = {"include":"assignments"}
 
@@ -186,7 +194,11 @@ async def canvas_get_assignment_groups(unit_id : int, current_user : User = Depe
     return assignment_groups
 
 @router.get("/canvas/units/{unit_id}/assignments", response_model=list[CanvasAssignment])
-async def canvas_get_assignments(unit_id : int, current_user : User = Depends(get_current_user), magic : str = Depends(get_current_magic)):
+async def canvas_get_assignments(
+    unit_id : int,
+    current_user : User = Depends(get_current_user),
+    magic : str = Depends(get_current_magic)
+):
     assignment_groups = await canvas_get_assignment_groups(unit_id=unit_id, current_user=current_user, magic=magic)
     
     # TODO: Add a field to each assignment which represents its contribution to the unit's points.
@@ -223,12 +235,36 @@ async def canvas_get_assignments(unit_id : int, current_user : User = Depends(ge
 #     
 #     return assignments
 # 
-@router.get("/canvas/assignments", response_model = list[CanvasAssignment])
-async def canvas_get_all_assignments(
+@router.get("/canvas/assignment_groups", response_model = list[CanvasAssignmentGroup])
+async def canvas_get_all_assignment_groups(
+    exclude_complete_units : bool = True,
+    exclude_orginisation_units : bool = True,
     current_user : User = Depends(get_current_user),
     magic : str = Depends(get_current_magic)
 ):
-    units : list[CanvasUnit] = await canvas_get_units(current_user=current_user, magic=magic, exclude_complete_units=True, exclude_orginisation_units=True)
+    units : list[CanvasUnit] = await canvas_get_units(
+        exclude_complete_units=exclude_complete_units,
+        exclude_orginisation_units=exclude_orginisation_units,
+        current_user=current_user, magic=magic)
+    
+    groups = []
+    for unit in units:
+        unit_assignment_groups = await canvas_get_assignment_groups(unit_id=unit.id, current_user=current_user, magic=magic)
+        groups.extend(unit_assignment_groups)
+    
+    return groups
+
+@router.get("/canvas/assignments", response_model = list[CanvasAssignment])
+async def canvas_get_all_assignments(
+    exclude_complete_units : bool = True,
+    exclude_orginisation_units : bool = True,
+    current_user : User = Depends(get_current_user),
+    magic : str = Depends(get_current_magic)
+):
+    units : list[CanvasUnit] = await canvas_get_units(
+        exclude_complete_units=exclude_complete_units,
+        exclude_orginisation_units=exclude_orginisation_units,
+        current_user=current_user, magic=magic)
     
     assignments = []
     for unit in units:
