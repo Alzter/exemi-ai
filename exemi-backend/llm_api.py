@@ -107,7 +107,7 @@ async def chat(
     tool_schema : list[dict] = TOOL_SCHEMA,
     tool_registry : dict[str, Callable] = TOOL_REGISTRY,
     max_tool_calls : int = 5
-) -> str:
+) -> list[dict]:
     """
     Call the LLM to respond to the user's message(s).
     Supports tool calling in a loop (so-called agentic AI).
@@ -123,7 +123,7 @@ async def chat(
         HTTPException: If something goes wrong in LiteLLM or Ollama, the exception is passed here.
 
     Returns:
-        str: The content of the assistant's final message.
+        messages (lict[dict]): The list of messages with the assistant's response and chain of thought reasoning appended. 
     """
     if system_prompt is not None:
         # If a system prompt is given, add it to the start of the messages
@@ -158,7 +158,7 @@ async def chat(
             # Otherwise, stop the LLM tool calling loop and return the last assistant message
             else: break
         
-        return response.choices[0].message.content 
+        return messages#response.choices[0].message.content 
 
 
     except Exception as e:
