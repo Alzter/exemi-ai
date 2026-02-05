@@ -1,5 +1,6 @@
 import os
 import jwt
+from sqlalchemy.engine import URL
 from jwt.exceptions import ExpiredSignatureError
 import httpx
 from datetime import datetime, timezone, timedelta
@@ -13,8 +14,14 @@ from .models import User
 load_dotenv()
 
 # Establish a connection to the database.
-# TODO: Make the connection URL specified elsewhere! 
-url = "mariadb+mariadbconnector://root:root@127.0.0.1:3306/exemi"
+url = URL.create(
+    "mariadb+mariadbconnector",
+    username=os.environ["DB_USER"],
+    password=os.environ["DB_PASS"],
+    host=os.environ["DB_HOST"],
+    database=os.environ["DB_NAME"],
+)
+
 engine = create_engine(url, echo=True)
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")

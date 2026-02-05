@@ -40,11 +40,14 @@ pkgs.mkShell {
     python-dotenv # .env file for secret reading
     python-multipart # Needed for FastAPI OAuth2
 
+    # Cloud Hosting:
+    python-openstackclient
+
     # Jupyter:
     ipykernel
     jupyter
 
-    # Data science:
+    # Data Science:
     pip
     numpy
     pandas
@@ -63,6 +66,7 @@ pkgs.mkShell {
     instructor
     litellm
     
+    # Backend:
     fastapi
     fastapi-cli
     pyjwt

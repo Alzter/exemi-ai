@@ -8,11 +8,16 @@ To run Exemi, you will need the [Nix](https://nixos.org/) package manager instal
 Nix works best on Linux systems: compatibility is not guaranteed for Windows or Mac systems.
 
 ## Installation
+
+### Dependencies
 Clone this repository, then open ``bash`` and ``cd`` into the install directory.
 Run the following command to install all dependencies for Exemi.
 ```bash
 nix-build shell.nix
 ```
+
+### Database
+To setup the backend database for Exemi, follow the steps [here](exemi-backend/README.md#).
 
 ## Running
 To start Exemi, run:
