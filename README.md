@@ -23,9 +23,7 @@ sh run.sh
 To stop Exemi, terminate the process with CTRL+C.
 
 ## Architecture Design
-- Frontend: Vite + React (TypeScript)
-- Backend: FastAPI + SQLModel (Python)
-- Database: MariaDB (SQL)
+<img width="800" alt="image" src="https://github.com/user-attachments/assets/ada5906e-5184-4c89-9a2f-457d33b02276" />
 
 ## License
 Exemi is licensed under the GNU General Public License v3, meaning you are free to modify or redistribute it as you see fit so long as you retain the same license.
