@@ -7,7 +7,7 @@ from litellm import completion
 from litellm.types.utils import Message
 import instructor
 from pydantic import BaseModel
-from llm_utils import TOOL_SCHEMA, TOOL_REGISTRY 
+from llm_utils import SYSTEM_PROMPT, TOOL_SCHEMA, TOOL_REGISTRY 
 
 MODEL = "llama3.1:8b"
 LLM_API_URL = "http://localhost:11434"
