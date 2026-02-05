@@ -1,52 +1,13 @@
 import json
 import inspect
 from typing import Callable, Any
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import Depends, HTTPException, Query
 import litellm
 from litellm import completion
 from litellm.types.utils import Message
 import instructor
 from pydantic import BaseModel
-
-async def get_weather(city : str) -> str:
-    return "22 degrees Celsius"
-
-SYSTEM_PROMPT = (
-    "You are a helpful, conversational chatbot.\n"
-    "You can answer general questions normally.\n\n"
-
-    "Tool usage rules:\n"
-    "- ONLY call the tool get_weather when the user explicitly asks about the current weather or temperature.\n"
-    "- If the user greets you or asks about your well-being, respond conversationally and DO NOT call any tools.\n\n"
-
-    "Response rules after using a tool:\n"
-    "- NEVER mention tools, function calls, or that you used an external source.\n"
-    "- Incorporate tool results naturally, as if you already knew the information.\n"
-    "- Respond directly to the user in plain language."
-)
-
-
-TOOL_REGISTRY = { 
-    "get_weather" : get_weather
-}
-
-TOOL_SCHEMA = [{
-    "type" : "function",
-    "function" : {
-        "name" : "get_weather",
-        "description" : "Get the current weather",
-        "parameters": {
-            "type":"object",
-            "properties":{
-                "city": {
-                    "type": "string",
-                    "description": "The name of the city"
-                    }
-                }
-            },
-            "required":["city"],
-    }
-}]
+from llm_utils import TOOL_SCHEMA, TOOL_REGISTRY 
 
 MODEL = "llama3.1:8b"
 LLM_API_URL = "http://localhost:11434"
@@ -100,7 +61,6 @@ async def call_tools(message : Message, tool_registry:dict[str, Callable]) -> li
     
     return tool_messages
 
-# @router.get("/llm/chat{messages}")
 async def chat(
     messages : list[dict],
     system_prompt : str | None = SYSTEM_PROMPT,
