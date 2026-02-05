@@ -9,7 +9,7 @@ from fastapi import HTTPException
 Decodes Canvas API responses into strings for downstream use.
 """
 
-async def query_canvas(path : str, magic : str, provider : str, params : dict = {}, max_items : int = 100, timeout : int = 60) -> str:
+async def query_canvas(path : str, magic : str, provider : str | None, params : dict = {}, max_items : int = 100, timeout : int = 60) -> str:
     """
     Obtain data from the Canvas API using a HTTP GET request.
     See https://developerdocs.instructure.com/services/canvas/resources for more information.
@@ -28,6 +28,9 @@ async def query_canvas(path : str, magic : str, provider : str, params : dict = 
     Returns:
         data (list[dict]): The response from Canvas as a string.
     """
+
+    if not provider: raise HTTPException(status_code=400, detail="To query canvas, you must have a university assigned")
+
     params["access_token"] = magic
     params["per_page"] = max_items
     
