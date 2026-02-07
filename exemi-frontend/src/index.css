@@ -95,6 +95,59 @@ div.chat{
   display:flex;
   height:100dvh;
   width:100%;
+  flex-direction: row;
+}
+
+div.chat-sidebar{
+  display:flex;
+  flex-direction: column;
+  height:100%;
+  width: 300px;
+  background-color: #eee;
+  /* gap:1em; */
+  color:#222;
+  border-radius: 0px;
+  margin:0px;
+  padding: 0.3em 0.5em;
+}
+
+div.conversation-container{
+  display:flex;
+  flex-direction: column;
+  overflow: hidden;
+  overflow-y: scroll;
+}
+
+button.conversation{
+  width:100%;
+  font-size: 0.9em;
+  background-color: #eee;
+  color:#222;
+  font-weight: normal;
+  text-align: left;
+  border-radius: 8px;
+  padding: 0.3em 0.3em;
+}
+
+button.conversation:hover{
+  background-color: #ccc;
+  transform: scale(1);
+  box-shadow: none;
+}
+
+button.conversation:active{
+  background-color: #aaa;
+}
+
+button.conversation:disabled{
+  background-color: #aaa;
+  cursor:auto;
+}
+
+div.chat-messages{
+  display:flex;
+  height:100dvh;
+  width:100%;
   flex-direction: column;
 }
 

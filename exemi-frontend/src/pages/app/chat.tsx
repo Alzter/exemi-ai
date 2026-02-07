@@ -1,74 +1,65 @@
 import {useState, useEffect} from 'react'
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 import MessageBox from '../../components/chat/message_box';
+import ChatMessagesUI from './chat_messages';
 
 type ChatUIProps = {
     session : any,
     initialConversationID : number | null
 }
 
-type Message = {
-    role : string,
-    content : string
+type Conversation = {
+    created_at : Date
+    id : number
 }
 
-export default function ChatUI({session, initialConversationID} : ChatUIProps){
-
-    const [conversationID, setConversationID] = useState<number|null>(null);
-    const [messages, setMessages] = useState<Message[]>([]);
-    const [loading, setLoading] = useState<boolean>(false);
-    const [error, setError] = useState<string|null>(null);
-
-    // The user's current message text.
-    const [userText, setUserText] = useState<string>("");
-
-    function ErrorDisplay() {
-        if (!error) return (null)
-        return(
-            <div className='error'>
-                <p>{error}</p>
-            </div>
+export default function ChatUI({session} : ChatUIProps){
+    
+    function ConversationBox({conversation} : any){
+        let ID = conversation ? conversation.id : null
+        let title = conversation ? conversation.created_at.toLocaleString() : "New chat";
+        function assignConversation(){
+            setConversationID(ID);
+        }
+        
+        return (
+            <button
+                onClick = {assignConversation}
+                className="conversation"
+                disabled={conversationID==ID}>
+                    {title}
+            </button>
         )
     }
 
-    const messageBoxes = messages.map(
-        message => <MessageBox role={message.role} content={message.content}/>
-    )
+    const [conversations, setConversations] = useState<Conversation[]>([]);
+    const [conversationID, setConversationID] = useState<number|null>(null);
+    const [loading, setLoading] = useState<boolean>(false);
+    const [error, setError] = useState<string|null>(null);
 
-    function handleTextUpdate(event : React.ChangeEvent<HTMLInputElement>){
-        setUserText(event.target.value);
+    const conversationBoxes = [<ConversationBox conversation={null}/>, ...conversations.map(
+        conversation => <ConversationBox conversation={conversation}/>
+    )]
+
+    async function parseConversations(data : Array<any>){
+        const conversations: Conversation[] = data.map(item => ({
+            id: item.id,
+            created_at: new Date(item.created_at),
+        }));
+
+        setConversations(conversations);
     }
 
-    async function sendMessage(event : React.FormEvent<HTMLFormElement>){
-        event.preventDefault();
-        setLoading(true);
-        
-        // Send the user's message on the client side
-        // by updating the local list of messages
-        // to contain the new message.
-        setMessages(prev => [
-            ...prev,
-            {"role":"user","content":userText}
-        ]);
-        
-        let body = {"message_text" : userText};
-
-        let URL = backendURL + "/conversation"
-        if (conversationID) {URL += "/" + conversationID}
-        console.log(body);
-        console.log(URL);
-
-        setUserText("");
-
+    async function loadConversations(){
+        let URL = backendURL + "/conversations/" + session.user_id
         const response = await fetch(URL, {
             headers:{
                 "Authorization" : "Bearer " + session.token,
                 "Content-Type":"application/json",
                 accept:"application/json"
             },
-            method:"POST",
-            body: JSON.stringify(body)
-        });
+            method:"GET"
+        })
 
         if (!response.ok){
             let message = "System error! Please contact Alexander Small.";
@@ -81,45 +72,31 @@ export default function ChatUI({session, initialConversationID} : ChatUIProps){
         }
 
         const data = await response.json();
-        setConversationID(data.id);
-
-        const messages : Message[] = data.messages as Message[];
-
-        setMessages(messages);
-
-        // TODO: call the backend API with the message.
-        setLoading(false);
-    }
-    async function fetchMessages(){
-        // TODO: PLACEHOLDER STUB
-        setMessages([
-            {"role":"user","content":"Hello! How do I eat porridge?"},
-            {"role":"assistant","content":"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus nec metus id est consequat mollis. Donec dapibus elit dolor, sed venenatis turpis fringilla vel. Nam id lectus vitae purus euismod pulvinar ut eu est. Fusce faucibus, ex eget pretium elementum, odio neque gravida elit, vitae maximus elit ipsum vel turpis."},
-            {"role":"user","content":"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus nec metus id est consequat mollis. Donec dapibus elit dolor, sed venenatis turpis fringilla vel. Nam id lectus vitae purus euismod pulvinar ut eu est. Fusce faucibus, ex eget pretium elementum, odio neque gravida elit, vitae maximus elit ipsum vel turpis."},
-            {"role":"user","content":"HELLO 1"}
-        ])
+        parseConversations(data);
     }
 
-    // When loading the conversation,
-    // retrieve any existing messages if there are any.
+    // When component loads, fetch conversations.
     useEffect(() => {
-        if (initialConversationID && !conversationID){
-            setConversationID(initialConversationID);
-            fetchMessages();
-        }
-    })
+        loadConversations();
+    }, [conversationID])
 
     return(
         <div className="chat">
-            <div className="message-container">
-                {messageBoxes}
+            <div className="chat-sidebar">
+                <p>Your chats:</p>
+                <div className="conversation-container">
+                    {conversationBoxes}
+                </div>
             </div>
-            <ErrorDisplay/>
-            <form className="chatbox" onSubmit={sendMessage}>
-                {/* TODO: User message box should wrap text and expand vertically */}
-                <input type="text" onChange={handleTextUpdate} value={userText}/>
-                <button type="submit" disabled={loading}>Send</button>
-            </form>
+            <ChatMessagesUI
+                session={session}
+                conversationID={conversationID}
+                setConversationID={setConversationID}
+                loading={loading}
+                setLoading={setLoading}
+                error={error}
+                setError={setError}
+            />
         </div>
     )
 }
