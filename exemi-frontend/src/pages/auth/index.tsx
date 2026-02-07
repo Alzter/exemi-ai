@@ -80,7 +80,7 @@ export default function Login({error, setError, setSession} : any){
                 const data = await response.json();
                 setSession({
                     token : data.access_token,
-                    user_id : data.user_id
+                    user_id : Number(data.user_id)
                 });
                 setSubmitting(false);
             }

@@ -1,6 +1,6 @@
 from ..models import User, Conversation, NewMessage, ConversationPublic, ConversationPublicWithMessages, Message, MessageCreate, MessagePublic, MessageUpdate
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlmodel import Session, select
+from sqlmodel import Session, select, desc
 from ..dependencies import get_current_user, get_session
 from ..llm_api import chat
 from datetime import datetime, timezone
@@ -40,7 +40,7 @@ async def get_conversation(id : int, user : User = Depends(get_current_user), se
 
     return conversation
 
-@router.get("/conversations/{user_id}", response_model=list[ConversationPublicWithMessages])
+@router.get("/conversations/{user_id}", response_model=list[ConversationPublic])
 async def get_conversations_for_user(
     user_id : int | None = None,
     offset : int = 0, 
@@ -66,10 +66,10 @@ async def get_conversations_for_user(
         raise HTTPException(status_code=401, detail="You are not authorised to view these conversations")
 
     return session.exec(
-        select(Conversation).where(Conversation.user_id == user_id).offset(offset).limit(limit)
+        select(Conversation).order_by(desc(Conversation.created_at)).where(Conversation.user_id == user_id).offset(offset).limit(limit)
     ).all()
 
-@router.get("/conversations", response_model=list[ConversationPublicWithMessages])
+@router.get("/conversations", response_model=list[ConversationPublic])
 async def get_conversations_for_self(
     offset : int = 0, 
     limit : int = Query(default=100, limit=100),
@@ -83,7 +83,7 @@ async def get_conversations_for_self(
         list[ConversationPublicWithMessages]: The conversations with their messages included.
     """
     return session.exec(
-        select(Conversation).where(Conversation.user_id == user.id).offset(offset).limit(limit)
+        select(Conversation).order_by(desc(Conversation.created_at)).where(Conversation.user_id == user.id).offset(offset).limit(limit)
     ).all()
 
 @router.delete("/conversation/{id}")

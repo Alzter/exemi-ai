@@ -7,14 +7,14 @@ const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 
 type Session = {
     token : string | null;
-    user_id : string | null;
+    user_id : number | null;
 }
 
 export default function AppRouter() {
 
     const [session, setSession] = useState<Session>({
         token : localStorage.getItem("token"),
-        user_id : localStorage.getItem("user_id"),
+        user_id : Number(localStorage.getItem("user_id")),
     });
 
     const [error, setError] = useState<string | null>(null);
@@ -83,7 +83,7 @@ export default function AppRouter() {
     useEffect(() => {
         if (session.token){ localStorage.setItem("token", session.token); }
         else {localStorage.removeItem("token")}
-        if (session.user_id){ localStorage.setItem("user_id", session.user_id); }
+        if (session.user_id){ localStorage.setItem("user_id", String(session.user_id)); }
         else {localStorage.removeItem("user_id")}
         
         if (isLoggedIn){
