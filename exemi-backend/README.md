@@ -85,6 +85,8 @@ DB_PASS = "YOURSTRONGPASSWORD"
 DB_HOST = "127.0.0.1"
 DB_NAME = "exemi"
 SECRET_KEY = "YOURSECRETKEY"
+LLM_MODEL = "llama3.1:8b"
+LLM_API_URL = "http://localhost:11434"
 ```
 
 ## Running
