@@ -32,7 +32,7 @@ sh run.sh
 To stop Exemi, terminate the process with CTRL+C.
 
 ## Architecture Design
-<img width="800" alt="image" src="https://github.com/user-attachments/assets/ada5906e-5184-4c89-9a2f-457d33b02276" />
+<img width="800" alt="image" src="https://github.com/user-attachments/assets/1b5619cd-0e62-4f50-a703-f074322151dd" />
 
 ## License
 Exemi is licensed under the GNU General Public License v3, meaning you are
