@@ -14,24 +14,6 @@ Response rules after using a tool:
 async def get_weather(city : str) -> str:
     return "22 degrees Celsius"
 
-TOOL_REGISTRY = { 
-    "get_weather" : get_weather
-}
-
-TOOL_SCHEMA = [{
-    "type" : "function",
-    "function" : {
-        "name" : "get_weather",
-        "description" : "Get the current weather",
-        "parameters": {
-            "type":"object",
-            "properties":{
-                "city": {
-                    "type": "string",
-                    "description": "The name of the city"
-                    }
-                }
-            },
-            "required":["city"],
-    }
-}]
+TOOLS = [
+    get_weather
+]

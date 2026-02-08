@@ -8,7 +8,7 @@ from litellm import completion
 from litellm.types.utils import Message
 import instructor
 from pydantic import BaseModel
-from llm_utils import SYSTEM_PROMPT, TOOL_SCHEMA, TOOL_REGISTRY 
+from llm_tools import SYSTEM_PROMPT, TOOLS 
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -148,12 +148,12 @@ def parse_tools(tool_functions : list[Callable]) -> tuple[list[dict], dict[str, 
         tool_schema = generate_tool_schema(tool_function)
         tool_schema_list.append(tool_schema)
 
-    return (tool_schema_list, tool_registry)
+    return tool_schema_list, tool_registry
 
 async def chat(
     messages : list[dict],
-    system_prompt : str | None = None,
-    tools : list[Callable] = [],
+    system_prompt : str | None = SYSTEM_PROMPT,
+    tools : list[Callable] = TOOLS,
     max_tool_calls : int = 5
 ) -> list[dict]:
     """
