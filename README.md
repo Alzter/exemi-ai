@@ -1,27 +1,30 @@
 # Exemi
 Exemi is an AI-powered study assistance tool designed to help students with ADHD improve their planning and time management skills.
-It utilises open-source large language models (LLMs) to provide study assistance tailored to students' unique conditions.
+It utilises publicly available large language models (LLMs) to provide study assistance tailored to students' unique conditions.
 It also integrates with Canvas LMS to automatically retrieve students' assignment information.
 
 ## Dependencies
 To run Exemi, you will need the [Nix](https://nixos.org/) package manager installed.
 Nix works best on Linux systems: compatibility is not guaranteed for Windows or Mac systems.
 
-To run the backend, you must also install [MariaDB Server](https://mariadb.com/docs/server/mariadb-quickstart-guides/installing-mariadb-server-guide) and create the database locally using the steps [here](exemi-backend/README.md#).
-
 ## Installation
 Clone this repository, then open ``bash`` and ``cd`` into the install directory.
-Run the following command to install all dependencies for Exemi.
+Run the following command to install the main dependencies for Exemi.
 ```bash
 nix-build shell.nix
-nix-shell
-cd exemi-frontend
-npm install
-exit
 ```
 
+### Frontend
+To run the frontend, follow the steps [here](exemi-frontend/README.md#) to install all the dependencies.
+
+### Backend
+To run the backend, follow the steps [here](exemi-backend/README.md#) to install all the dependencies.
+
 ## Running
-To start Exemi, run:
+Once you have installed the dependencies for the frontend and the backend,
+you can run them both simultaneously by executing ``run.sh`` within the
+project's Nix shell like this:
+
 ```bash
 nix-shell
 sh run.sh
@@ -32,4 +35,5 @@ To stop Exemi, terminate the process with CTRL+C.
 <img width="800" alt="image" src="https://github.com/user-attachments/assets/ada5906e-5184-4c89-9a2f-457d33b02276" />
 
 ## License
-Exemi is licensed under the GNU General Public License v3, meaning you are free to modify or redistribute it as you see fit so long as you retain the same license.
+Exemi is licensed under the GNU General Public License v3, meaning you are
+free to modify or redistribute it as you see fit so long as you retain the same license.

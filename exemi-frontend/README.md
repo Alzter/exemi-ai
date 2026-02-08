@@ -1,5 +1,4 @@
 # Exemi Frontend
-
 Exemi's frontend is powered by a Vite + React app.
 
 ## Installation
@@ -11,6 +10,12 @@ exit
 ```
 
 ## Running
+### Development
 ```bash
 npx vite
+```
+
+### Production
+```bash
+npx vite --host
 ```
