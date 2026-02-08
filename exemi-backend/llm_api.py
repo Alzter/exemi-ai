@@ -1,6 +1,7 @@
+import os
 import json
 import inspect
-from typing import Callable, Any
+from typing import get_type_hints, Callable, Any
 from fastapi import Depends, HTTPException, Query
 import litellm
 from litellm import completion
@@ -8,10 +9,13 @@ from litellm.types.utils import Message
 import instructor
 from pydantic import BaseModel
 from llm_utils import SYSTEM_PROMPT, TOOL_SCHEMA, TOOL_REGISTRY 
+from dotenv import load_dotenv
+load_dotenv()
 
-MODEL = "llama3.1:8b"
-LLM_API_URL = "http://localhost:11434"
-client = instructor.from_provider(f"ollama/{MODEL}")
+LLM_MODEL = os.environ["LLM_MODEL"]
+LLM_API_URL = os.environ["LLM_API_URL"]
+client = instructor.from_provider(f"ollama/{LLM_MODEL}")
+
 
 async def call_tools(message : Message, tool_registry:dict[str, Callable]) -> list[dict[str, Any]]:
     """
@@ -61,11 +65,95 @@ async def call_tools(message : Message, tool_registry:dict[str, Callable]) -> li
     
     return tool_messages
 
+PY_TO_JSON = {
+    str: "string",
+    int: "integer",
+    float: "number",
+    bool: "boolean",
+}
+
+def generate_tool_schema(fn : Callable) -> dict[str, Any]:
+    """
+    Generate an OpenAI tool schema for a given function in JSON format.
+    See https://platform.openai.com/docs/guides/function-calling#defining-functions
+
+    Args:
+        fn (Callable): The function to generate a schema for.
+    
+    Raises:
+        TypeError:
+            All function arguments must have a type hint  
+
+    Returns:
+        dict[str, Any]: The function schema.
+    """
+    sig = inspect.signature(fn)
+    type_hints = get_type_hints(fn)
+
+    properties = {}
+    required = []
+
+    for name, param in sig.parameters.items():
+        if name not in type_hints:
+            raise TypeError(f"Missing type hint for parameter '{name}'")
+
+        py_type = type_hints[name]
+        json_type = PY_TO_JSON.get(py_type)
+
+        if not json_type:
+            raise TypeError(f"Unsupported type: {py_type}")
+
+        properties[name] = {
+            "type": json_type,
+        }
+
+        if param.default is inspect._empty:
+            required.append(name)
+
+    return {
+        "type": "function",
+        "function": {
+            "name": fn.__name__,
+            "description": (fn.__doc__ or "").strip(),
+            "parameters": {
+                "type": "object",
+                "properties": properties,
+                "required": required,
+            },
+        },
+    }
+
+def parse_tools(tool_functions : list[Callable]) -> tuple[list[dict], dict[str, Callable]]:
+    """
+    Convert a list of Python functions into a format usable for LLM tool calls.
+
+    Args:
+        tool_functions (list[Callable]):
+            List of Python functions to convert into tool calls.
+    
+    Raises:
+
+
+    Returns:
+        tool_schema_list (list[dict]): List of OpenAI function definition JSON objects for each tool.
+        tool_registry (dict[str, Callable]): A map of string names to tool functions.
+    """ 
+    tool_schema_list : list[dict] = []
+    tool_registry : dict[str, Callable] = {}
+
+    for tool_function in tool_functions:
+        tool_name = tool_function.__name__
+        tool_registry[tool_name] = tool_function
+        
+        tool_schema = generate_tool_schema(tool_function)
+        tool_schema_list.append(tool_schema)
+
+    return (tool_schema_list, tool_registry)
+
 async def chat(
     messages : list[dict],
     system_prompt : str | None = None,
-    tool_schema : list[dict] = [],
-    tool_registry : dict[str, Callable] = {},
+    tools : list[Callable] = [],
     max_tool_calls : int = 5
 ) -> list[dict]:
     """
@@ -74,10 +162,9 @@ async def chat(
     
     Args:
         messages (list[dict]): List of messages in OpenAI format.
-        system_prompt (str|None): Optional system prompt to append to the beginning of the message list.
-        tool_schema (list[dict]): A list of callable tools for the model. See https://platform.openai.com/docs/guides/function-calling#defining-functions
-        tool_registry (dict[str, Callable]): A dictionary mapping tool names to functions.
-        max_tool_calls (int): The maximum amount of times the LLM is permitted to execute tool calls.
+        system_prompt (str | None, optional): Optional system prompt to append to the beginning of the message list. Defaults to None.
+        tools (list[Callable], optional): A list of tool definitions for the model. Defaults to [].
+        max_tool_calls (int, optional): The maximum amount of times the LLM is permitted to execute tool calls. Defaults to 5.
     
     Raises:
         HTTPException: If something goes wrong in LiteLLM or Ollama, the exception is passed here.
@@ -85,6 +172,9 @@ async def chat(
     Returns:
         messages (lict[dict]): The list of messages with the assistant's response and chain of thought reasoning appended. 
     """
+    
+    tool_schema, tool_registry = parse_tools(tools)
+
     if system_prompt is not None:
         # If a system prompt is given, add it to the start of the messages
         messages.insert(0, {
@@ -98,7 +188,7 @@ async def chat(
 
         while tool_calls_used < max_tool_calls:
             response = completion(
-                model = f"ollama_chat/{MODEL}",
+                model = f"ollama_chat/{LLM_MODEL}",
                 api_base=LLM_API_URL,
                 messages=messages,
                 tools = tool_schema,

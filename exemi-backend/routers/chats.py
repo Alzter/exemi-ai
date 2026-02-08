@@ -9,9 +9,13 @@ import time
 router = APIRouter()
 
 @router.get("/test_chat/{message}")
-async def test_chat(message : str):
+async def test_chat(
+    message : str
+):
     messages = [{"role":"user","content":message}]
-    response_messages = await chat(messages=messages)
+    response_messages = await chat(
+        messages=messages
+    )
     return response_messages
 
 @router.get("/conversation/{id}", response_model=ConversationPublicWithMessages)
