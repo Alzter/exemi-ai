@@ -1,9 +1,13 @@
 import os
-from fastapi import HTTPException
+from .dependencies import get_current_user, get_current_magic, get_session
+from .models import User
+from sqlmodel import Session
+from fastapi import HTTPException, Depends
 from langchain.agents import create_agent
 from langchain_core.messages import BaseMessage
+from langchain.tools import BaseTool
 from langchain_ollama import ChatOllama
-from .llm_tools import SYSTEM_PROMPT, TOOLS 
+from .llm_tools import SYSTEM_PROMPT, create_tools 
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -16,14 +20,11 @@ model = ChatOllama(
     validate_model_on_init=True
 )
 
-agent = create_agent(
-    model=model,
-    tools=TOOLS,
-    system_prompt=SYSTEM_PROMPT
-)
-
 async def chat(
-    messages : list[dict]
+    messages : list[dict],
+    user : User,
+    magic : str,
+    session : Session
 ):
     """
     Call the LLM to respond to the user's message(s).
@@ -35,6 +36,14 @@ async def chat(
     Returns:
         str: The LLM's response.
     """
+    
+    tools : list[BaseTool] = create_tools(user=user, magic=magic, session=session)
+
+    agent = create_agent(
+        model=model,
+        system_prompt=SYSTEM_PROMPT,
+        tools=tools
+    )
 
     try:
 # pyright: reportArgumentType=false 
