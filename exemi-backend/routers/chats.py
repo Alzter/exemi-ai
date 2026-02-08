@@ -13,10 +13,10 @@ async def test_chat(
     message : str
 ):
     messages = [{"role":"user","content":message}]
-    response_messages = await chat(
+    response_text = await chat(
         messages=messages
     )
-    return response_messages
+    return response_text
 
 @router.get("/conversation/{id}", response_model=ConversationPublicWithMessages)
 async def get_conversation(id : int, user : User = Depends(get_current_user), session : Session = Depends(get_session)):
@@ -161,8 +161,7 @@ async def call_llm_response_to_conversation(
         "role": message.role, "content": message.content
     } for message in existing_messages]
 
-    response = await chat(messages=message_dict)
-    response_text = response[-1]["content"]
+    response_text = await chat(messages=message_dict)
 
     assistant_message_data = MessageCreate(
         conversation_id = conversation_id,

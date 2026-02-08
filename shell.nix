@@ -63,8 +63,10 @@ pkgs.mkShell {
 #     torchaudio
 #     transformers
     huggingface-hub
-    instructor
-    litellm
+#    instructor
+    langchain
+    langchain-ollama
+#    litellm
     
     # Backend:
     fastapi
