@@ -359,7 +359,6 @@ async def continue_conversation(
     new_conversation = await add_message_to_conversation(
         message_data,
         user=user,
-        magic=magic,
         session=session
     )
 
