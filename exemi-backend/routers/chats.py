@@ -1,7 +1,7 @@
 from ..models import User, Conversation, NewMessage, ConversationPublic, ConversationPublicWithMessages, Message, MessageCreate, MessagePublic, MessageUpdate
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select, desc
-from ..dependencies import get_current_user, get_session
+from ..dependencies import get_current_magic, get_current_user, get_session
 from ..llm_api import chat
 from datetime import datetime, timezone
 import time
@@ -10,10 +10,16 @@ router = APIRouter()
 
 @router.get("/test_chat/{message}")
 async def test_chat(
-    message : str
+    message : str,
+    user : User = Depends(get_current_user),
+    magic : str = Depends(get_current_magic),
+    session : Session = Depends(get_session)
 ):
     messages = [{"role":"user","content":message}]
     response_text = await chat(
+        user=user,
+        magic=magic,
+        session=session,
         messages=messages
     )
     return response_text
@@ -142,6 +148,7 @@ async def add_message_to_conversation(
 async def call_llm_response_to_conversation(
     conversation_id : int,
     user : User,
+    magic : str,
     session : Session
 ):
     existing_conversation = session.get(Conversation, conversation_id)
@@ -161,7 +168,12 @@ async def call_llm_response_to_conversation(
         "role": message.role, "content": message.content
     } for message in existing_messages]
 
-    response_text = await chat(messages=message_dict)
+    response_text = await chat(
+        user=user,
+        magic=magic,
+        session=session,
+        messages=message_dict
+    )
 
     assistant_message_data = MessageCreate(
         conversation_id = conversation_id,
@@ -182,6 +194,7 @@ async def update_message_in_conversation(
     message_id : int,
     new_message_text : str,
     user : User = Depends(get_current_user),
+    magic : str = Depends(get_current_magic),
     session : Session = Depends(get_session)
 ):
     """
@@ -229,6 +242,7 @@ async def update_message_in_conversation(
         existing_conversation = await call_llm_response_to_conversation(
             conversation_id = existing_conversation.id,
             user=user,
+            magic=magic,
             session=session
         )
 
@@ -266,6 +280,7 @@ async def start_conversation(
     new_message : NewMessage,
     # data : ConversationCreate,
     user : User = Depends(get_current_user),
+    magic : str = Depends(get_current_magic),
     session : Session = Depends(get_session)
 ):
     """
@@ -301,6 +316,7 @@ async def start_conversation(
         conversation_id = conversation.id,
         new_message=new_message,
         user=user,
+        magic=magic,
         session=session
     )
 
@@ -311,6 +327,7 @@ async def continue_conversation(
     conversation_id : int,
     new_message : NewMessage,
     user : User = Depends(get_current_user),
+    magic : str = Depends(get_current_magic),
     session : Session = Depends(get_session)
 ):
     """
@@ -348,6 +365,7 @@ async def continue_conversation(
     new_conversation = await call_llm_response_to_conversation(
         conversation_id=new_conversation.id,
         user=user,
+        magic=magic,
         session=session
     )
 
