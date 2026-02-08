@@ -21,12 +21,13 @@ export default function ChatUI({session} : ChatUIProps){
         function assignConversation(){
             setConversationID(ID);
         }
+        let className = conversationID==ID ? "conversation-selected" : "conversation"
         
         return (
             <button
                 onClick = {assignConversation}
-                className="conversation"
-                disabled={conversationID==ID}>
+                className={className}
+                disabled={conversationID==ID || loading}>
                     {title}
             </button>
         )
