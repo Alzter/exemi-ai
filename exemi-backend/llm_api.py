@@ -63,9 +63,9 @@ async def call_tools(message : Message, tool_registry:dict[str, Callable]) -> li
 
 async def chat(
     messages : list[dict],
-    system_prompt : str | None = SYSTEM_PROMPT,
-    tool_schema : list[dict] = TOOL_SCHEMA,
-    tool_registry : dict[str, Callable] = TOOL_REGISTRY,
+    system_prompt : str | None = None,
+    tool_schema : list[dict] = [],
+    tool_registry : dict[str, Callable] = {},
     max_tool_calls : int = 5
 ) -> list[dict]:
     """
