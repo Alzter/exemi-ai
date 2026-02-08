@@ -14,6 +14,10 @@ Clone this repository, then open ``bash`` and ``cd`` into the install directory.
 Run the following command to install all dependencies for Exemi.
 ```bash
 nix-build shell.nix
+nix-shell
+cd exemi-frontend
+npm install
+exit
 ```
 
 ## Running
