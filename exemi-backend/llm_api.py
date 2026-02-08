@@ -36,13 +36,16 @@ async def chat(
         str: The LLM's response.
     """
 
+    try:
 # pyright: reportArgumentType=false 
-    response = await agent.ainvoke({"messages": messages})
-
+        response = await agent.ainvoke({"messages": messages})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating LLM response.\nDetail: {str(e)}")
+    
     try:
         response_messages : list[BaseMessage] = response["messages"]
         response_text = response_messages[-1].content
     except:
-        raise HTTPException(status_code=500, detail=f"LLM did not generate response for message.\nLLM output: {response}")
+        raise HTTPException(status_code=500, detail=f"LLM message not found in response.\nLLM response: {response}")
     
     return response_text
