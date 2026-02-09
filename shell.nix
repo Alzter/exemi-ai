@@ -42,6 +42,7 @@ pkgs.mkShell {
 
     # Cloud Hosting:
     python-openstackclient
+    python-designateclient
 
     # Jupyter:
     ipykernel
