@@ -3,19 +3,30 @@ Exemi's frontend is powered by a Vite + React app.
 
 ## Installation
 ```bash
-nix-shell
 cd exemi-frontend
-npm install
+nix-build shell.nix
+nix-shell
+yarn install
 exit
+```
+
+## Configuration
+To change the backend URL, modify ``exemi_frontend/.env``:
+```
+VITE_BACKEND_API_URL = "http://127.0.0.1:8000"
 ```
 
 ## Running
 ### Development
 ```bash
-npx vite
+cd exemi-frontend
+nix-shell
+yarn vite
 ```
 
 ### Production
 ```bash
-npx vite --host
+cd exemi-frontend
+nix-shell
+yarn vite --host
 ```
