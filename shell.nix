@@ -82,6 +82,5 @@ pkgs.mkShell {
   ];
   shellHook = ''
     export OLLAMA_HOST=0.0.0.0:11434
-    echo "Ollama listening on $OLLAMA_HOST"
   '';
 }
