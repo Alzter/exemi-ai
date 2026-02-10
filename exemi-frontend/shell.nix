@@ -7,6 +7,11 @@ let
 in
 pkgs.mkShell {
   buildInputs = with pkgs; [
-    yarn
+  yarn
+
+  (python312.withPackages (p: with p; [
+    certbot
+    certbot-nginx
+  ]))
 ];
 }

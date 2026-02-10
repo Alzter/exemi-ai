@@ -25,8 +25,30 @@ yarn vite
 ```
 
 ### Production
+The simplest way to host the frontend on a Linux web
+server is to install nginx and configure it to forward
+web traffic to Vite. You can use the following nginx
+configuration:
+
+```
+http {
+    server {
+        listen 80;
+        server_name exemi.au www.exemi.au; # If you have purchased a domain name, you can assign it here
+        access_log /var/log/nginx/access.log;
+        location / {
+            proxy_pass http://localhost:5173;
+        }
+    }
+}
+```
+
+You can run the frontend with the usual Vite command,
+and nginx will forward any traffic to it.
+
 ```bash
+nginx
 cd exemi-frontend
 nix-shell
-yarn vite --host
+yarn vite
 ```
