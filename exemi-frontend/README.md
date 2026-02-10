@@ -26,9 +26,9 @@ yarn vite
 
 ### Production
 The simplest way to host the frontend on a Linux web
-server is to install nginx and configure it to forward
-web traffic to Vite. You can use the following nginx
-configuration:
+server is to install [nginx](https://nginx.org/) and
+configure it to forward web traffic to Vite. You can
+use the following nginx configuration:
 
 ```
 http {
@@ -51,4 +51,20 @@ nginx
 cd exemi-frontend
 nix-shell
 yarn vite
+```
+
+To enable HTTPS access to the frontend, you can use
+[Certbot](https://certbot.eff.org/) to automatically
+create a Let's Encrypt HTTPS certificate and update
+your nginx configuration to include the certificate.
+If you have a multi-user Nix installation or NixOS,
+you can run the following command to enable HTTPS
+access to the web server.
+
+```bash
+cd exemi-frontend
+sudo su
+nix-shell
+certbot --nginx
+exit
 ```
