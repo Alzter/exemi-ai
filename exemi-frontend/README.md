@@ -39,6 +39,9 @@ http {
         location / {
             proxy_pass http://localhost:5173;
         }
+        location /api/ {
+                proxy_pass http://localhost:8000/;
+        }
     }
 }
 ```
