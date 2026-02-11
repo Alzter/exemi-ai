@@ -14,7 +14,20 @@ async def test_chat(
     user : User = Depends(get_current_user),
     magic : str = Depends(get_current_magic),
     session : Session = Depends(get_session)
-):
+) -> str:
+    """
+    Test the chat functionality of the LLM (ADMIN ONLY).
+
+    Args:
+        message (str): Message text to send to the LLM.
+
+    Raises:
+        HTTPException: Raises a 401 if the current user is not an admin.
+
+    Returns:
+        str: The LLM's response.
+    """
+    if not user.admin: raise HTTPException(status_code=401, detail="Unauthorised")
     messages = [{"role":"user","content":message}]
     response_text = await chat(
         user=user,
@@ -219,7 +232,7 @@ async def update_message_in_conversation(
     if not existing_conversation: raise HTTPException(status_code=404, detail="Conversation not found")
 
     if existing_conversation.user_id != user.id and not user.admin:
-        raise HTTPException(status_code=401, detail="You are not authorised to add messages to another user's conversation")
+        raise HTTPException(status_code=401, detail="You are not authorised to edit messages from another user's conversation")
     
     existing_message.sqlmodel_update({"content" : new_message_text})
 
@@ -227,6 +240,8 @@ async def update_message_in_conversation(
     session.commit()
     
     session.refresh(existing_conversation)
+
+    if not existing_conversation.id: raise HTTPException(status_code=500, detail="Conversation ID missing")
 
     messages_to_delete = session.exec(
         select(Message).where(Message.conversation_id == existing_conversation.id).where(Message.id > existing_message.id)
@@ -310,8 +325,6 @@ async def start_conversation(
     if not conversation:
         raise HTTPException(status_code=500, detail="System error creating conversation!")
     
-    if not conversation.id: raise HTTPException(status_code=500, detail="Error creating conversation! Contact Alexander Small")
-
     conversation_with_response = await continue_conversation(
         conversation_id = conversation.id,
         new_message=new_message,
