@@ -24,7 +24,7 @@ async def lifespan(app : FastAPI):
     # Shutdown
 
 app = FastAPI(
-    lifespan = lifespan
+    lifespan = lifespan,
     root_url = "/api",
     root_path = "/api"
 )
