@@ -26,7 +26,10 @@ async def lifespan(app : FastAPI):
 app = FastAPI(
     lifespan = lifespan,
     root_url = "/api",
-    root_path = "/api"
+    root_path = "/api",
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None,
 )
 app.include_router(universities.router)
 app.include_router(users.router)
@@ -46,6 +49,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.get("/")
+def read_root():
+    return "Exemi API is running :)"
 
 # def get_session():
 #     with Session(engine) as session:
