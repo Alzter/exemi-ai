@@ -25,7 +25,7 @@ async def chat(
     user : User,
     magic : str,
     session : Session
-):
+) -> str:
     """
     Call the LLM to respond to the user's message(s).
     Supports tool calling in a loop (so-called agentic AI).
@@ -53,7 +53,7 @@ async def chat(
     
     try:
         response_messages : list[BaseMessage] = response["messages"]
-        response_text = response_messages[-1].content
+        response_text = str(response_messages[-1].content)
     except:
         raise HTTPException(status_code=500, detail=f"LLM message not found in response.\nLLM response: {response}")
     
