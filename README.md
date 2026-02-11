@@ -9,24 +9,18 @@ Nix works best on Linux systems: compatibility is not guaranteed for Windows or 
 
 ## Installation
 Clone this repository, then open ``bash`` and ``cd`` into the install directory.
-Run the following command to install the main dependencies for Exemi.
-```bash
-nix-build shell.nix
-```
 
 ### Frontend
-To run the frontend, follow the steps [here](exemi-frontend/README.md#) to install all the dependencies.
+To install the dependencies for the frontend, follow the steps [here](exemi-frontend/README.md#) to install all the dependencies.
 
 ### Backend
-To run the backend, follow the steps [here](exemi-backend/README.md#) to install all the dependencies.
+To install the dependencies for the backend, follow the steps [here](exemi-backend/README.md#) to install all the dependencies.
 
 ## Running
 Once you have installed the dependencies for the frontend and the backend,
-you can run them both simultaneously by executing ``run.sh`` within the
-project's Nix shell like this:
+you can run them both simultaneously like this:
 
 ```bash
-nix-shell
 sh run.sh
 ```
 To stop Exemi, terminate the process with CTRL+C.
