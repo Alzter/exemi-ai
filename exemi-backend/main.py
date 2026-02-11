@@ -23,13 +23,18 @@ async def lifespan(app : FastAPI):
     yield
     # Shutdown
 
-app = FastAPI(lifespan = lifespan)
+app = FastAPI(
+    lifespan = lifespan
+    root_url = "/api",
+    root_path = "/api"
+)
 app.include_router(universities.router)
 app.include_router(users.router)
 app.include_router(canvas.router)
 app.include_router(chats.router)
 
 origins = [
+    "https://www.exemi.au",
     "http://localhost:5173",
     "https://localhost:5173"
 ]

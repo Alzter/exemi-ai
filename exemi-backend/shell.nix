@@ -9,7 +9,7 @@ pkgs.mkShell {
   buildInputs = with pkgs; [
   
   openssl_oqs
-  ollama
+#   ollama
 
   (python312.withPackages (p: with p; [
     python-dotenv # .env file for secret reading
@@ -56,7 +56,7 @@ pkgs.mkShell {
     cryptography
   ]))
   ];
-  shellHook = ''
-    export OLLAMA_HOST=0.0.0.0:11434
-  '';
+#   shellHook = ''
+#     export OLLAMA_HOST=0.0.0.0:11434
+#   '';
 }
