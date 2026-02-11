@@ -232,7 +232,7 @@ async def update_message_in_conversation(
     if not existing_conversation: raise HTTPException(status_code=404, detail="Conversation not found")
 
     if existing_conversation.user_id != user.id and not user.admin:
-        raise HTTPException(status_code=401, detail="You are not authorised to add messages to another user's conversation")
+        raise HTTPException(status_code=401, detail="You are not authorised to edit messages from another user's conversation")
     
     existing_message.sqlmodel_update({"content" : new_message_text})
 
