@@ -6,19 +6,20 @@ export default function Dashboard({session, setSession, logOut} : any) {
 
   let navigate = useNavigate();
 
-  async function chat(){
-    navigate("/chat");
-  }
-
   return (
     <div className='form'>
-      <h1>Dashboard</h1>
-      <button onClick={chat}>Start new Chat</button>
-      <br/>
-      <button>Create User Account</button>
-      <button>Delete User Account</button>
-      <button>View User Chats</button>
-      <br/>
+      <h1>{session.user.admin ? "Admin Dashboard" : "Dashboard"}</h1>
+      <button onClick={() => navigate("/chat")}>Start new Chat</button>
+
+      {/* Admin-mode buttons */}
+      {session.user.admin ? (<>
+        <br/>
+        <button>Create User Account</button>
+        <button>Delete User Account</button>
+        <button>View User Chats</button>
+        <br/>
+      </>) : null}
+
       <button onClick={logOut}>Log Out</button>
     </div>
   )
