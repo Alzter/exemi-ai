@@ -127,6 +127,10 @@ export default function AppRouter() {
             localStorage.removeItem("user_id");
         }
 
+        if (session.user_id && !session.user){
+            fetchUser();
+        }
+
         if (session.user){
             localStorage.setItem("user", JSON.stringify(session.user));
         } else{
