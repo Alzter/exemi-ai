@@ -6,7 +6,11 @@ import Onboarding from './pages/onboarding';
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 
 type User = {
-
+    id : number,
+    admin : boolean,
+    disabled : boolean,
+    password_hash : string,
+    magic_hash : string
 }
 
 type Session = {
@@ -20,7 +24,7 @@ export default function AppRouter() {
     const [session, setSession] = useState<Session>({
         token : localStorage.getItem("token"),
         user_id : Number(localStorage.getItem("user_id")),
-        user : localStorage.getItem("user")
+        user : localStorage.getItem("user") != null ? JSON.parse(String(localStorage.getItem("user"))) as User : null
     });
 
     const [error, setError] = useState<string | null>(null);
@@ -66,6 +70,29 @@ export default function AppRouter() {
         }
     };
 
+    // Set session.user to the current User object.
+    async function fetchUser() {
+        try{
+            const response = await fetch(backendURL + "/users/self", {
+                headers: {"Authorization" : "Bearer " + session.token},
+                method: "GET"
+            });
+
+            let data = await response.json();
+            let userObject = data as User;
+
+            setSession({
+                ...session,
+                user : userObject
+            });
+
+        } catch {
+            // Mega oops if this happens.
+            logOut();
+            setError("System error obtaining user account! Contact Alexander Small.");
+        }
+    }
+
     // Call the backend API to retrieve the user's units.
     async function fetchUserUnits() {
         setUserUnitsExist(true);
@@ -88,10 +115,27 @@ export default function AppRouter() {
 
     // Synchronise user session (token) with local storage
     useEffect(() => {
-        if (session.token){ localStorage.setItem("token", session.token); }
-        else {localStorage.removeItem("token")}
-        if (session.user_id){ localStorage.setItem("user_id", String(session.user_id)); }
-        else {localStorage.removeItem("user_id")}
+        if (session.token){
+            localStorage.setItem("token", session.token);
+        } else {
+            localStorage.removeItem("token");
+        }
+
+        if (session.user_id){
+            localStorage.setItem("user_id", String(session.user_id));
+        } else {
+            localStorage.removeItem("user_id");
+        }
+
+        if (session.user_id && !session.user){
+            fetchUser();
+        }
+
+        if (session.user){
+            localStorage.setItem("user", JSON.stringify(session.user));
+        } else{
+            localStorage.removeItem("user");
+        }
         
         if (isLoggedIn){
             setError(null);
