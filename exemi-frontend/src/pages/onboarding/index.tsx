@@ -50,16 +50,9 @@ const slides : Slide[] = [
   }
 ]
 
-export default function Onboarding({session, setSession, setMagicValid} : any) {
+export default function Onboarding({session, setSession, setMagicValid, logOut} : any) {
 
   const [progress, setProgress] = useState<number>(0);
-
-  async function logOut(){
-    setSession({
-        token:null,
-        user_id:null
-    });
-  }
 
   async function back(){
     if (progress == 0){ logOut(); return; }

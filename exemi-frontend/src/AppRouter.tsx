@@ -5,9 +5,14 @@ import LoggedInFlow from './pages/app';
 import Onboarding from './pages/onboarding';
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 
+type User = {
+
+}
+
 type Session = {
     token : string | null;
     user_id : number | null;
+    user : User | null;
 }
 
 export default function AppRouter() {
@@ -15,6 +20,7 @@ export default function AppRouter() {
     const [session, setSession] = useState<Session>({
         token : localStorage.getItem("token"),
         user_id : Number(localStorage.getItem("user_id")),
+        user : localStorage.getItem("user")
     });
 
     const [error, setError] = useState<string | null>(null);
@@ -27,7 +33,8 @@ export default function AppRouter() {
     async function logOut() {
         setSession({
             token:null,
-            user_id:null
+            user_id:null,
+            user:null
         })
     };
 
@@ -105,9 +112,9 @@ export default function AppRouter() {
     if (isLoggedIn) {
         // TODO: Check if the user has a magic. If not, send them to onboarding to generate one.
         if (isMagicValid){
-            return <LoggedInFlow session={session} setSession={setSession}/>
+            return <LoggedInFlow session={session} setSession={setSession} logOut={logOut}/>
         } else {
-            return <Onboarding session={session} setSession={setSession} setMagicValid={setMagicValid}/>
+            return <Onboarding session={session} setSession={setSession} setMagicValid={setMagicValid} logOut={logOut}/>
         }
     } else {
         return <Login error={error} setError={setError} setSession={setSession}/>
