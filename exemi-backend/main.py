@@ -38,6 +38,7 @@ app.include_router(chats.router)
 
 origins = [
     "https://www.exemi.au",
+    "https://exemi.au",
     "http://localhost:5173",
     "https://localhost:5173"
 ]
