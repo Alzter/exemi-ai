@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 import {type User} from '../../models';
 
-export default function UserSelector({session, setError, setUser} : any){
+export default function UserSelector({session, setError, setUser, refreshTrigger} : any){
 
     const [users, setUsers] = useState<User[]>([]);
     const nonAdminUsers = users.filter(user => !user.admin);
@@ -39,7 +39,7 @@ export default function UserSelector({session, setError, setUser} : any){
 
     useEffect(() => {
         getUsers();
-    }, []);
+    }, [refreshTrigger]);
 
     useEffect(() => {
         if (nonAdminUsers.length > 0) {
