@@ -3,17 +3,12 @@ const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 import MessageBox from '../../components/chat/message_box';
 import ChatMessagesUI from './chat_messages';
 
-type ChatUIProps = {
-    session : any,
-    initialConversationID : number | null
-}
-
 type Conversation = {
     created_at : Date
     id : number
 }
 
-export default function ChatUI({session} : ChatUIProps){
+export default function ChatUI({session} : any){
     
     function ConversationBox({conversation} : any){
         let ID = conversation ? conversation.id : null
