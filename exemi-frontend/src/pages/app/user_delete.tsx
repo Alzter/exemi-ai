@@ -17,10 +17,10 @@ export default function UserDelete({session} : any){
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState<boolean>(false);
 
-    function handleChange(event : React.ChangeEvent<HTMLInputElement>){
-        setUser(event.target.value);
-        console.log(event.target.value);
-    }
+    // function handleChange(event : React.ChangeEvent<HTMLInputElement>){
+    //     setUser(event.target.value);
+    //     console.log(event.target.value);
+    // }
 
     async function handleSubmit(event : React.SubmitEvent<HTMLFormElement>){
         event.preventDefault();
@@ -30,7 +30,7 @@ export default function UserDelete({session} : any){
     };
 
     return (
-        <div className="form" onChange={handleChange}>
+        <div className="form">
             <form className="login" onSubmit={handleSubmit}>
                 <UserSelector session={session} setError={setError} setUser={setUser}/>
                 <button type="submit" disabled={loading}>Delete User</button>

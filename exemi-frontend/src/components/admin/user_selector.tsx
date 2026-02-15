@@ -21,7 +21,6 @@ export default function UserSelector({session, setError, setUser} : any){
             let data = await response.json();
             let userObjects = data as User[];
             setUsers(userObjects);
-            setUser(userObjects[0].username);
             return;
         } else {
             let message = "System error!";
@@ -43,7 +42,7 @@ export default function UserSelector({session, setError, setUser} : any){
     }, []);
 
     return (
-        <select name="user" id="user">
+        <select name="user" id="user" onChange={(event) => setUser(event.target.value)}>
             {nonAdminUsers.map(user => (
                 <option value={user.username}>
                     {user.username}
