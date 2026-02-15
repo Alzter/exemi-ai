@@ -47,7 +47,6 @@ export default function UserCreate({session} : any){
         if (response.ok){
             let data = await response.json();
             let userObjects = data as User[];
-            
 
             // Get usernames that are valid integers
             const numericUsernames = userObjects
@@ -63,6 +62,7 @@ export default function UserCreate({session} : any){
 
             // Set the current user ID to the highest value + 1
             setForm(prev => ({...prev, username : lastUserID + 1}));
+            console.log("Setting user ID to " + String(lastUserID + 1));
         };
     };
 
