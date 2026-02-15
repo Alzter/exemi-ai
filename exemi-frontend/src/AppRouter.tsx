@@ -78,6 +78,12 @@ export default function AppRouter() {
                 method: "GET"
             });
 
+            if (!response.ok){
+                logOut();
+                setError("System error obtaining user account! Contact Alexander Small.");
+                return;
+            }
+
             let data = await response.json();
             let userObject = data as User;
 
