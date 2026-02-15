@@ -31,7 +31,7 @@ export default function UserDelete({session} : any){
     };
 
     return (
-        <div className="form">
+        <div className="form" onChange={handleChange}>
             <form className="login" onSubmit={handleSubmit}>
                 <UserSelector session={session}/>
                 <button type="submit" disabled={loading}>Delete User</button>
