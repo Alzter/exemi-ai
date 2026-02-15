@@ -21,7 +21,6 @@ export default function UserSelector({session, setError, setUser} : any){
             let data = await response.json();
             let userObjects = data as User[];
             setUsers(userObjects);
-            setUser(nonAdminUsers[0].username);
             return;
         } else {
             let message = "System error!";
@@ -41,6 +40,13 @@ export default function UserSelector({session, setError, setUser} : any){
     useEffect(() => {
         getUsers();
     }, []);
+
+    // When we load the user list for the first
+    // time, set the User state variable to the
+    // first non-admin user in the list.
+    useEffect(() => {
+        setUser(nonAdminUsers[0].username);
+    }, [users])
 
     return (
         <select name="user" id="user" onChange={(event) => setUser(event.target.value)}>
