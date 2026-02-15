@@ -151,13 +151,13 @@ export default function UserCreate({session} : any){
                     />
                 </label>
                 <label>Enter password:
-                    <input
-                        name="password"
-                        type="text"
-                        value={form.password}
-                        onChange={handleChange}
-                    />
                     <div style={{display:"flex", flexDirection:"row", alignItems:"flex-end"}}>
+                        <input
+                            name="password"
+                            type="text"
+                            value={form.password}
+                            onChange={handleChange}
+                        />
                         <button
                             type="button"
                             onClick={generatePassword}
