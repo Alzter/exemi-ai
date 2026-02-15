@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router"
 import UserSelector from "../../components/admin/user_selector";
+const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 
 export default function UserDelete({session} : any){
 
@@ -17,16 +18,38 @@ export default function UserDelete({session} : any){
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState<boolean>(false);
 
-    // function handleChange(event : React.ChangeEvent<HTMLInputElement>){
-    //     setUser(event.target.value);
-    //     console.log(event.target.value);
-    // }
-
     async function handleSubmit(event : React.SubmitEvent<HTMLFormElement>){
         event.preventDefault();
         setLoading(true);
-        console.log(user);
-        setLoading(false);
+        
+        const response = await fetch(backendURL + "/users/" + user, {
+            headers:{
+                "Authorization" : "Bearer " + session.token,
+                "Content-Type":"application/json",
+                accept:"application/json"
+            },
+            method:"DELETE"
+        });
+
+        if (response.ok){
+            setError("User successfully deleted!");
+            setLoading(false);
+            return;
+        } else {
+            let message = "System error!";
+            try{
+                let data = await response.json();
+                if (typeof data.detail === "string"){
+                    message = data.detail;
+                }
+                setError(message);
+                setLoading(false);
+                return;
+            } catch {
+                setError(message);
+                setLoading(false);
+            }
+        }
     };
 
     return (
