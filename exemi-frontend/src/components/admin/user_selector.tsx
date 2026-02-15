@@ -41,16 +41,6 @@ export default function UserSelector({session, setError, setUser} : any){
         getUsers();
     }, []);
 
-    // When we load the user list for the first
-    // time, set the User state variable to the
-    // first non-admin user in the list.
-    useEffect(() => {
-        if (nonAdminUsers.length > 0){
-            setUser(nonAdminUsers[0].username);
-            console.log(nonAdminUsers[0].username);
-        }
-    }, [nonAdminUsers])
-
     return (
         <select name="user" id="user" onChange={(event) => setUser(event.target.value)}>
             {nonAdminUsers.map(user => (
