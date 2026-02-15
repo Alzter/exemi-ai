@@ -5,11 +5,13 @@ from fastapi import Depends, FastAPI, HTTPException, Query
 from sqlmodel import Field, Relationship, Session, SQLModel, create_engine, select
 from fastapi.middleware.cors import CORSMiddleware
 from .routers import universities, users, canvas, chats 
+import sys
 
-# # Establish a connection to the database.
-# # TODO: Make the connection URL specified elsewhere! 
-# url = "mariadb+mariadbconnector://root:root@127.0.0.1:3306/exemi"
-# engine = create_engine(url, echo=True)
+# Enable devmode if "fastapi dev main.py" is used
+DEVMODE = False
+if len(sys.argv) > 1:
+    if sys.argv[1] == "dev":
+        DEVMODE = TRUE
 
 def create_db_and_tables(engine = get_engine()):
     # TODO: This does not update table schemas after
@@ -27,9 +29,9 @@ app = FastAPI(
     lifespan = lifespan,
     root_url = "/api",
     root_path = "/api",
-    docs_url=None,
-    redoc_url=None,
-    openapi_url=None,
+    docs_url="/docs" if DEVMODE else None,
+    redoc_url="/redoc" if DEVMODE else None,
+    openapi_url="/openapi.json" if DEVMODE else None,
 )
 app.include_router(universities.router)
 app.include_router(users.router)
@@ -59,4 +61,3 @@ def read_root():
 #     with Session(engine) as session:
 #         yield session
 #     return user 
-

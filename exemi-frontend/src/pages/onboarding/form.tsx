@@ -7,35 +7,22 @@ export default function MagicForm({session, setSession, setMagicValid} : any){
         magic : string;
     }
 
-    const [isSubmitting, setSubmitting] = useState<boolean>(false);
+    const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
 
     const [form, setForm] = useState<MagicForm>({
         university_name:"swinburne",
         magic:"",
     });
-    
-    function LoginError(){
-      if (error){
-        return (
-          <div className='error'>
-            <p>{error}</p>
-          </div>
-        )
-      } else { return null }
-    }
 
     function handleChange(event : React.ChangeEvent<HTMLInputElement>){
         const {name, value} = event.target;
-        setForm(prev => ({
-            ...prev,
-            [name]:value,
-        }));
+        setForm(prev => ({...prev,[name]:value}));
     }
 
     async function updateUserMagic(event : React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
-        setSubmitting(true);
+        setLoading(true);
 
         console.log(form);
         console.log(backendURL);
@@ -63,12 +50,12 @@ export default function MagicForm({session, setSession, setMagicValid} : any){
                 }
                 
                 setError(message);
-                setSubmitting(false);
+                setLoading(false);
                 return;
             }
             
             if (response.ok) {
-                setSubmitting(false);
+                setLoading(false);
                 // Triggers a recheck of the user's magic
                 // which if successful will send them to
                 // the dashboard page.
@@ -77,7 +64,7 @@ export default function MagicForm({session, setSession, setMagicValid} : any){
 
         } catch{
             setError("System error! Please contact Alexander Small.");
-            setSubmitting(false);
+            setLoading(false);
         }
 
     }
@@ -101,8 +88,8 @@ export default function MagicForm({session, setSession, setMagicValid} : any){
                     onChange={handleChange}
                 />
             </label>
-            <button type="submit" disabled={isSubmitting || form.magic == ""}>Sign In</button>
-            <LoginError/>
+            <button type="submit" disabled={loading || form.magic == ""}>Sign In</button>
+            {error ? (<div className='error'><p>{error}</p></div>) : null}
         </form>
     );
 }
