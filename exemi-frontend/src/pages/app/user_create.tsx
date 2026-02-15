@@ -118,7 +118,7 @@ export default function UserCreate({session} : any){
             <form className="login" onSubmit={handleSubmit}>
                 <label>Enter participant ID:
                     <input
-                        name="username"
+                        name="user_id"
                         type="number"
                         value={form.user_id}
                         onChange={handleChange}
