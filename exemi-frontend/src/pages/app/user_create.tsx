@@ -45,6 +45,7 @@ export default function UserCreate({session} : any){
 
         if (response.ok){
             setError("User successfully created!");
+            setLoading(false);
             return;
         } else {
             let message = "System error!";
@@ -54,9 +55,11 @@ export default function UserCreate({session} : any){
                     message = data.detail;
                 }
                 setError(message);
+                setLoading(false);
                 return;
             } catch {
                 setError(message);
+                setLoading(false);
             }
         }
     }
