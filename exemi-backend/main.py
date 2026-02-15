@@ -11,7 +11,7 @@ import sys
 DEVMODE = False
 if len(sys.argv) > 1:
     if sys.argv[1] == "dev":
-        DEVMODE = TRUE
+        DEVMODE = True
 
 def create_db_and_tables(engine = get_engine()):
     # TODO: This does not update table schemas after
