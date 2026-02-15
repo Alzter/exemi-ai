@@ -1,48 +1,28 @@
 import { useState } from 'react';
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 
-type LoginForm = {
-    username : string;
-    password : string;
-};
 
 export default function Login({error, setError, setSession} : any){
-    
-    const [isSubmitting, setSubmitting] = useState<boolean>(false);
+        
+    type LoginForm = {
+        username : string;
+        password : string;
+    };
+
+    const [loading, setLoading] = useState<boolean>(false);
     const [form, setForm] = useState<LoginForm>({
         username:"",
         password:"",
     });
-    
-    function LoginError(){
-      if (error){
-        return (
-          <div className='error'>
-            <p>{error}</p>
-          </div>
-        )
-      } else { return null }
-    }
-
-    // const [token, setToken] = useState("");
 
     function handleChange(event : React.ChangeEvent<HTMLInputElement>){
-        
-        // Determine the name and value of the changed form fields
         const {name, value} = event.target;
-
-        // Functional State Setter
-        // Update the form state to a copy of the existing state
-        // with the changed property overwritten.
-        setForm(prev => ({
-            ...prev,
-            [name]:value,
-        }));
+        setForm(prev => ({...prev,[name]:value}));
     }
 
-    async function handleSubmit(event : React.FormEvent<HTMLFormElement>) {
+    async function handleSubmit(event : React.SubmitEvent<HTMLFormElement>) {
         event.preventDefault();
-        setSubmitting(true);
+        setLoading(true);
         // console.log(form);
         // console.log(backendURL);
 
@@ -72,7 +52,7 @@ export default function Login({error, setError, setSession} : any){
                 }
                 
                 setError(message);
-                setSubmitting(false);
+                setLoading(false);
                 return;
             }
 
@@ -80,15 +60,16 @@ export default function Login({error, setError, setSession} : any){
                 const data = await response.json();
                 setSession({
                     token : data.access_token,
-                    user_id : Number(data.user_id)
+                    user_id : Number(data.user_id),
+                    user : data.user
                 });
-                setSubmitting(false);
+                setLoading(false);
             }
         } catch (error) {
             // Doomsday scenario
             setError("System error! Exemi server is not running! Please contact Alexander Small.");
             console.log(error);
-            setSubmitting(false);
+            setLoading(false);
         }
     }
 
@@ -112,8 +93,9 @@ export default function Login({error, setError, setSession} : any){
                         onChange={handleChange}
                     />
                 </label>
-                <button type="submit" disabled={isSubmitting}>Log In</button>
-                <LoginError/>
+                <button type="submit" disabled={loading}>Log In</button>
+                {error ? (<div className='error'><p>{error}</p></div>) : null}
+                {/* <LoginError/> */}
                 {/* <input type="submit" value="Go"/> */}
             </form>
         </div>

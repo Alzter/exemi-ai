@@ -5,11 +5,13 @@ from fastapi import Depends, FastAPI, HTTPException, Query
 from sqlmodel import Field, Relationship, Session, SQLModel, create_engine, select
 from fastapi.middleware.cors import CORSMiddleware
 from .routers import universities, users, canvas, chats 
+import sys
 
-# # Establish a connection to the database.
-# # TODO: Make the connection URL specified elsewhere! 
-# url = "mariadb+mariadbconnector://root:root@127.0.0.1:3306/exemi"
-# engine = create_engine(url, echo=True)
+# Enable devmode if "fastapi dev main.py" is used
+DEVMODE = False
+if len(sys.argv) > 1:
+    if sys.argv[1] == "dev":
+        DEVMODE = TRUE
 
 def create_db_and_tables(engine = get_engine()):
     # TODO: This does not update table schemas after
@@ -26,7 +28,10 @@ async def lifespan(app : FastAPI):
 app = FastAPI(
     lifespan = lifespan,
     root_url = "/api",
-    root_path = "/api"
+    root_path = "/api",
+    docs_url="/docs" if DEVMODE else None,
+    redoc_url="/redoc" if DEVMODE else None,
+    openapi_url="/openapi.json" if DEVMODE else None,
 )
 app.include_router(universities.router)
 app.include_router(users.router)
@@ -35,6 +40,7 @@ app.include_router(chats.router)
 
 origins = [
     "https://www.exemi.au",
+    "https://exemi.au",
     "http://localhost:5173",
     "https://localhost:5173"
 ]
@@ -47,8 +53,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.get("/")
+def read_root():
+    return "Exemi API is running :)"
+
 # def get_session():
 #     with Session(engine) as session:
 #         yield session
 #     return user 
-
