@@ -133,6 +133,7 @@ export default function UserCreate({session} : any){
                         value={form.user_id}
                         min={highestLegalUserID}
                         onChange={handleChange}
+                        disabled
                     />
                 </label>
                 <label>Enter password:
