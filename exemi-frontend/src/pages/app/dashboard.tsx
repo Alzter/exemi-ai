@@ -15,8 +15,8 @@ export default function Dashboard({session, setSession, logOut} : any) {
       {session.user.admin ? (<>
         <br/>
         <button onClick={() => navigate("/user_create")}>Create User Account</button>
-        <button onClick={() => navigate("/user_delete")}>Delete User Account</button>
         <button onClick={() => navigate("/chat_viewer")}>View User Chats</button>
+        <button onClick={() => navigate("/user_delete")}>Delete User Account</button>
         <br/>
       </>) : null}
 
