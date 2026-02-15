@@ -61,7 +61,7 @@ export default function UserCreate({session} : any){
                 lastUserID = Math.max(...numericUsernames);
             }
 
-            setHighestLegalUserID(lastUserID);
+            setHighestLegalUserID(lastUserID + 1);
 
             // Set the current user ID to the highest value + 1
             setForm(prev => ({...prev, user_id : lastUserID + 1}));
@@ -70,6 +70,13 @@ export default function UserCreate({session} : any){
 
     function handleChange(event : React.ChangeEvent<HTMLInputElement>){
         const {name, value} = event.target;
+
+        if (name === "user_id") {
+            const num = Math.max(Number(value), highestLegalUserID);
+            setForm(prev => ({ ...prev, user_id: num }));
+            return;
+        }
+
         setForm(prev => ({...prev,[name]:value}));
     }
 
