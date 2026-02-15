@@ -46,7 +46,7 @@ export default function UserSelector({session, setError, setUser} : any){
     // first non-admin user in the list.
     useEffect(() => {
         setUser(nonAdminUsers[0].username);
-    }, [users])
+    }, [nonAdminUsers])
 
     return (
         <select name="user" id="user" onChange={(event) => setUser(event.target.value)}>
