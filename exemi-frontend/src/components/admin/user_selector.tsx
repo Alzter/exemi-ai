@@ -45,7 +45,8 @@ export default function UserSelector({session, setError, setUser} : any){
     // time, set the User state variable to the
     // first non-admin user in the list.
     useEffect(() => {
-        setUser(nonAdminUsers[0].username);
+        console.log(nonAdminUsers);
+        // setUser(nonAdminUsers[0].username);
     }, [nonAdminUsers])
 
     return (
