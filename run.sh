@@ -1,15 +1,16 @@
 run_frontend() {
   cd exemi-frontend
-  npx vite
+  nix-shell --run 'yarn vite'
 }
 
 run_backend() {
   cd exemi-backend
-  fastapi dev main.py
+  nix-shell --run 'fastapi dev main.py'
 }
 
 run_llm() {
-  ollama serve
+  cd exemi-backend
+  nix-shell --run 'ollama serve'
 }
 
 run() {
