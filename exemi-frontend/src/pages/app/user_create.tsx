@@ -150,15 +150,21 @@ export default function UserCreate({session} : any){
                         disabled
                     />
                 </label>
-                <label>Enter password:
-                    <input
-                        name="password"
-                        type="text"
-                        value={form.password}
-                        onChange={handleChange}
-                    />
-                </label>
-                <button type="button" onClick={generatePassword}>Generate Random Password</button>
+                <div style={{display:"flex", flexDirection:"row"}}>
+                    <label>Enter password:
+                        <input
+                            name="password"
+                            type="text"
+                            value={form.password}
+                            onChange={handleChange}
+                        />
+                    </label>
+                    <button
+                        type="button"
+                        onClick={generatePassword}
+                        style={{maxWidth:"fit-content", padding:"0.5rem 1rem"}}
+                    >↻</button>
+                </div>
                 <button type="submit" disabled={loading}>Create Account</button>
                 <button type="button" onClick={() => navigate("/")}>Back</button>
                 {error ? (<div className='error'><p>{error}</p></div>) : null}
