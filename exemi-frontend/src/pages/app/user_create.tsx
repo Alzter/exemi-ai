@@ -61,8 +61,7 @@ export default function UserCreate({session} : any){
             }
 
             // Set the current user ID to the highest value + 1
-            setForm(prev => ({...prev, username : lastUserID + 1}));
-            console.log("Setting user ID to " + String(lastUserID + 1));
+            setForm(prev => ({...prev, user_id : lastUserID + 1}));
         };
     };
 
