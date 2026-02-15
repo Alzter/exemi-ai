@@ -211,7 +211,7 @@ form.login{
   text-align: center;
 }
 
-form.login *, form.magic *{
+form *{
   text-align: center;
 }
 
