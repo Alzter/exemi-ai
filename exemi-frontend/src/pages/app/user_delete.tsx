@@ -4,8 +4,7 @@ import UserSelector from "../../components/admin/user_selector";
 
 export default function UserDelete({session} : any){
 
-    type UserSelected = {user : string};
-    const [form, setForm] = useState<UserSelected>({user:""});
+    const [user, setUser] = useState<string>();
 
     // If user is not an admin, exit page
     let navigate = useNavigate();
@@ -19,21 +18,21 @@ export default function UserDelete({session} : any){
     const [loading, setLoading] = useState<boolean>(false);
 
     function handleChange(event : React.ChangeEvent<HTMLInputElement>){
-        const {name, value} = event.target;
-        setForm(prev => ({...prev,[name]:value}));
+        setUser(event.target.value);
+        console.log(event.target.value);
     }
 
     async function handleSubmit(event : React.SubmitEvent<HTMLFormElement>){
         event.preventDefault();
         setLoading(true);
-        console.log(form.user);
+        console.log(user);
         setLoading(false);
     };
 
     return (
         <div className="form" onChange={handleChange}>
             <form className="login" onSubmit={handleSubmit}>
-                <UserSelector session={session}/>
+                <UserSelector session={session} setError={setError} setUser={setUser}/>
                 <button type="submit" disabled={loading}>Delete User</button>
                 {error ? (<div className='error'><p>{error}</p></div>) : null}
             </form>

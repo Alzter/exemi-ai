@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 import {type User} from '../../models';
 
-export default function UserSelector({session, setError} : any){
+export default function UserSelector({session, setError, setUser} : any){
 
     const [users, setUsers] = useState<User[]>([]);
     const nonAdminUsers = users.filter(user => !user.admin);
@@ -21,6 +21,7 @@ export default function UserSelector({session, setError} : any){
             let data = await response.json();
             let userObjects = data as User[];
             setUsers(userObjects);
+            setUser(userObjects[0].username);
             return;
         } else {
             let message = "System error!";
