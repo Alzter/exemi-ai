@@ -17,7 +17,10 @@ canvas_units_adapter = TypeAdapter(list[CanvasUnit])
 canvas_assignment_group_adapter = TypeAdapter(list[CanvasAssignmentGroup])
 
 @router.get("/canvas/terms", response_model=list[CanvasTerm])
-async def canvas_get_terms(user : User = Depends(get_current_user), magic : str = Depends(get_current_magic)):
+async def canvas_get_terms(
+    user : User = Depends(get_current_user),
+    magic : str = Depends(get_current_magic)
+):
     units = await canvas_get_units(user=user, magic=magic, exclude_complete_units=False, exclude_organisation_units=False)
     
     # Obtain every term object from every unit the user is currently enrolled in.
