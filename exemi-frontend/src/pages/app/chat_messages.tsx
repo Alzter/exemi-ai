@@ -46,7 +46,7 @@ export default function ChatMessagesUI({session, conversationID, setConversation
         setUserText(event.target.value);
     }
 
-    async function sendMessage(event : React.FormEvent<HTMLFormElement>){
+    async function sendMessage(event : React.SubmitEvent<HTMLFormElement>){
         event.preventDefault();
         setLoading(true);
         
