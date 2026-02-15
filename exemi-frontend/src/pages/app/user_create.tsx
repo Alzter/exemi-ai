@@ -150,7 +150,7 @@ export default function UserCreate({session} : any){
                         disabled
                     />
                 </label>
-                <div style={{display:"flex", flexDirection:"row"}}>
+                <div style={{display:"flex", flexDirection:"row", alignItems:"baseline"}}>
                     <label>Enter password:
                         <input
                             name="password"
