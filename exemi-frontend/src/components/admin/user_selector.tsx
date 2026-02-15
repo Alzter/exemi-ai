@@ -41,6 +41,12 @@ export default function UserSelector({session, setError, setUser} : any){
         getUsers();
     }, []);
 
+    useEffect(() => {
+        if (nonAdminUsers.length > 0) {
+            setUser(nonAdminUsers[0].username);
+        }
+    }, [users]);
+
     return (
         <select name="user" id="user" onChange={(event) => setUser(event.target.value)}>
             {nonAdminUsers.map(user => (
