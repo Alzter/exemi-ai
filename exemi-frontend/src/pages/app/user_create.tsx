@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router"
+import {type User} from '../../models';
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 
 export default function UserCreate({session} : any){
 
-    type LoginForm = {
-        username : number;
+    type UserCreateForm = {
+        user_id : number;
         password : string;
     };
     
@@ -17,12 +18,53 @@ export default function UserCreate({session} : any){
         }
     }, []);
 
+    useEffect(() => {
+        autoIncrementUserID();
+    }, []);
+
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState<boolean>(false);
-    const [form, setForm] = useState<LoginForm>({
-        username:1,
+    const [form, setForm] = useState<UserCreateForm>({
+        user_id:1,
         password:"",
     });
+
+    // Automatically increment the user ID value
+    // to be an integer higher than the greatest
+    // user ID, which is actually a username
+    // cast to an integer since we don't use
+    // real user IDs (PK) to identify users
+    async function autoIncrementUserID() {
+        const response = await fetch(backendURL + "/users", {
+            headers:{
+                "Authorization" : "Bearer " + session.token,
+                "Content-Type":"application/json",
+                accept:"application/json"
+            },
+            method:"GET"
+        });
+
+        if (response.ok){
+            let data = await response.json();
+            let userObjects = data as User[];
+            
+
+            // Get usernames that are valid integers
+            const numericUsernames = userObjects
+                .map(u => Number(u.username))
+                .filter(n => Number.isInteger(n)
+            );
+
+            // Obtain the highest user ID number currently taken
+            let lastUserID = 1;
+            if (numericUsernames.length > 0){
+                lastUserID = Math.max(...numericUsernames);
+            }
+
+            // Set the current user ID to the highest value + 1
+            setForm(prev => ({...prev, username : lastUserID + 1}));
+        };
+    };
 
     function handleChange(event : React.ChangeEvent<HTMLInputElement>){
         const {name, value} = event.target;
@@ -34,7 +76,7 @@ export default function UserCreate({session} : any){
         setLoading(true);
 
         let body = {
-            "username" : String(form.username),
+            "username" : String(form.user_id),
             "password" : form.password
         }
 
@@ -51,6 +93,7 @@ export default function UserCreate({session} : any){
 
         if (response.ok){
             setError("User successfully created!");
+            autoIncrementUserID();
             setLoading(false);
             return;
         } else {
@@ -78,7 +121,7 @@ export default function UserCreate({session} : any){
                     <input
                         name="username"
                         type="number"
-                        value={form.username}
+                        value={form.user_id}
                         onChange={handleChange}
                     />
                 </label>
