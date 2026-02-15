@@ -35,7 +35,8 @@ export default function UserCreate({session} : any){
 
         const response = await fetch(backendURL + "/users", {
             headers:{
-                "Content-Type":"application/x-www-form-urlencoded",
+                "Authorization" : "Bearer " + session.token,
+                "Content-Type":"application/json",
                 accept:"application/json"
             },
             method:"POST",
