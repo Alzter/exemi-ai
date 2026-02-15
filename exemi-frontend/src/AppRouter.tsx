@@ -4,20 +4,7 @@ import Login from './pages/auth';
 import LoggedInFlow from './pages/app';
 import Onboarding from './pages/onboarding';
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
-
-type User = {
-    id : number,
-    admin : boolean,
-    disabled : boolean,
-    password_hash : string,
-    magic_hash : string
-}
-
-type Session = {
-    token : string | null;
-    user_id : number | null;
-    user : User | null;
-}
+import {type User, type Session} from './models';
 
 export default function AppRouter() {
 

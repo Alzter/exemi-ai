@@ -1,5 +1,6 @@
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useNavigate } from "react-router"
+import UserSelector from "../../components/admin/user_selector";
 
 export default function UserDelete({session} : any){
 
@@ -11,9 +12,12 @@ export default function UserDelete({session} : any){
         }
     }, [])
 
+    const [error, setError] = useState<string | null>(null);
+
     return (
-        <div>
-            <p>Not implemented</p>
+        <div className="form">
+            <UserSelector session={session}/>
+            {error ? (<div className='error'><p>{error}</p></div>) : null}
         </div>
     )
 }
