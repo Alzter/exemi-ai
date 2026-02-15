@@ -21,6 +21,7 @@ export default function UserSelector({session, setError, setUser} : any){
             let data = await response.json();
             let userObjects = data as User[];
             setUsers(userObjects);
+            setUser(nonAdminUsers[0].username);
             return;
         } else {
             let message = "System error!";
