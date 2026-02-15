@@ -5,7 +5,7 @@ const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 export default function UserCreate({session} : any){
 
     type LoginForm = {
-        username : string;
+        username : number;
         password : string;
     };
     
@@ -20,7 +20,7 @@ export default function UserCreate({session} : any){
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState<boolean>(false);
     const [form, setForm] = useState<LoginForm>({
-        username:"",
+        username:1,
         password:"",
     });
 
@@ -33,14 +33,20 @@ export default function UserCreate({session} : any){
         event.preventDefault();
         setLoading(true);
 
+        let body = {
+            "username" : String(form.username),
+            "password" : form.password
+        }
+
         const response = await fetch(backendURL + "/users", {
+
             headers:{
                 "Authorization" : "Bearer " + session.token,
                 "Content-Type":"application/json",
                 accept:"application/json"
             },
             method:"POST",
-            body: JSON.stringify(form)
+            body: JSON.stringify(body)
         });
 
         if (response.ok){
@@ -71,7 +77,7 @@ export default function UserCreate({session} : any){
                 <label>Enter participant ID:
                     <input
                         name="username"
-                        type="text"
+                        type="number"
                         value={form.username}
                         onChange={handleChange}
                     />
