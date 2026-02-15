@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router"
 import {type User} from '../../models';
-import { randomBytes } from "crypto";
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 
 export default function UserCreate({session} : any){
@@ -69,8 +68,16 @@ export default function UserCreate({session} : any){
         };
     };
 
+    function randomHex(bytes: number): string {
+        const arr = new Uint8Array(bytes);
+        crypto.getRandomValues(arr);
+        return Array.from(arr)
+            .map(b => b.toString(16).padStart(2, "0"))
+            .join("");
+    }
+
     function generatePassword(){
-        const password = randomBytes(32).toString("hex");
+        const password = randomHex(32);
 
         setForm(prev => ({...prev, password:password}));
     };
