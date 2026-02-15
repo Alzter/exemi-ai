@@ -42,7 +42,7 @@ export default function UserSelector({session, setError} : any){
     }, []);
 
     return (
-        <select name="users" id="users">
+        <select name="user" id="user">
             {nonAdminUsers.map(user => (
                 <option value={user.username}>
                     {user.username}
