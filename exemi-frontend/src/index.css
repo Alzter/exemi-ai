@@ -211,12 +211,8 @@ form.login{
   text-align: center;
 }
 
-form *{
+form.login *, form.magic *{
   text-align: center;
-}
-
-form.chatbox *{
-  text-align: left;
 }
 
 form.magic{

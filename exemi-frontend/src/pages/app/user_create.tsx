@@ -33,13 +33,37 @@ export default function UserCreate({session} : any){
         event.preventDefault();
         setLoading(true);
 
-        const response = await fetch(backendURL + "/")
+        const response = await fetch(backendURL + "/users", {
+            headers:{
+                "Content-Type":"application/x-www-form-urlencoded",
+                accept:"application/json"
+            },
+            method:"POST",
+            body: JSON.stringify(form)
+        });
+
+        if (response.ok){
+            setError("User successfully created!");
+            return;
+        } else {
+            let message = "System error!";
+            try{
+                let data = await response.json();
+                if (typeof data.detail === "string"){
+                    message = data.detail;
+                }
+                setError(message);
+                return;
+            } catch {
+                setError(message);
+            }
+        }
     }
 
     return (
         <div className="form">
-            <h1>Create new User</h1>
-            <form className="create-user" onSubmit={handleSubmit}>
+            <h1>Create User Account</h1>
+            <form className="login" onSubmit={handleSubmit}>
                 <label>Enter participant ID:
                     <input
                         name="username"
@@ -48,6 +72,16 @@ export default function UserCreate({session} : any){
                         onChange={handleChange}
                     />
                 </label>
+                <label>Enter password:
+                    <input
+                        name="password"
+                        type="password"
+                        value={form.password}
+                        onChange={handleChange}
+                    />
+                </label>
+                <button type="submit" disabled={loading}>Create Account</button>
+                {error ? (<div className='error'><p>{error}</p></div>) : null}
             </form>
         </div>
     )

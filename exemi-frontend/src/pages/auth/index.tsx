@@ -95,8 +95,6 @@ export default function Login({error, setError, setSession} : any){
                 </label>
                 <button type="submit" disabled={loading}>Log In</button>
                 {error ? (<div className='error'><p>{error}</p></div>) : null}
-                {/* <LoginError/> */}
-                {/* <input type="submit" value="Go"/> */}
             </form>
         </div>
     )
