@@ -85,6 +85,7 @@ export default function UserCreate({session} : any){
                     />
                 </label>
                 <button type="submit" disabled={loading}>Create Account</button>
+                <button onClick={() => navigate("/")}>Back</button>
                 {error ? (<div className='error'><p>{error}</p></div>) : null}
             </form>
         </div>

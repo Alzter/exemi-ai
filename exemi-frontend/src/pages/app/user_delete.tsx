@@ -34,6 +34,7 @@ export default function UserDelete({session} : any){
             <form className="login" onSubmit={handleSubmit}>
                 <UserSelector session={session} setError={setError} setUser={setUser}/>
                 <button type="submit" disabled={loading}>Delete User</button>
+                <button onClick={() => navigate("/")}>Back</button>
                 {error ? (<div className='error'><p>{error}</p></div>) : null}
             </form>
         </div>
