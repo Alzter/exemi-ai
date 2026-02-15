@@ -56,7 +56,7 @@ export default function UserCreate({session} : any){
             );
 
             // Obtain the highest user ID number currently taken
-            let lastUserID = 1;
+            let lastUserID = 0;
             if (numericUsernames.length > 0){
                 lastUserID = Math.max(...numericUsernames);
             }
@@ -144,7 +144,7 @@ export default function UserCreate({session} : any){
                     />
                 </label>
                 <button type="submit" disabled={loading}>Create Account</button>
-                <button onClick={() => navigate("/")}>Back</button>
+                <button type="button" onClick={() => navigate("/")}>Back</button>
                 {error ? (<div className='error'><p>{error}</p></div>) : null}
             </form>
         </div>

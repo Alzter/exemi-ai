@@ -68,7 +68,7 @@ export default function UserDelete({session} : any){
             <form className="login" onSubmit={handleSubmit}>
                 <UserSelector session={session} setError={setError} user={user} setUser={setUser} refreshTrigger={refreshUsers}/>
                 <button type="submit" disabled={loading}>Delete Account</button>
-                <button onClick={() => navigate("/")}>Back</button>
+                <button type="button" onClick={() => navigate("/")}>Back</button>
                 {error ? (<div className='error'><p>{error}</p></div>) : null}
             </form>
         </div>
