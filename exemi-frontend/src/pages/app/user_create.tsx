@@ -28,6 +28,7 @@ export default function UserCreate({session} : any){
         user_id:1,
         password:"",
     });
+    const [highestLegalUserID, setHighestLegalUserID] = useState<number>(0);
 
     // Automatically increment the user ID value
     // to be an integer higher than the greatest
@@ -59,6 +60,8 @@ export default function UserCreate({session} : any){
             if (numericUsernames.length > 0){
                 lastUserID = Math.max(...numericUsernames);
             }
+
+            setHighestLegalUserID(lastUserID);
 
             // Set the current user ID to the highest value + 1
             setForm(prev => ({...prev, user_id : lastUserID + 1}));
@@ -121,6 +124,7 @@ export default function UserCreate({session} : any){
                         name="user_id"
                         type="number"
                         value={form.user_id}
+                        min={highestLegalUserID}
                         onChange={handleChange}
                     />
                 </label>
