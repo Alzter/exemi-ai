@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router"
 import {type User} from '../../models';
+import { randomBytes } from "crypto";
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 
 export default function UserCreate({session} : any){
@@ -66,6 +67,12 @@ export default function UserCreate({session} : any){
             // Set the current user ID to the highest value + 1
             setForm(prev => ({...prev, user_id : lastUserID + 1}));
         };
+    };
+
+    function generatePassword(){
+        const password = randomBytes(32).toString("hex");
+
+        setForm(prev => ({...prev, password:password}));
     };
 
     function handleChange(event : React.ChangeEvent<HTMLInputElement>){
@@ -139,11 +146,12 @@ export default function UserCreate({session} : any){
                 <label>Enter password:
                     <input
                         name="password"
-                        type="password"
+                        type="text"
                         value={form.password}
                         onChange={handleChange}
                     />
                 </label>
+                <button type="button" onClick={generatePassword}>Generate Random Password</button>
                 <button type="submit" disabled={loading}>Create Account</button>
                 <button type="button" onClick={() => navigate("/")}>Back</button>
                 {error ? (<div className='error'><p>{error}</p></div>) : null}
