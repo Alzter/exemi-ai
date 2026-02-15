@@ -44,7 +44,6 @@ export default function UserSelector({session, setError, setUser} : any){
     useEffect(() => {
         if (nonAdminUsers.length > 0) {
             setUser(nonAdminUsers[0].username);
-            console.log(nonAdminUsers[0].username);
         }
     }, [users]);
 
