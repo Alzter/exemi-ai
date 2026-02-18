@@ -1,8 +1,16 @@
 import { useEffect, useState } from "react"
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
-import {type User} from '../../models';
+import {type User, type Session} from '../../models';
 
-export default function UserSelector({session, setError, user, setUser, refreshTrigger} : any){
+export type UserSelectorParams = {
+  session : Session,
+  setError : any,
+  username : string,
+  setUsername : any,
+  refreshTrigger : any
+}
+
+export default function UserSelector({session, setError, username, setUsername, refreshTrigger} : UserSelectorParams){
 
     const [users, setUsers] = useState<User[]>([]);
     const nonAdminUsers = users.filter(user => !user.admin);
@@ -44,17 +52,17 @@ export default function UserSelector({session, setError, user, setUser, refreshT
     useEffect(() => {
         if (
             nonAdminUsers.length > 0 &&
-            !nonAdminUsers.some(u => u.username === user)
+            !nonAdminUsers.some(u => u.username === username)
         ) {
-            setUser(nonAdminUsers[0].username);
+            setUsername(nonAdminUsers[0].username);
         }
     }, [users]);
 
     return (
         <select
             name="user"
-            value={user ?? ""}
-            onChange={(event) => setUser(event.target.value)}
+            value={username ?? ""}
+            onChange={(event) => setUsername(event.target.value)}
         >
             {nonAdminUsers.map(user => (
                 <option value={user.username}>

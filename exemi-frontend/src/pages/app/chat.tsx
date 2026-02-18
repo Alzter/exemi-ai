@@ -2,7 +2,8 @@ import {useState, useEffect} from 'react'
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 import ChatMessagesUI from './chat_messages';
 import { useNavigate } from 'react-router-dom';
-import {type Session} from '../../models';
+import {type User, type Session} from '../../models';
+import UserSelector from '../../components/admin/user_selector';
 
 type ChatUIParams = {
   session : Session,
@@ -16,17 +17,22 @@ type Conversation = {
 
 export default function ChatUI({session, isViewing} : ChatUIParams){
 
-    const [userID, setUserID] = useState<number>(session.user_id);
+    const [username, setUsername] = useState<string>(session.user.username);
 
     let navigate = useNavigate();
     // Only let the user view other user's
     // conversations (chat logs) if the
     // user is an administrator
     useEffect(() => {
-        if (userID != session.user_id && !session.user.admin){
+        setConversationID(null);
+        if (username != session.user.username && !session.user.admin){
             navigate("/");
         }
-    }, []);
+    }, [username]);
+
+    useEffect(() => {
+      console.log(username);
+    }, [username]);
 
     function ConversationSelector({conversation} : any){
         let ID = conversation ? conversation.id : null
@@ -69,7 +75,7 @@ export default function ChatUI({session, isViewing} : ChatUIParams){
     }
 
     async function loadConversations(){
-        let URL = backendURL + "/conversations/" + userID
+        let URL = backendURL + "/conversations/" + username 
         const response = await fetch(URL, {
             headers:{
                 "Authorization" : "Bearer " + session.token,
@@ -96,7 +102,7 @@ export default function ChatUI({session, isViewing} : ChatUIParams){
     // When component loads, fetch conversations.
     useEffect(() => {
         loadConversations();
-    }, [conversationID])
+    }, [conversationID, username])
 
     return(
         <div className="chat">
@@ -104,7 +110,13 @@ export default function ChatUI({session, isViewing} : ChatUIParams){
                 <div className="chat-sidebar-header">
                   <p>exemi</p>
                 </div>
-                <ConversationSelector conversation={null}/>
+
+                {isViewing ? (
+                  <UserSelector session={session} setError={setError} username={username} setUsername={setUsername} refreshTrigger={null}/>
+                ) : (
+                  <ConversationSelector conversation={null}/>
+                )}
+
                 <p>Your chats:</p>
                 <div className="conversation-container">
                     {conversationSelectors}

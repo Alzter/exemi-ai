@@ -5,10 +5,10 @@ const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 
 export default function UserDelete({session} : any){
 
-    const [user, setUser] = useState<string>();
+    const [username, setUsername] = useState<string>();
     const [refreshUsers, setRefreshUsers] = useState(0);
 
-    // If user is not an admin, exit page
+    // If username is not an admin, exit page
     let navigate = useNavigate();
     useEffect(() => {
         if (!session.user.admin){
@@ -23,13 +23,13 @@ export default function UserDelete({session} : any){
         event.preventDefault();
         setLoading(true);
         
-        if (user === session.user.username){
+        if (username === session.user.username){
             setError("You cannot delete your own account!");
             setLoading(false);
             return;
         }
         
-        const response = await fetch(backendURL + "/users/" + user, {
+        const response = await fetch(backendURL + "/users/" + username, {
             headers:{
                 "Authorization" : "Bearer " + session.token,
                 "Content-Type":"application/json",
@@ -41,8 +41,8 @@ export default function UserDelete({session} : any){
         if (response.ok){
             setError("User successfully deleted!");
             setLoading(false);
-            // Reload the user selector to remove
-            // the user account option that was just deleted
+            // Reload the username selector to remove
+            // the username account option that was just deleted
             setRefreshUsers(prev => prev + 1);
             return;
         } else {
@@ -66,7 +66,7 @@ export default function UserDelete({session} : any){
         <div className="form">
             <h1>Delete User Account</h1>
             <form className="login" onSubmit={handleSubmit}>
-                <UserSelector session={session} setError={setError} user={user} setUser={setUser} refreshTrigger={refreshUsers}/>
+                <UserSelector session={session} setError={setError} username={username} setUsername={setUsername} refreshTrigger={refreshUsers}/>
                 <button type="submit" disabled={loading}>Delete Account</button>
                 <button type="button" onClick={() => navigate("/")}>Back</button>
                 {error ? (<div className='error'><p>{error}</p></div>) : null}
