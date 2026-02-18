@@ -255,7 +255,7 @@ form.magic{
   flex-direction: column;
 }
 
-form.chatbox{
+.chatbox{
   display:flex;
   flex-direction: row;
   align-items:baseline;
