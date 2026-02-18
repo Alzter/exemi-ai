@@ -4,6 +4,7 @@ import MessageBox from '../../components/chat/message_box';
 
 type ChatUIProps = {
     session : any,
+    isViewing : boolean,
     conversationID : number | null,
     setConversationID : any,
     loading : boolean,
@@ -22,7 +23,7 @@ type Conversation = {
     id : number
 }
 
-export default function ChatMessagesUI({session, conversationID, setConversationID, loading, setLoading, error, setError} : ChatUIProps){
+export default function ChatMessagesUI({session, isViewing, conversationID, setConversationID, loading, setLoading, error, setError} : ChatUIProps){
 
     const [messages, setMessages] = useState<Message[]>([]);
 
@@ -136,6 +137,33 @@ export default function ChatMessagesUI({session, conversationID, setConversation
         const data = await response.json();
         parseMessages(data.messages);
     }
+  
+    async function deleteConversation() {
+        setLoading(true);
+
+        let URL = backendURL + "/conversation/" + conversationID
+        const response = await fetch(URL, {
+            headers:{
+                "Authorization" : "Bearer " + session.token,
+                "Content-Type":"application/json",
+                accept:"application/json"
+            },
+            method:"DELETE"
+        })
+
+        if (!response.ok){
+            let message = "System error! Please contact Alexander Small.";
+            const data = await response.json();
+            if (typeof data.detail === "string"){
+                message = data.detail;
+            }
+            setError(message);
+            return;
+        }
+
+        setLoading(false);
+        setConversationID(null);
+    }
 
     useEffect(() => {
         loadMessages(conversationID);
@@ -155,11 +183,17 @@ export default function ChatMessagesUI({session, conversationID, setConversation
                 {messageBoxes}
             </div>
             <ErrorDisplay/>
-            <form className="chatbox" onSubmit={sendMessage}>
-                {/* TODO: User message box should wrap text and expand vertically */}
-                <input type="text" onChange={handleTextUpdate} value={userText}/>
-                <button type="submit" disabled={loading}>Send</button>
-            </form>
+            { isViewing ? (
+              <div className="chatbox">
+                <button disabled={loading || !conversationID} onClick={deleteConversation}>Delete Chat</button>
+              </div>
+            ) : (
+              <form className="chatbox" onSubmit={sendMessage}>
+                  {/* TODO: User message box should wrap text and expand vertically */}
+                  <input type="text" onChange={handleTextUpdate} value={userText}/>
+                  <button type="submit" disabled={loading}>Send</button>
+              </form>
+            )}
         </div>
     )
 }

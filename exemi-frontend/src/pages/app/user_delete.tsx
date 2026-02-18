@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router"
 import UserSelector from "../../components/admin/user_selector";
+const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 
 export default function UserDelete({session} : any){
 
-    const [user, setUser] = useState<string>();
+    const [username, setUsername] = useState<string>();
+    const [refreshUsers, setRefreshUsers] = useState(0);
 
-    // If user is not an admin, exit page
+    // If username is not an admin, exit page
     let navigate = useNavigate();
     useEffect(() => {
         if (!session.user.admin){
@@ -17,24 +19,56 @@ export default function UserDelete({session} : any){
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState<boolean>(false);
 
-    // function handleChange(event : React.ChangeEvent<HTMLInputElement>){
-    //     setUser(event.target.value);
-    //     console.log(event.target.value);
-    // }
-
     async function handleSubmit(event : React.SubmitEvent<HTMLFormElement>){
         event.preventDefault();
         setLoading(true);
-        console.log(user);
-        setLoading(false);
+        
+        if (username === session.user.username){
+            setError("You cannot delete your own account!");
+            setLoading(false);
+            return;
+        }
+        
+        const response = await fetch(backendURL + "/users/" + username, {
+            headers:{
+                "Authorization" : "Bearer " + session.token,
+                "Content-Type":"application/json",
+                accept:"application/json"
+            },
+            method:"DELETE"
+        });
+
+        if (response.ok){
+            setError("User successfully deleted!");
+            setLoading(false);
+            // Reload the username selector to remove
+            // the username account option that was just deleted
+            setRefreshUsers(prev => prev + 1);
+            return;
+        } else {
+            let message = "System error!";
+            try{
+                let data = await response.json();
+                if (typeof data.detail === "string"){
+                    message = data.detail;
+                }
+                setError(message);
+                setLoading(false);
+                return;
+            } catch {
+                setError(message);
+                setLoading(false);
+            }
+        }
     };
 
     return (
         <div className="form">
+            <h1>Delete User Account</h1>
             <form className="login" onSubmit={handleSubmit}>
-                <UserSelector session={session} setError={setError} setUser={setUser}/>
-                <button type="submit" disabled={loading}>Delete User</button>
-                <button onClick={() => navigate("/")}>Back</button>
+                <UserSelector session={session} setError={setError} username={username} setUsername={setUsername} refreshTrigger={refreshUsers}/>
+                <button type="submit" disabled={loading}>Delete Account</button>
+                <button type="button" onClick={() => navigate("/")}>Back</button>
                 {error ? (<div className='error'><p>{error}</p></div>) : null}
             </form>
         </div>

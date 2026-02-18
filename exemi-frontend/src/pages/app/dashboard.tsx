@@ -9,14 +9,14 @@ export default function Dashboard({session, setSession, logOut} : any) {
   return (
     <div className='form'>
       <h1>{session.user.admin ? "Admin Dashboard" : "Dashboard"}</h1>
-      <button onClick={() => navigate("/chat")}>Start new Chat</button>
+      <button onClick={() => navigate("/chat")}>Start New Chat</button>
 
       {/* Admin-mode buttons */}
       {session.user.admin ? (<>
         <br/>
         <button onClick={() => navigate("/user_create")}>Create User Account</button>
-        <button onClick={() => navigate("/user_delete")}>Delete User Account</button>
         <button onClick={() => navigate("/chat_viewer")}>View User Chats</button>
+        <button onClick={() => navigate("/user_delete")}>Delete User Account</button>
         <br/>
       </>) : null}
 
