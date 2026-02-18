@@ -63,9 +63,9 @@ async def get_conversation(id : int, user : User = Depends(get_current_user), se
 
     return conversation
 
-@router.get("/conversations/{user_id}", response_model=list[ConversationPublic])
+@router.get("/conversations/{username}", response_model=list[ConversationPublic])
 async def get_conversations_for_user(
-    user_id : int | None = None,
+    username : str | None = None,
     offset : int = 0, 
     limit : int = Query(default=100, limit=100),
     user : User = Depends(get_current_user),
@@ -75,7 +75,7 @@ async def get_conversations_for_user(
     Obtain all conversations for a given user.
 
     Args:
-        user_id (int, optional): The ID of the user who created the conversation. Defaults to the current user's ID.
+        username (str, optional): The name of the user who created the conversation. Defaults to the current user's name.
     
     Raises:
         HTTPException:
@@ -84,12 +84,12 @@ async def get_conversations_for_user(
     Returns:
         list[ConversationPublicWithMessages]: The conversations with their messages included.
     """
-    if user_id is None: user_id = user.id
-    if user_id != user.id and not user.admin:
+    if username is None: username = user.username
+    if username != user.username and not user.admin:
         raise HTTPException(status_code=401, detail="You are not authorised to view these conversations")
 
     return session.exec(
-        select(Conversation).order_by(desc(Conversation.created_at)).where(Conversation.user_id == user_id).offset(offset).limit(limit)
+        select(Conversation).join(User).order_by(desc(Conversation.created_at)).where(Conversation.user == user).offset(offset).limit(limit)
     ).all()
 
 @router.get("/conversations", response_model=list[ConversationPublic])
