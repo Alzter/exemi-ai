@@ -118,6 +118,7 @@ div.conversation-container{
   overflow-y: scroll;
   background-color: #aaa;
   border-radius: 8px;
+  padding: 0.5em;
 }
 
 button.conversation{
