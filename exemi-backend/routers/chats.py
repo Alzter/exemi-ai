@@ -89,7 +89,7 @@ async def get_conversations_for_user(
         raise HTTPException(status_code=401, detail="You are not authorised to view these conversations")
 
     return session.exec(
-        select(Conversation).join(User).order_by(desc(Conversation.created_at)).where(Conversation.user == user).offset(offset).limit(limit)
+        select(Conversation).order_by(desc(Conversation.created_at)).join(User).where(User.username == username).offset(offset).limit(limit)
     ).all()
 
 @router.get("/conversations", response_model=list[ConversationPublic])
