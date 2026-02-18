@@ -10,6 +10,7 @@ export default function LoggedInFlow({session, setSession, logOut} : any) {
       <Routes>
         <Route path="/" element={<Dashboard session={session} setSession={setSession} logOut={logOut}/>}/>
         <Route path="chat/" element={<ChatUI session={session}/>}/>
+        <Route path="chat_viewer/" element={<ChatUI session={session} isViewing={true}/>}/>
         <Route path="user_create/" element={<UserCreate session={session}/>}/>
         <Route path="user_delete/" element={<UserDelete session={session}/>}/>
       </Routes>

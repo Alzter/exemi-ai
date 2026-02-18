@@ -9,7 +9,7 @@ export default function Dashboard({session, setSession, logOut} : any) {
   return (
     <div className='form'>
       <h1>{session.user.admin ? "Admin Dashboard" : "Dashboard"}</h1>
-      <button onClick={() => navigate("/chat")}>Start new Chat</button>
+      <button onClick={() => navigate("/chat")}>Start New Chat</button>
 
       {/* Admin-mode buttons */}
       {session.user.admin ? (<>

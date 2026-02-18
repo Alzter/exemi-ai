@@ -4,6 +4,7 @@ import MessageBox from '../../components/chat/message_box';
 
 type ChatUIProps = {
     session : any,
+    isViewing : boolean,
     conversationID : number | null,
     setConversationID : any,
     loading : boolean,
@@ -22,7 +23,7 @@ type Conversation = {
     id : number
 }
 
-export default function ChatMessagesUI({session, conversationID, setConversationID, loading, setLoading, error, setError} : ChatUIProps){
+export default function ChatMessagesUI({session, isViewing, conversationID, setConversationID, loading, setLoading, error, setError} : ChatUIProps){
 
     const [messages, setMessages] = useState<Message[]>([]);
 
@@ -155,11 +156,13 @@ export default function ChatMessagesUI({session, conversationID, setConversation
                 {messageBoxes}
             </div>
             <ErrorDisplay/>
-            <form className="chatbox" onSubmit={sendMessage}>
-                {/* TODO: User message box should wrap text and expand vertically */}
-                <input type="text" onChange={handleTextUpdate} value={userText}/>
-                <button type="submit" disabled={loading}>Send</button>
-            </form>
+            { isViewing ? null : (
+              <form className="chatbox" onSubmit={sendMessage}>
+                  {/* TODO: User message box should wrap text and expand vertically */}
+                  <input type="text" onChange={handleTextUpdate} value={userText}/>
+                  <button type="submit" disabled={loading}>Send</button>
+              </form>
+            )}
         </div>
     )
 }

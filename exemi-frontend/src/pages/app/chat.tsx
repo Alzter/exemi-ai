@@ -2,13 +2,19 @@ import {useState, useEffect} from 'react'
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 import ChatMessagesUI from './chat_messages';
 import { useNavigate } from 'react-router-dom';
+import {type Session} from '../../models';
+
+type ChatUIParams = {
+  session : Session,
+  isViewing : boolean
+}
 
 type Conversation = {
     created_at : Date
     id : number
 }
 
-export default function ChatUI({session} : any){
+export default function ChatUI({session, isViewing} : ChatUIParams){
 
     const [userID, setUserID] = useState<number>(session.user_id);
 
@@ -109,6 +115,7 @@ export default function ChatUI({session} : any){
             </div>
             <ChatMessagesUI
                 session={session}
+                isViewing={isViewing}
                 conversationID={conversationID}
                 setConversationID={setConversationID}
                 loading={loading}
