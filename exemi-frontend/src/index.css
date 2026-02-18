@@ -127,9 +127,8 @@ button.conversation{
   background-color: #eee;
   color:#222;
   font-weight: normal;
-  text-align: left;
   border-radius: 8px;
-  padding: 0.3em 0.3em;
+  padding: 0.5em 0.3em;
 }
 
 button.conversation-selected:disabled{
@@ -138,9 +137,8 @@ button.conversation-selected:disabled{
   background-color: #aaa;
   color:#222;
   font-weight: normal;
-  text-align: left;
   border-radius: 8px;
-  padding: 0.3em 0.3em;
+  padding: 0.5em 0.3em;
   cursor:auto;
 }
 
