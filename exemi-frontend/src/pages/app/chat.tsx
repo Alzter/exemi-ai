@@ -29,6 +29,7 @@ export default function ChatUI({session} : any){
             setConversationID(ID);
         }
         let className = conversationID==ID ? "conversation-selected" : "conversation"
+        if (!conversation) {className = "";}
         
         return (
             <button
@@ -94,10 +95,16 @@ export default function ChatUI({session} : any){
     return(
         <div className="chat">
             <div className="chat-sidebar">
+                <div className="chat-sidebar-header">
+                  <p>exemi</p>
+                </div>
                 <ConversationSelector conversation={null}/>
                 <p>Your chats:</p>
                 <div className="conversation-container">
                     {conversationSelectors}
+                </div>
+                <div className="chat-sidebar-footer">
+                  <button onClick={() => {navigate("/");}}>Back to Dashboard</button>
                 </div>
             </div>
             <ChatMessagesUI
