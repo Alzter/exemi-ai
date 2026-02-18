@@ -2,6 +2,7 @@ import {useState, useEffect} from 'react'
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 import MessageBox from '../../components/chat/message_box';
 import ChatMessagesUI from './chat_messages';
+import { useNavigate } from 'react-router-dom';
 
 type Conversation = {
     created_at : Date
@@ -9,10 +10,22 @@ type Conversation = {
 }
 
 export default function ChatUI({session} : any){
-    
+
+    const [userID, setUserID] = useState<number>(session.user_id);
+
+    let navigate = useNavigate();
+    // Only let the user view other user's
+    // conversations (chat logs) if the
+    // user is an administrator
+    useEffect(() => {
+        if (userID != session.user_id && !session.user.admin){
+            navigate("/");
+        }
+    }, []);
+
     function ConversationBox({conversation} : any){
         let ID = conversation ? conversation.id : null
-        let title = conversation ? conversation.created_at.toLocaleString() : "New chat";
+        let title = conversation ? conversation.created_at.toLocaleString() : "+ Create New Chat";
         function assignConversation(){
             setConversationID(ID);
         }
@@ -33,9 +46,12 @@ export default function ChatUI({session} : any){
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string|null>(null);
 
-    const conversationBoxes = [<ConversationBox conversation={null}/>, ...conversations.map(
+    // const conversationBoxes = [<ConversationBox conversation={null}/>, ...conversations.map(
+    //     conversation => <ConversationBox conversation={conversation}/>
+    // )];
+    const conversationBoxes = conversations.map(
         conversation => <ConversationBox conversation={conversation}/>
-    )]
+    );
 
     async function parseConversations(data : Array<any>){
         const conversations: Conversation[] = data.map(item => ({
@@ -47,7 +63,7 @@ export default function ChatUI({session} : any){
     }
 
     async function loadConversations(){
-        let URL = backendURL + "/conversations/" + session.user_id
+        let URL = backendURL + "/conversations/" + userID
         const response = await fetch(URL, {
             headers:{
                 "Authorization" : "Bearer " + session.token,
@@ -79,6 +95,7 @@ export default function ChatUI({session} : any){
     return(
         <div className="chat">
             <div className="chat-sidebar">
+                <ConversationBox conversation={null}/>
                 <p>Your chats:</p>
                 <div className="conversation-container">
                     {conversationBoxes}
