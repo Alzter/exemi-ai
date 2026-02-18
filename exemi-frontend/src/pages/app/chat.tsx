@@ -1,6 +1,5 @@
 import {useState, useEffect} from 'react'
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
-import MessageBox from '../../components/chat/message_box';
 import ChatMessagesUI from './chat_messages';
 import { useNavigate } from 'react-router-dom';
 
@@ -23,7 +22,7 @@ export default function ChatUI({session} : any){
         }
     }, []);
 
-    function ConversationBox({conversation} : any){
+    function ConversationSelector({conversation} : any){
         let ID = conversation ? conversation.id : null
         let title = conversation ? conversation.created_at.toLocaleString() : "+ Create New Chat";
         function assignConversation(){
@@ -46,11 +45,11 @@ export default function ChatUI({session} : any){
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string|null>(null);
 
-    // const conversationBoxes = [<ConversationBox conversation={null}/>, ...conversations.map(
-    //     conversation => <ConversationBox conversation={conversation}/>
+    // const conversationSelectors = [<ConversationSelector conversation={null}/>, ...conversations.map(
+    //     conversation => <ConversationSelector conversation={conversation}/>
     // )];
-    const conversationBoxes = conversations.map(
-        conversation => <ConversationBox conversation={conversation}/>
+    const conversationSelectors = conversations.map(
+        conversation => <ConversationSelector conversation={conversation}/>
     );
 
     async function parseConversations(data : Array<any>){
@@ -95,10 +94,10 @@ export default function ChatUI({session} : any){
     return(
         <div className="chat">
             <div className="chat-sidebar">
-                <ConversationBox conversation={null}/>
+                <ConversationSelector conversation={null}/>
                 <p>Your chats:</p>
                 <div className="conversation-container">
-                    {conversationBoxes}
+                    {conversationSelectors}
                 </div>
             </div>
             <ChatMessagesUI

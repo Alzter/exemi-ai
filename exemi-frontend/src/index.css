@@ -116,6 +116,8 @@ div.conversation-container{
   flex-direction: column;
   overflow: hidden;
   overflow-y: scroll;
+  background-color: #aaa;
+  border-radius: 8px;
 }
 
 button.conversation{
