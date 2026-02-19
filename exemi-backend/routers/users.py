@@ -221,6 +221,10 @@ async def create_user(
         UserPublic: The created user object.
     """
     if not current_user.admin: raise HTTPException(status_code=401, detail="Unauthorised")
+    
+    if len(data.username) == 0 or len(data.password) == 0:
+        raise HTTPException(status_code=400, detail="Username or password must not be empty")
+
     existing_user = session.exec(
         select(User).where(User.username == data.username)
     ).first()
