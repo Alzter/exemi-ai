@@ -23,18 +23,21 @@ Response rules after using a tool:
 - Respond directly to the user in plain language.
 """.strip()
 
-def parse_timestamp(dt: datetime, australia_tz: str = "Australia/Sydney") -> str:
+def parse_timestamp(dt: datetime | None, australia_tz: str = "Australia/Sydney") -> str:
     """
     Converts a datetime (naive UTC or any tz-aware) to a specified
     Australian timezone and returns a human-readable string.
 
     Args:
-        dt (datetime): Input datetime, can be naive (assumed UTC) or tz-aware.
+        dt (datetime | None): Input datetime, can be naive (assumed UTC) or tz-aware.
         australia_tz (str, optional): Target Australian timezone. Defaults to "Australia/Sydney".
 
     Returns:
         str: Formatted datetime string
     """
+
+    if dt is None: return "Unknown"
+
     # Step 1: If naive, assume it's UTC
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=ZoneInfo("UTC"))
