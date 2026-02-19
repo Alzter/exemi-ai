@@ -272,7 +272,7 @@ async def update_user(
 
     extra_data = {}
     if new_data.password is not None:
-        extra_data["hashed_password"] = PasswordHasher.hash(new_data.password)
+        extra_data["password_hash"] = PasswordHasher.hash(new_data.password)
 
     if new_data.magic is not None:
         extra_data["magic_hash"] = await encrypt_magic(new_data.magic, new_data.university_name) 
