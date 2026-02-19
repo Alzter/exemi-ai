@@ -32,6 +32,11 @@ use the following nginx configuration:
 
 ```
 http {
+    # Increase default timeout to avoid LLM response
+    # from timing out when tool calls are used
+    proxy_send_timeout 2m;
+    proxy_read_timeout 5m;
+
     server {
         # listen 80; HTTP traffic is only needed if HTTPS is not yet enabled
         server_name exemi.au www.exemi.au; # If you have purchased a domain name, you can assign it here
