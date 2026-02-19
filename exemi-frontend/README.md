@@ -33,7 +33,7 @@ use the following nginx configuration:
 ```
 http {
     server {
-        listen 80;
+        # listen 80; HTTP traffic is only needed if HTTPS is not yet enabled
         server_name exemi.au www.exemi.au; # If you have purchased a domain name, you can assign it here
         access_log /var/log/nginx/access.log;
         location / {
@@ -47,6 +47,13 @@ http {
                 proxy_set_header X-Forwarded-Proto $scheme;
 
         }
+        
+        listen 443 ssl; # managed by Certbot
+        ssl_certificate /etc/letsencrypt/live/exemi.au/fullchain.pem; # managed by Certbot
+        ssl_certificate_key /etc/letsencrypt/live/exemi.au/privkey.pem; # managed by Certbot
+        include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+        ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+
     }
 }
 ```
