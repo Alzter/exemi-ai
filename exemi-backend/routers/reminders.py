@@ -27,7 +27,7 @@ def get_reminders(
     """
     reminders = session.exec(
         select(Reminder)
-        .order_by(desc(Reminder.due_at))
+        .order_by(Reminder.due_at)
         .join(User).where(User.username == user.username)
         .offset(offset).limit(limit)
     ).all()
@@ -124,3 +124,42 @@ def delete_reminder(
     session.delete(reminder)
     session.commit()
     return True
+
+@router.patch("/reminder/{id}", response_model=ReminderPublic)
+def update_reminder(
+    id : int,
+    new_data : ReminderUpdate,
+    user : User = Depends(get_current_user),
+    session : Session = Depends(get_session)
+):
+    """
+    Change the details of a reminder for a given user. 
+    
+    Args:
+        id (int): The ID of the reminder to modify.
+        new_data (ReminderUpdate): Changes to the reminder's description, due date, or Canvas assignment ID.
+    
+    Raises:
+        HTTPException: Raises a 400 if you try to create more than one reminder for the same Canvas assignment.
+
+    Returns:
+        ReminderPublic: The updated reminder.
+    """
+    reminder = session.get(Reminder, id)
+    if not reminder: raise HTTPException(status_code=404, detail="Reminder not found")
+    if reminder.user_id != user.id and not user.admin: raise HTTPException(status_code=401, detail="You are not authorised to edit another user's reminder")
+    
+    reminders_for_the_same_assignment = session.exec(
+        select(Reminder).where(Reminder.user_id == reminder.user.id).where(Reminder.canvas_assignment_id == new_data.canvas_assignment_id)
+    ).all()
+
+    if reminders_for_the_same_assignment:
+        raise HTTPException(status_code=400, detail="You cannot have more than one reminder for the same assignment!")
+
+    new_data_dict = new_data.model_dump(exclude_unset=True)
+    reminder.sqlmodel_update(new_data_dict)
+
+    session.add(reminder)
+    session.commit()
+    session.refresh(reminder)
+    return reminder

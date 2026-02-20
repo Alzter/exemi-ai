@@ -205,5 +205,6 @@ class ReminderPublic(ReminderBase):
 class ReminderCreate(ReminderBase): pass
 
 class ReminderUpdate(SQLModel):
-    canvas_assignment_id : int | None
+    canvas_assignment_id : int | None = None
     description : str | None = Field(sa_column=Column(TEXT), default=None)
+    due_at : datetime | None = None
