@@ -4,6 +4,7 @@ from sqlmodel import Session, select, desc
 from ..dependencies import get_current_magic, get_current_user, get_session
 from ..llm_api import chat
 from datetime import datetime, timezone
+from typing import Literal
 import time
 
 router = APIRouter()
@@ -109,7 +110,7 @@ async def get_conversations_for_self(
         select(Conversation).order_by(desc(Conversation.created_at)).where(Conversation.user_id == user.id).offset(offset).limit(limit)
     ).all()
 
-@router.delete("/conversation/{id}")
+@router.delete("/conversation/{id}", response_model=Literal[True])
 async def delete_conversation(
     id : int,
     user : User = Depends(get_current_user),
@@ -125,7 +126,7 @@ async def delete_conversation(
         HTTPException: Returns a 401 if the user tries to delete another user's conversation and is not an administrator.
     
     Returns:
-        dict: Successful response {"ok":True}.
+        Literal[True]: Successful response.
     """
     conversation = session.get(Conversation, id)
     if not conversation: raise HTTPException(status_code=404, detail="Conversation not found")
@@ -133,7 +134,7 @@ async def delete_conversation(
     if conversation.user_id != user.id and not user.admin: raise HTTPException(status_code=401, detail="You are not authorised to delete this conversation")
     session.delete(conversation)
     session.commit()
-    return {"ok" : True}
+    return True
 
 # @router.post("/message", response_model=ConversationPublicWithMessages)
 async def add_message_to_conversation(
