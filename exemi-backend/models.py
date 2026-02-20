@@ -187,18 +187,20 @@ class ConversationPublicWithMessages(ConversationPublic):
     messages : list[Message] = []
 
 class ReminderBase(SQLModel):
-    canvas_assignment_id : int = Field(unique=True)
+    canvas_assignment_id : int
     description : str = Field(sa_column=Column(TEXT))
-    user_id : int = Field(foreign_key="user.id", ondelete="CASCADE")
+    due_at : datetime
 
 class Reminder(ReminderBase, table=True):
     id : int | None = Field(primary_key=True, default=None)
     created_at : datetime
+    user_id : int = Field(foreign_key="user.id", ondelete="CASCADE")
     user : User = Relationship(back_populates="reminders")
 
 class ReminderPublic(ReminderBase):
     id : int
     created_at : datetime
+    user_id : int
 
 class ReminderCreate(ReminderBase): pass
 
