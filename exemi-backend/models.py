@@ -24,6 +24,7 @@ class User(UserBase, table=True):
     magic_hash : str | None = Field(default=None, max_length=255)
     conversations : list["Conversation"] = Relationship(back_populates="user", cascade_delete=True)
     units : list["Unit"] = Relationship(back_populates="users", link_model=UsersUnits)
+    reminders : list["Reminder"] = Relationship(back_populates="user", cascade_delete=True)
 
 class UserPublic(UserBase):
     id : int
@@ -184,3 +185,23 @@ class MessageUpdate(SQLModel):
 
 class ConversationPublicWithMessages(ConversationPublic):
     messages : list[Message] = []
+
+class ReminderBase(SQLModel):
+    canvas_assignment_id : int = Field(unique=True)
+    description : str = Field(sa_column=Column(TEXT))
+    user_id : int = Field(foreign_key="user.id", ondelete="CASCADE")
+
+class Reminder(ReminderBase, table=True):
+    id : int | None = Field(primary_key=True, default=None)
+    created_at : datetime
+    user : User = Relationship(back_populates="reminders")
+
+class ReminderPublic(ReminderBase):
+    id : int
+    created_at : datetime
+
+class ReminderCreate(ReminderBase): pass
+
+class ReminderUpdate(SQLModel):
+    canvas_assignment_id : int | None
+    description : str | None = Field(sa_column=Column(TEXT), default=None)
