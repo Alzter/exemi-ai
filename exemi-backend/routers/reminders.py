@@ -82,12 +82,12 @@ def create_reminder(
         ReminderPublic: The reminder.
     """
 
-    reminders_for_the_same_assignment = session.exec(
-        select(Reminder).where(Reminder.user_id == user.id).where(Reminder.canvas_assignment_id == data.canvas_assignment_id)
-    ).all()
+    # reminders_for_the_same_assignment = session.exec(
+    #     select(Reminder).where(Reminder.user_id == user.id).where(Reminder.canvas_assignment_id == data.canvas_assignment_id)
+    # ).all()
 
-    if reminders_for_the_same_assignment:
-        raise HTTPException(status_code=400, detail="You cannot have more than one reminder for the same assignment!")
+    # if reminders_for_the_same_assignment:
+    #     raise HTTPException(status_code=400, detail="You cannot have more than one reminder for the same assignment!")
 
     reminder = Reminder.model_validate(data, update={
         "user_id" : user.id,
@@ -149,12 +149,12 @@ def update_reminder(
     if not reminder: raise HTTPException(status_code=404, detail="Reminder not found")
     if reminder.user_id != user.id and not user.admin: raise HTTPException(status_code=401, detail="You are not authorised to edit another user's reminder")
     
-    reminders_for_the_same_assignment = session.exec(
-        select(Reminder).where(Reminder.user_id == reminder.user.id).where(Reminder.canvas_assignment_id == new_data.canvas_assignment_id)
-    ).all()
+    # reminders_for_the_same_assignment = session.exec(
+    #     select(Reminder).where(Reminder.user_id == reminder.user.id).where(Reminder.canvas_assignment_id == new_data.canvas_assignment_id)
+    # ).all()
 
-    if reminders_for_the_same_assignment:
-        raise HTTPException(status_code=400, detail="You cannot have more than one reminder for the same assignment!")
+    # if reminders_for_the_same_assignment:
+    #     raise HTTPException(status_code=400, detail="You cannot have more than one reminder for the same assignment!")
 
     new_data_dict = new_data.model_dump(exclude_unset=True)
     reminder.sqlmodel_update(new_data_dict)

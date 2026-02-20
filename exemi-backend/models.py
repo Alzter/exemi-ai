@@ -187,7 +187,8 @@ class ConversationPublicWithMessages(ConversationPublic):
     messages : list[Message] = []
 
 class ReminderBase(SQLModel):
-    canvas_assignment_id : int
+    # canvas_assignment_id : int
+    assignment_name : str = Field(max_length=255)
     description : str = Field(sa_column=Column(TEXT))
     due_at : datetime
 
@@ -205,6 +206,7 @@ class ReminderPublic(ReminderBase):
 class ReminderCreate(ReminderBase): pass
 
 class ReminderUpdate(SQLModel):
-    canvas_assignment_id : int | None = None
+    # canvas_assignment_id : int | None = None
+    assignment_name : str | None = None
     description : str | None = Field(sa_column=Column(TEXT), default=None)
     due_at : datetime | None = None
