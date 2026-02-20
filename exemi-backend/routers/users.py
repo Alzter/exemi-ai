@@ -16,7 +16,7 @@ router = APIRouter()
 @router.get("/users", response_model = list[UserPublic])
 def get_users(
     offset : int = 0,
-    limit : int = Query(default=100, limit=100),
+    limit : int = Query(default=100, le=100),
     current_user : User = Depends(root_get_current_user),
     session : Session = Depends(get_session)
 ):

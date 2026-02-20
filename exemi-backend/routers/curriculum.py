@@ -26,7 +26,7 @@ router = APIRouter()
 @router.get("/terms", response_model=list[TermPublic])
 async def get_terms(
     offset : int = 0,
-    limit : int = Query(default=100, limit=100),
+    limit : int = Query(default=100, le=100),
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session)
 ):
@@ -63,7 +63,7 @@ async def create_term(
 @router.get("/units", response_model=list[UnitPublic])
 async def get_units(
     offset : int = 0,
-    limit : int = Query(default=100, limit=100),
+    limit : int = Query(default=100, le=100),
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session)
 ):
@@ -100,7 +100,7 @@ async def create_unit(
 @router.get("/assignments", response_model=list[AssignmentPublic])
 async def get_assignments(
     offset : int = 0,
-    limit : int = Query(default=100, limit=100),
+    limit : int = Query(default=100, le=100),
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session)
 ):

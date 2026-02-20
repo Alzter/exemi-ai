@@ -67,7 +67,7 @@ async def get_conversation(id : int, user : User = Depends(get_current_user), se
 async def get_conversations_for_user(
     username : str | None = None,
     offset : int = 0, 
-    limit : int = Query(default=100, limit=100),
+    limit : int = Query(default=100, le=100),
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session)
 ):
@@ -95,7 +95,7 @@ async def get_conversations_for_user(
 @router.get("/conversations", response_model=list[ConversationPublic])
 async def get_conversations_for_self(
     offset : int = 0, 
-    limit : int = Query(default=100, limit=100),
+    limit : int = Query(default=100, le=100),
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session)
 ):
