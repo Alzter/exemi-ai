@@ -27,7 +27,7 @@ def get_reminders(
     """
     reminders = session.exec(
         select(Reminder)
-        .order_by(desc(Reminder.created_at))
+        .order_by(desc(Reminder.due_at))
         .join(User).where(User.username == user.username)
         .offset(offset).limit(limit)
     ).all()
@@ -120,7 +120,7 @@ def delete_reminder(
     reminder = session.get(Reminder, id)
     if not reminder: raise HTTPException(status_code=404, detail="Reminder not found")
 
-    if reminder.user_id != user.id and not user.admin: raise HTTPException(status_code=401, detail="You are not authorised to delete this conversation")
+    if reminder.user_id != user.id and not user.admin: raise HTTPException(status_code=401, detail="You are not authorised to delete this reminder")
     session.delete(reminder)
     session.commit()
     return True
