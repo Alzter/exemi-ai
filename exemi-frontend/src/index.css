@@ -60,7 +60,7 @@ div.slideshow{
   justify-content: center;
   flex-direction: column;
   width:100%;
-  min-height:100dvh;
+  height:100dvh;
   text-align: center;
 }
 
@@ -80,7 +80,7 @@ div.slideshow-content{
 
 div.slideshow img{
   max-width: 100%;
-  max-height:75%;
+  max-height:80%;
   height:auto;
   display:block;
   border-radius: 5px;
