@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select, desc
 from ..dependencies import get_current_magic, get_current_user, get_session
 from ..llm_api import chat
+from langchain_core.messages import BaseMessage
 from datetime import datetime, timezone
 from typing import Literal
 import time
@@ -15,7 +16,7 @@ async def test_chat(
     user : User = Depends(get_current_user),
     magic : str = Depends(get_current_magic),
     session : Session = Depends(get_session)
-) -> str:
+) -> list[BaseMessage]:
     """
     Test the chat functionality of the LLM (ADMIN ONLY).
 
@@ -30,13 +31,13 @@ async def test_chat(
     """
     if not user.admin: raise HTTPException(status_code=401, detail="Unauthorised")
     messages = [{"role":"user","content":message}]
-    response_text = await chat(
+    response_messages : list[BaseMessage] = await chat(
         user=user,
         magic=magic,
         session=session,
         messages=messages
     )
-    return response_text
+    return response_messages
 
 @router.get("/conversation/{id}", response_model=ConversationPublicWithMessages)
 async def get_conversation(id : int, user : User = Depends(get_current_user), session : Session = Depends(get_session)):
@@ -182,12 +183,14 @@ async def call_llm_response_to_conversation(
         "role": message.role, "content": message.content
     } for message in existing_messages]
 
-    response_text = await chat(
+    response_messages : list[BaseMessage] = await chat(
         user=user,
         magic=magic,
         session=session,
         messages=message_dict
     )
+
+    response_text = response_messages[-1].content
 
     assistant_message_data = MessageCreate(
         conversation_id = conversation_id,

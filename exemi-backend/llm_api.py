@@ -25,7 +25,7 @@ async def chat(
     user : User,
     magic : str,
     session : Session
-) -> str:
+) -> list[BaseMessage]:
     """
     Call the LLM to respond to the user's message(s).
     Supports tool calling in a loop (so-called agentic AI).
@@ -34,7 +34,7 @@ async def chat(
         messages (list[dict]): List of messages in OpenAI format.
     
     Returns:
-        str: The LLM's response.
+        list[BaseMessage]: The LLM response messages.
     """
     
     tools : list[BaseTool] = create_tools(user=user, magic=magic, session=session)
@@ -57,4 +57,4 @@ async def chat(
     except:
         raise HTTPException(status_code=500, detail=f"LLM message not found in response.\nLLM response: {response}")
     
-    return response_text
+    return response_messages

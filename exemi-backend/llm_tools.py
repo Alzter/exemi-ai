@@ -6,7 +6,7 @@ from .routers.canvas import canvas_get_all_assignments
 from sqlmodel import Session
 from .models import ReminderCreate, ReminderPublic, User, Reminder
 from .models_canvas import CanvasAssignment
-from .date_utils import timestamp_to_string 
+from .date_utils import parse_timestamp, timestamp_to_string 
 
 def get_reminder_list(user : User, session : Session) -> str:
     """
@@ -49,14 +49,17 @@ Your goal is to help the student plan and manage their time.
 The current date is {timestamp_to_string(datetime.now())}.
 
 General rules:
-- Always represent dates in the format: Monday, 8 February 2026.
-- Respond in simple sentences. Break complex information or lists into bullet points.
+- Only attend to ONE TASK at a time. Prioritise completing the most urgent task first.
+- When responding to the user, represent dates in the format: Monday, 8 February 2026.
+- Respond in simple sentences. Break complex information or lists into bullet points using markdown formatting.
+- Be concise.
 
 Tool usage rules:
+- When using a tool, represent dates in ISO 8601 format (YYYY-MM-DD).
 - When the user asks what assignments they have, call the tool get_assignments.
-- Use the tool add_assignment_reminder to remind the user to complete an assignment.
+- If the user does NOT have a reminder for a given assignment, and this assignment is important and urgent, use the tool add_assignment_reminder to remind them to complete it before it is due.
 - You may only call the tool add_assignment_reminder AFTER calling the tool get_assignments.
-- You may only create ONE reminder per assignment.
+- If a tool call fails (returns an error), tell the user: "I'm sorry, I could not complete <name of requested action>.". Do NOT indicate success.
 
 Response rules after using a tool:
 - NEVER mention tools, function calls, or that you used an external source.
@@ -87,26 +90,29 @@ def create_tools(user : User, magic : str, session : Session) -> list[BaseTool]:
         for assignment in assignments])
     
     @tool
-    def add_assignment_reminder(assignment_name : str, due_at : datetime, description : str) -> str:
+    def add_assignment_reminder(assignment_name : str, due_date : str, description : str) -> str:
         """
         Create a reminder for the user to complete a given assignment.
+        The dates should be provided in ISO 8601 format (YYYY-MM-DD).
+        Do NOT create a reminder for an assignment if one already exists!
         
         Args:
             assignment_name (str): The assignment name.
-            due_at (datetime): The date to remind the user.
+            due_date (str): The date to remind the user in ISO 8601 format (YYYY-MM-DD).
             description (str): What task the user needs to do. 
         
         Returns:
             str: Reminder creation success or failure message. 
         """
         
+        # Convert due date into an Australian timestamp
+        due_at = datetime.fromisoformat(due_date)
+        due_at = parse_timestamp(due_at)
+
         data = ReminderCreate(assignment_name=assignment_name, due_at=due_at, description=description)
 
-        try:
-            reminder : Reminder = create_reminder(data, user=user, session=session)
-            return "Reminder created successfully!"
-        except Exception as e:
-            return f"Error creating reminder. {str(e)}"
+        create_reminder(data, user=user, session=session)
+        return "Reminder created successfully!"
         
     return [get_assignments, add_assignment_reminder]
 
