@@ -85,23 +85,19 @@ async def chat_stream(
         tools=[]#tools
     )
 
-    try:
-        async for token, metadata in agent.astream(
-            {"messages":messages},
-            stream_mode="messages"
-        ):
-            node = metadata["langgraph_node"]
-            content = token.content_blocks[-1]
+    async for token, metadata in agent.astream(
+        {"messages":messages},
+        stream_mode="messages"
+    ):
+        node = metadata["langgraph_node"]
+        content = token.content_blocks[-1]
 
-            if node == "model":
-                if content.get("text"):
-                    yield str(content["text"])
-            # content = token.content_blocks
-            # for step, data in chunk.items():
-            #     content = data["messages"][-1].content_blocks
-            #     yield content
-            #     print(f"step : {step}")
-            #     print(f"content : {content}")
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error generating LLM response.\nDetail: {str(e)}")
+        if node == "model":
+            if content.get("text"):
+                yield str(content["text"])
+        # content = token.content_blocks
+        # for step, data in chunk.items():
+        #     content = data["messages"][-1].content_blocks
+        #     yield content
+        #     print(f"step : {step}")
+        #     print(f"content : {content}")
