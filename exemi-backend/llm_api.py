@@ -48,7 +48,7 @@ async def chat(
 
     try:
 
-        for chunk in agent.astream(
+        async for chunk in agent.astream(
             {"messages":messages},
             stream_mode="updates"
         ):
