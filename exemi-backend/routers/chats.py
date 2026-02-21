@@ -491,7 +491,7 @@ async def conversation_start(
 
     return conversation_with_response
 
-@router.post("/conversation_stream", response_model=StreamingResponse)
+@router.post("/conversation_stream", response_class=StreamingResponse)
 async def conversation_stream_start(
     new_message : NewMessage,
     background_tasks : BackgroundTasks,
@@ -588,7 +588,7 @@ async def conversation_continue(
 
     return new_conversation
 
-@router.post("/conversation_stream/{conversation_id}", response_model=StreamingResponse)
+@router.post("/conversation_stream/{conversation_id}", response_class=StreamingResponse)
 async def conversation_stream_continue(
     conversation_id : int,
     new_message : NewMessage,
