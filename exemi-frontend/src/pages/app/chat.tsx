@@ -108,7 +108,7 @@ export default function ChatUI({session, isViewing} : ChatUIParams){
         <div className="chat">
             <div className="chat-sidebar">
                 <div className="chat-sidebar-header">
-                  <p>exemi</p>
+                  <p className="logo">exemi</p>
                 </div>
 
                 {isViewing ? (
