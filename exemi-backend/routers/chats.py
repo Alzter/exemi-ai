@@ -534,7 +534,7 @@ async def conversation_stream_start(
         conversation_stream_continue(
             conversation_id=conversation_id,
             new_message=new_message,
-            background_tasks=background_tasks
+            background_tasks=background_tasks,
             user=user,
             magic=magic,
             session=session
