@@ -22,6 +22,10 @@ export default function ChatUI({session, isViewing, logOut} : ChatUIParams){
 
     let navigate = useNavigate();
 
+    useEffect(() => {
+        setConversationID(null)
+    }, [username])
+
     function ConversationSelector({conversation} : any){
         let ID = conversation ? conversation.id : null
         let title = conversation ? conversation.created_at.toLocaleString() : "+ Create New Chat";
@@ -30,9 +34,6 @@ export default function ChatUI({session, isViewing, logOut} : ChatUIParams){
         }
         let className = conversationID==ID ? "conversation-selected" : "conversation"
         if (!conversation) {className = "";}
-        if (!conversation){
-            console.log(conversationID)
-        }
         return (
             <button
                 onClick = {assignConversation}
