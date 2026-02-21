@@ -6,12 +6,21 @@ from .routers.canvas import canvas_get_all_assignments
 from sqlmodel import Session
 from .models import ReminderCreate, ReminderPublic, User, Reminder
 from .models_canvas import CanvasAssignment
+from .date_utils import timestamp_to_string 
 
 def get_reminder_list(user : User, session : Session) -> str:
     """
-    Obtain a plain text list of the user's current reminders.
+    Obtain a plain text list of the user's current
+    assignment reminders which are due in less
+    than a week's time.
     """
-    reminders = get_reminders(offset=0, limit=100, user=user, session=session)
+    reminders = get_reminders(
+        offset=0,
+        limit=100,
+        min_days_remaining=7,
+        user=user,
+        session=session
+    )
 
     if not reminders: return ""
     
@@ -23,7 +32,11 @@ def get_reminder_list(user : User, session : Session) -> str:
         ])
     for reminder in reminders])
     
-    return "The user has the following reminders: \n\n" + reminders.strip()
+    return "\n\n".join([
+        "IMPORTANT: You have assigned the student the following assignment reminders:",
+        reminders.strip(),
+        "Please notify the student of these reminders."
+    ])
 
 
 def get_system_prompt(user : User, magic : str, session : Session) -> str:
@@ -31,9 +44,9 @@ def get_system_prompt(user : User, magic : str, session : Session) -> str:
 You are Exemi, a study assistance chatbot.
 You are talking to an undergraduate university student who has been diagnosed with ADHD.
 
-Your goal is to mentor the student in a friendly, non-judgemental way.
+Your goal is to help the student plan and manage their time.
 
-The current date is {parse_timestamp(datetime.now())}.
+The current date is {timestamp_to_string(datetime.now())}.
 
 General rules:
 - Always represent dates in the format: Monday, 8 February 2026.
@@ -53,55 +66,6 @@ Response rules after using a tool:
 {get_reminder_list(user=user, session=session)}
 """.strip()
 
-def cal_days_diff(a : datetime, b : datetime) -> int:
-    """
-    Calculate the number of calendar days between two dates.
-    Source: Matt Alcock https://stackoverflow.com/a/17215747
-
-    Args:
-        a (datetime): Later date.
-        b (datetime): Earlier date.
-    
-    Returns:
-        days (int): The number of days between the dates.
-    """
-    A = a.replace(hour = 0, minute = 0, second = 0, microsecond = 0)
-    B = b.replace(hour = 0, minute = 0, second = 0, microsecond = 0)
-    return (A - B).days
-
-def parse_timestamp(dt: datetime | None, australia_tz: str = "Australia/Sydney") -> str:
-    """
-    Converts a datetime (naive UTC or any tz-aware) to a specified
-    Australian timezone and returns a human-readable string.
-
-    Args:
-        dt (datetime | None): Input datetime, can be naive (assumed UTC) or tz-aware.
-        australia_tz (str, optional): Target Australian timezone. Defaults to "Australia/Sydney".
-
-    Returns:
-        str: Datetime string in the format: Monday, 08/02/2026, 05:30 PM (3 days from now)
-    """
-
-    if dt is None: return "Unknown"
-
-    # Step 1: If naive, assume it's UTC
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=ZoneInfo("UTC"))
-
-    # Step 2: Convert to Australian timezone
-    dt_aus = dt.astimezone(ZoneInfo(australia_tz))
-
-    # Step 3: Format as readable string
-    readable_str = dt_aus.strftime("%A, %d/%m/%Y, %I:%M %p")
-
-    # Step 4: Add the number of days remaining
-    current_time = datetime.now(ZoneInfo(australia_tz))
-    days_difference = cal_days_diff(dt_aus, current_time)
-
-    readable_str += f" ({days_difference} days from now)"
-
-    return readable_str
-
 def create_tools(user : User, magic : str, session : Session) -> list[BaseTool]:
 
     @tool
@@ -118,7 +82,7 @@ def create_tools(user : User, magic : str, session : Session) -> list[BaseTool]:
         return "\n\n".join([
             "\n".join([
                 f"Assignment name: {assignment.name}",
-                f"Due at: {parse_timestamp(assignment.due_at)}"
+                f"Due at: {timestamp_to_string(assignment.due_at)}"
             ])
         for assignment in assignments])
     

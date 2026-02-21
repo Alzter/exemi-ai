@@ -5,13 +5,16 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.security import OAuth2PasswordRequestForm
 from ..dependencies import get_session
 from ..dependencies import get_current_user
+from ..date_utils import cal_days_diff, parse_timestamp
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 router = APIRouter()
 
 @router.get("/reminders", response_model=list[ReminderPublic])
 def get_reminders(
     offset : int = 0,
     limit : int = Query(default=100, le=100),
+    min_days_remaining : int | None = None,
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session)
 ):
@@ -20,11 +23,13 @@ def get_reminders(
  
      Args:
          offset (int): Pagination start index.
+         min_days_remaining (int): Only include reminders which are due in no greater than this number of days.
          limit (int): Page length. Maximum of 100.
  
      Returns:
          List[ReminderPublic]: The reminders.
     """
+
     reminders = session.exec(
         select(Reminder)
         .order_by(Reminder.due_at)
@@ -32,6 +37,27 @@ def get_reminders(
         .offset(offset).limit(limit)
     ).all()
 
+    current_time = datetime.now(ZoneInfo("Australia/Sydney"))
+
+    if min_days_remaining is not None:
+
+        reminders_filtered = []
+
+        for reminder in reminders:
+            
+            # Convert due_at into an Australian timestamp
+            due_at = parse_timestamp(reminder.due_at)
+
+            if not due_at: break
+            
+            # Calculate calendar days between reminder due date and current date
+            days_difference = cal_days_diff(due_at, current_time)
+
+            if days_difference <= min_days_remaining:
+                reminders_filtered.append(reminder)
+        
+        reminders = reminders_filtered
+    
     return reminders
 
 @router.get("/reminder/{id}", response_model=ReminderPublic)
