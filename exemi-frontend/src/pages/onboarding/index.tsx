@@ -80,12 +80,11 @@ export default function Onboarding({session, setSession, setMagicValid, logOut} 
       </div>
 
       <div className="slideshow-content">
-        <div>
-          {text}
-          {photoURL != "" ? (
-              <img src={photoURL}/>
-          ) : null}
-        </div>
+
+        {text}
+        {photoURL != "" ? (
+            <img src={photoURL}/>
+        ) : null}
 
 
         

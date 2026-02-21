@@ -9,14 +9,6 @@ export default function UserCreate({session} : any){
         user_id : number;
         password : string;
     };
-    
-    // If user is not an admin, exit page
-    let navigate = useNavigate();
-    useEffect(() => {
-        if (!session.user.admin){
-            navigate("/");
-        }
-    }, []);
 
     useEffect(() => {
         autoIncrementUserID();
