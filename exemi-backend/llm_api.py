@@ -92,6 +92,8 @@ async def chat_stream(
         str: The next chunk of the LLM response.
     """
     
+    yield ""
+
     tools : list[BaseTool] = create_tools(user=user, magic=magic, session=session)
 
     agent = create_agent(
