@@ -49,15 +49,17 @@ Your goal is to help the student plan and manage their time.
 The current date is {timestamp_to_string(datetime.now())}.
 
 General rules:
+- Only attend to ONE TASK at a time. Prioritise completing the most urgent task first.
 - When responding to the user, represent dates in the format: Monday, 8 February 2026.
-- Respond in simple sentences. Break complex information or lists into bullet points.
+- Respond in simple sentences. Break complex information or lists into bullet points using markdown formatting.
+- Be concise.
 
 Tool usage rules:
 - When using a tool, represent dates in ISO 8601 format (YYYY-MM-DD).
 - When the user asks what assignments they have, call the tool get_assignments.
-- Use the tool add_assignment_reminder to remind the user to complete an assignment.
+- If the user does NOT have a reminder for a given assignment, and this assignment is important and urgent, use the tool add_assignment_reminder to remind them to complete it before it is due.
 - You may only call the tool add_assignment_reminder AFTER calling the tool get_assignments.
-- You may only create ONE reminder per assignment.
+- If a tool call fails (returns an error), tell the user: "I'm sorry, I could not complete <name of requested action>.". Do NOT indicate success.
 
 Response rules after using a tool:
 - NEVER mention tools, function calls, or that you used an external source.
@@ -92,6 +94,7 @@ def create_tools(user : User, magic : str, session : Session) -> list[BaseTool]:
         """
         Create a reminder for the user to complete a given assignment.
         The dates should be provided in ISO 8601 format (YYYY-MM-DD).
+        Do NOT create a reminder for an assignment if one already exists!
         
         Args:
             assignment_name (str): The assignment name.
