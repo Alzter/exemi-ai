@@ -1,5 +1,5 @@
 from ..models import User, Conversation, NewMessage, ConversationPublic, ConversationPublicWithMessages, Message, MessageCreate, MessagePublic, MessageUpdate
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from sqlmodel import Session, select, desc
 from ..dependencies import get_current_magic, get_current_user, get_session
@@ -43,6 +43,8 @@ async def test_chat(
 @router.get("/test_stream_chat/{message}")
 async def test_chat_stream(
     message : str,
+    background_tasks,
+    end_function = None,
     user : User = Depends(get_current_user),
     magic : str = Depends(get_current_magic),
     session : Session = Depends(get_session)
@@ -198,7 +200,25 @@ async def call_llm_response_to_conversation(
     user : User,
     magic : str,
     session : Session
-):
+) -> Conversation:
+    """
+    Queries the LLM to respond to a given conversation
+    and adds its response to the list of messages.
+    Assumes that the last message of the conversation was
+    created by the user, not the LLM.
+
+    Args:
+        conversation_id (int): The conversation ID.
+
+    Raises:
+        HTTPException:
+            Raises a 404 if the conversation does not exist.
+            Raises a 401 if the user attempts to call the LLM to respond to another user's conversation.
+            Raises a 400 if the conversation does not have any messages (nothing to respond to).
+
+    Returns:
+        Conversation: The conversation with the LLM response added to the list of messages.
+    """
     existing_conversation = session.get(Conversation, conversation_id)
     if not existing_conversation: raise HTTPException(status_code=404, detail="Conversation not found")
     
