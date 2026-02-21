@@ -303,7 +303,7 @@ async def stream_llm_response_to_conversation(
     user : User,
     magic : str,
     session : Session
-) -> StreamingResponse:
+) -> AsyncGenerator[str, None]:
     """
     Queries the LLM to respond to a given conversation
     and adds its response to the list of messages.
@@ -348,17 +348,14 @@ async def stream_llm_response_to_conversation(
         "conversation_id" : conversation_id,
     }
 
-    return StreamingResponse(
-        chat_stream(
-            user=user,
-            magic=magic,
-            session=session,
-            messages=messages,
-            end_function=end_function,
-            end_function_kwargs=end_function_kwargs,
-            background_tasks=background_tasks
-        ),
-        media_type="text/plain"
+    return chat_stream(
+        user=user,
+        magic=magic,
+        session=session,
+        messages=messages,
+        end_function=end_function,
+        end_function_kwargs=end_function_kwargs,
+        background_tasks=background_tasks
     )
 
 
@@ -530,13 +527,16 @@ async def conversation_stream_start(
     if not conversation:
         raise HTTPException(status_code=500, detail="System error creating conversation!")
 
-    return await conversation_stream_continue(
-        conversation_id=conversation.id,
-        new_message=new_message,
-        background_tasks=background_tasks,
-        user=user,
-        magic=magic,
-        session=session
+    return StreamingResponse(
+        conversation_stream_continue(
+            conversation_id=conversation.id,
+            new_message=new_message,
+            background_tasks=background_tasks,
+            user=user,
+            magic=magic,
+            session=session
+        ),
+        media_type="text/plain"
     )
 
 @router.post("/conversation/{conversation_id}", response_model=ConversationPublicWithMessages)
@@ -632,10 +632,13 @@ async def conversation_stream_continue(
         session=session
     )
 
-    return await stream_llm_response_to_conversation(
-        conversation_id=conversation_id,
-        background_tasks=background_tasks,
-        user=user,
-        magic=magic,
-        session=session
+    return StreamingResponse(
+        stream_llm_response_to_conversation(
+            conversation_id=conversation_id,
+            background_tasks=background_tasks,
+            user=user,
+            magic=magic,
+            session=session
+        ),
+        media_type="text/plain"
     )
