@@ -86,11 +86,20 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
 
         if (!response.ok){
             let message = "System error! Please contact Alexander Small.";
-            const data = await response.json();
-            if (typeof data.detail === "string"){
-                message = data.detail;
+            try{
+                if (response.status == 504){
+                    message = "Error! The Exemi chatbot took too long to respond! Please try again later."
+                } else {
+                     let data = await response.json();
+                     if (typeof data.detail === "string"){
+                         message = data.detail;
+                     }
+                }
+                setError(message);
+                return;
+            } catch {
+                setError(message);
             }
-            setError(message);
             return;
         }
 
