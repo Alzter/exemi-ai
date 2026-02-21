@@ -5,6 +5,8 @@ const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 
 export default function UserDelete({session} : any){
 
+    let navigate = useNavigate();
+
     const [username, setUsername] = useState<string>();
     const [refreshUsers, setRefreshUsers] = useState(0);
 

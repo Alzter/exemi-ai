@@ -48,7 +48,7 @@ div.form {
   align-items: center;
   justify-content: center;
   flex-direction: column;
-  min-height:80dvh;
+  height:90dvh;
   width: 80%;
   margin-left:10%;
   gap:1em;

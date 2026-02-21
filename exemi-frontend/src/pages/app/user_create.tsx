@@ -5,6 +5,8 @@ const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 
 export default function UserCreate({session} : any){
 
+    let navigate = useNavigate();
+
     type UserCreateForm = {
         user_id : number;
         password : string;
