@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlmodel import Session, select, desc
 from ..dependencies import get_current_magic, get_current_user, get_session
-from ..llm_api import chat
+from ..llm_api import chat, chat_stream
 from langchain_core.messages import BaseMessage
 from datetime import datetime, timezone
 from typing import Literal
@@ -17,7 +17,7 @@ async def test_chat(
     user : User = Depends(get_current_user),
     magic : str = Depends(get_current_magic),
     session : Session = Depends(get_session)
-) -> StreamingResponse:
+) -> list[BaseMessage]:
     """
     Test the chat functionality of the LLM (ADMIN ONLY).
 
@@ -27,27 +27,50 @@ async def test_chat(
     Raises:
         HTTPException: Raises a 401 if the current user is not an admin.
 
-    Yields:
+    Returns:
         str: The LLM's response.
+    """
+    if not user.admin: raise HTTPException(status_code=401, detail="Unauthorised")
+    messages = [{"role":"user","content":message}]
+    response_messages : list[BaseMessage] = await chat(
+        user=user,
+        magic=magic,
+        session=session,
+        messages=messages
+    )
+    return response_messages
+
+@router.get("/test_steam_chat/{message}")
+async def test_chat(
+    message : str,
+    user : User = Depends(get_current_user),
+    magic : str = Depends(get_current_magic),
+    session : Session = Depends(get_session)
+) -> StreamingResponse:
+    """
+    Test the chat functionality of the LLM using a streaming response (ADMIN ONLY).
+
+    Args:
+        message (str): Message text to send to the LLM.
+
+    Raises:
+        HTTPException: Raises a 401 if the current user is not an admin.
+
+    Yields:
+        str: The LLM's response as chunks.
     """
     if not user.admin: raise HTTPException(status_code=401, detail="Unauthorised")
     messages = [{"role":"user","content":message}]
 
     return StreamingResponse(
-        chat(
+        chat_stream(
             user=user,
             magic=magic,
             session=session,
             messages=messages
-            )
+        ),
+        media_type="text/plain"
     )
-    # response_messages : list[BaseMessage] = await chat(
-    #     user=user,
-    #     magic=magic,
-    #     session=session,
-    #     messages=messages
-    # )
-    # return response_messages
 
 @router.get("/conversation/{id}", response_model=ConversationPublicWithMessages)
 async def get_conversation(id : int, user : User = Depends(get_current_user), session : Session = Depends(get_session)):
