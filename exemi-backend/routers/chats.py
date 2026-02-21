@@ -43,7 +43,7 @@ async def test_chat(
 @router.get("/test_stream_chat/{message}")
 async def test_chat_stream(
     message : str,
-    background_tasks,
+    background_tasks : BackgroundTasks,
     end_function = None,
     user : User = Depends(get_current_user),
     magic : str = Depends(get_current_magic),
