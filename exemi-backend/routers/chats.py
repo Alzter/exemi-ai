@@ -527,16 +527,13 @@ async def conversation_stream_start(
     if not conversation:
         raise HTTPException(status_code=500, detail="System error creating conversation!")
 
-    return StreamingResponse(
-        conversation_stream_continue(
-            conversation_id=conversation.id,
-            new_message=new_message,
-            background_tasks=background_tasks,
-            user=user,
-            magic=magic,
-            session=session
-        ),
-        media_type="text/plain"
+    return await conversation_stream_continue(
+        conversation_id=conversation.id,
+        new_message=new_message,
+        background_tasks=background_tasks,
+        user=user,
+        magic=magic,
+        session=session
     )
 
 @router.post("/conversation/{conversation_id}", response_model=ConversationPublicWithMessages)
