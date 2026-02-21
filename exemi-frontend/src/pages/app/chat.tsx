@@ -21,13 +21,6 @@ export default function ChatUI({session, isViewing, logOut} : ChatUIParams){
     const [username, setUsername] = useState<string>(session.user.username);
 
     let navigate = useNavigate();
-    useEffect(() => {
-        setConversationID(null);
-    });
-
-    useEffect(() => {
-      console.log(username);
-    }, [username]);
 
     function ConversationSelector({conversation} : any){
         let ID = conversation ? conversation.id : null
@@ -37,7 +30,9 @@ export default function ChatUI({session, isViewing, logOut} : ChatUIParams){
         }
         let className = conversationID==ID ? "conversation-selected" : "conversation"
         if (!conversation) {className = "";}
-        
+        if (!conversation){
+            console.log(conversationID)
+        }
         return (
             <button
                 onClick = {assignConversation}
