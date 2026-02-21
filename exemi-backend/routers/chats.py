@@ -270,7 +270,7 @@ async def call_llm_response_to_conversation(
 
     existing_messages = session.exec(
         select(Message).where(Message.conversation_id == existing_conversation.id)
-    )
+    ).all()
 
     if not existing_messages:
         raise HTTPException(status_code=400, detail="A conversation must have messages to call an LLM response!")
@@ -329,7 +329,7 @@ async def stream_llm_response_to_conversation(
 
     existing_messages = session.exec(
         select(Message).where(Message.conversation_id == existing_conversation.id)
-    )
+    ).all()
 
     if not existing_messages:
         raise HTTPException(status_code=400, detail="A conversation must have messages to call an LLM response!")
