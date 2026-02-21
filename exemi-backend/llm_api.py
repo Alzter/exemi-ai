@@ -91,7 +91,7 @@ async def chat_stream(
             stream_mode="messages"
         ):
             node = metadata["langgraph_node"]
-            content = token.content_blocks
+            content = token.content_blocks[-1]
 
             if node == "model":
                 if content.get("text"):
