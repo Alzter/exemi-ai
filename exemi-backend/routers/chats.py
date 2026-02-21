@@ -629,13 +629,26 @@ async def conversation_stream_continue(
         session=session
     )
 
+    messages = [{"role":"user", "content":new_message.message_text}]
+
     return StreamingResponse(
-        stream_llm_response_to_conversation(
-            conversation_id=conversation_id,
-            background_tasks=background_tasks,
+        chat_stream(
             user=user,
             magic=magic,
-            session=session
+            session=session,
+            messages=messages,
+            background_tasks=background_tasks
         ),
         media_type="text/plain"
     )
+
+    # return StreamingResponse(
+    #     stream_llm_response_to_conversation(
+    #         conversation_id=conversation_id,
+    #         background_tasks=background_tasks,
+    #         user=user,
+    #         magic=magic,
+    #         session=session
+    #     ),
+    #     media_type="text/plain"
+    # )
