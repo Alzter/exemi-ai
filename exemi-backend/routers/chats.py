@@ -352,7 +352,7 @@ async def stream_llm_response_to_conversation(
         user=user,
         magic=magic,
         session=session,
-        messages=messages,
+        messages=message_dict,
         end_function=end_function,
         end_function_kwargs=end_function_kwargs,
         background_tasks=background_tasks
