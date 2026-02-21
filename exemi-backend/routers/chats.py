@@ -69,7 +69,9 @@ async def test_chat_stream(
             user=user,
             magic=magic,
             session=session,
-            messages=messages
+            messages=messages,
+            end_function=end_function,
+            background_tasks=background_tasks
         ),
         media_type="text/plain"
     )
