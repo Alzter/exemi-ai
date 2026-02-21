@@ -63,19 +63,30 @@ async def chat(
 
 async def chat_stream(
     messages : list[dict],
-    end_function : Callable | None,
     background_tasks : BackgroundTasks,
     user : User,
     magic : str,
-    session : Session
+    session : Session,
+    end_function : Callable | None = None,
+    end_function_kwargs : dict[str, any] = {}
 ) -> AsyncGenerator[str, None]:
     """
     Call the LLM to respond to the user's message(s).
     Supports tool calling in a loop (so-called agentic AI).
+
+    Allows for the calling of an arbitrary function after the LLM stream
+    is complete using FastAPI's background tasks feature. This is used
+    for saving the LLM's response to the DB once streaming is complete.
+
+    For more information, see "What is correct way to do DB operation after successfully streaming response?":
+    https://github.com/fastapi/fastapi/discussions/11433#discussioncomment-9161859
     
     Args:
         messages (list[dict]): List of messages in OpenAI format.
-        end_function (Callable | None): Arbitrary function to execute after the LLM response is complete.
+        end_function (Callable | None, optional): Arbitrary function to execute after the LLM response is complete. Defaults to None.
+        end_function_kwargs (dict[str, any]):
+            Keyword arguments to use when calling end_function.
+            NOTE: A keyword argument "content" is automatically added containing the LLM's final response string.
     
     Yields:
         str: The next chunk of the LLM response.
@@ -89,6 +100,8 @@ async def chat_stream(
         tools=[]#tools
     )
 
+    chunks = []
+
     async for token, metadata in agent.astream(
         {"messages":messages},
         stream_mode="messages"
@@ -99,7 +112,14 @@ async def chat_stream(
         if node != "model": break
         if not content: break
         if not content[-1].get("text"): break
-        yield str(content[-1]["text"])
+        chunk = content[-1]["text"]
+
+        chunks.append(chunk)
+
+        yield chunk
+
+    response_text = "".join(chunks)
+    end_function_kwargs["content"] = response_text
 
     if end_function is not None:
-        background_tasks.add_task(end_function)
+        background_tasks.add_task(end_function, **end_function_kwargs)
