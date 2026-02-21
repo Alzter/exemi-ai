@@ -90,11 +90,12 @@ async def chat_stream(
         stream_mode="messages"
     ):
         node = metadata["langgraph_node"]
-        content = token.content_blocks[0]
+        content : list[dict] = token.content_blocks
 
-        if node == "model":
-            if content.get("text"):
-                yield str(content["text"])
+        if node != "model": break
+        if not content: break
+        if not content.get("text"): break
+        yield str(content["text"])
         # content = token.content_blocks
         # for step, data in chunk.items():
         #     content = data["messages"][-1].content_blocks
