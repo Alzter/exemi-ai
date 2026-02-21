@@ -94,7 +94,7 @@ async def chat_stream(
 
         if node != "model": break
         if not content: break
-        if not content.get("text"): break
+        if not content[-1].get("text"): break
         yield str(content["text"])
         # content = token.content_blocks
         # for step, data in chunk.items():
