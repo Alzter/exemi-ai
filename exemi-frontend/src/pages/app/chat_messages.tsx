@@ -58,6 +58,12 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
             ...prev,
             {"role":"user","content":userText}
         ]);
+
+        // Placeholder message while LLM responds
+        setMessages(prev => [
+            ...prev,
+            {"role":"assistant","content":"Thinking..."}
+        ]);
         
         let body = {"message_text" : userText};
 
