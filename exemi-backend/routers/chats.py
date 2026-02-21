@@ -40,7 +40,7 @@ async def test_chat(
     )
     return response_messages
 
-@router.get("/test_steam_chat/{message}")
+@router.get("/test_stream_chat/{message}")
 async def test_chat_stream(
     message : str,
     user : User = Depends(get_current_user),
