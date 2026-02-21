@@ -7,7 +7,8 @@ import UserSelector from '../../components/admin/user_selector';
 
 type ChatUIParams = {
   session : Session,
-  isViewing : boolean
+  isViewing : boolean,
+  logOut : any,
 }
 
 type Conversation = {
@@ -15,24 +16,15 @@ type Conversation = {
     id : number
 }
 
-export default function ChatUI({session, isViewing} : ChatUIParams){
+export default function ChatUI({session, isViewing, logOut} : ChatUIParams){
 
     const [username, setUsername] = useState<string>(session.user.username);
 
     let navigate = useNavigate();
-    // Only let the user view other user's
-    // conversations (chat logs) if the
-    // user is an administrator
-    useEffect(() => {
-        setConversationID(null);
-        if (username != session.user.username && !session.user.admin){
-            navigate("/");
-        }
-    }, [username]);
 
     useEffect(() => {
-      console.log(username);
-    }, [username]);
+        setConversationID(null)
+    }, [username])
 
     function ConversationSelector({conversation} : any){
         let ID = conversation ? conversation.id : null
@@ -42,7 +34,6 @@ export default function ChatUI({session, isViewing} : ChatUIParams){
         }
         let className = conversationID==ID ? "conversation-selected" : "conversation"
         if (!conversation) {className = "";}
-        
         return (
             <button
                 onClick = {assignConversation}
@@ -108,7 +99,7 @@ export default function ChatUI({session, isViewing} : ChatUIParams){
         <div className="chat">
             <div className="chat-sidebar">
                 <div className="chat-sidebar-header">
-                  <p>exemi</p>
+                  <p className="logo">exemi</p>
                 </div>
 
                 {isViewing ? (
@@ -121,8 +112,13 @@ export default function ChatUI({session, isViewing} : ChatUIParams){
                 <div className="conversation-container">
                     {conversationSelectors}
                 </div>
+
                 <div className="chat-sidebar-footer">
-                  <button onClick={() => {navigate("/");}}>Back to Dashboard</button>
+                {session.user.admin ? (
+                    <button onClick={() => {navigate("/");}}>Back to Dashboard</button>
+                ) : (
+                    <button onClick={logOut}>Log Out</button>
+                )}
                 </div>
             </div>
             <ChatMessagesUI

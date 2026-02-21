@@ -5,16 +5,10 @@ const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 
 export default function UserDelete({session} : any){
 
+    let navigate = useNavigate();
+
     const [username, setUsername] = useState<string>();
     const [refreshUsers, setRefreshUsers] = useState(0);
-
-    // If username is not an admin, exit page
-    let navigate = useNavigate();
-    useEffect(() => {
-        if (!session.user.admin){
-            navigate("/");
-        }
-    }, [])
 
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState<boolean>(false);
