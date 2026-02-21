@@ -18,7 +18,8 @@ LLM_API_URL = os.environ["LLM_API_URL"]
 model = ChatOllama(
     base_url=LLM_API_URL,
     model=LLM_MODEL,
-    validate_model_on_init=True
+    validate_model_on_init=True,
+    streaming=True
 )
 
 async def chat(
@@ -42,8 +43,8 @@ async def chat(
 
     agent = create_agent(
         model=model,
-        system_prompt=get_system_prompt(user=user, magic=magic, session=session),
-        tools=tools
+        system_prompt="",#get_system_prompt(user=user, magic=magic, session=session),
+        tools=[]#tools
     )
 
     try:
