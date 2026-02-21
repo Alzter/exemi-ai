@@ -124,9 +124,9 @@ async def chat_stream(
     
     finally:
         # Add the LLM response to the DB even if an exception is encountered
+        pass
+        # if end_function is not None:
+        #     response_text = "".join(chunks)
+        #     end_function_kwargs["content"] = response_text
 
-        if end_function is not None:
-            response_text = "".join(chunks)
-            end_function_kwargs["content"] = response_text
-
-            background_tasks.add_task(end_function, **end_function_kwargs)
+        #     background_tasks.add_task(end_function, **end_function_kwargs)
