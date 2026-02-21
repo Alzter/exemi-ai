@@ -26,7 +26,7 @@ async def chat(
     user : User,
     magic : str,
     session : Session
-) -> AsyncGenerator[bytes, None, None]:
+) -> AsyncGenerator[bytes, None]:
     """
     Call the LLM to respond to the user's message(s).
     Supports tool calling in a loop (so-called agentic AI).
