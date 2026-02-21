@@ -1,9 +1,9 @@
 import os
 from .dependencies import get_current_user, get_current_magic, get_session
 from .models import User
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Callable
 from sqlmodel import Session
-from fastapi import HTTPException, Depends
+from fastapi import HTTPException, Depends, BackgroundTasks
 from langchain.agents import create_agent
 from langchain_core.messages import BaseMessage
 from langchain.tools import BaseTool
@@ -63,6 +63,8 @@ async def chat(
 
 async def chat_stream(
     messages : list[dict],
+    end_function : Callable | None,
+    background_tasks : BackgroundTasks,
     user : User,
     magic : str,
     session : Session
@@ -73,6 +75,7 @@ async def chat_stream(
     
     Args:
         messages (list[dict]): List of messages in OpenAI format.
+        end_function (Callable | None): Arbitrary function to execute after the LLM response is complete.
     
     Yields:
         str: The next chunk of the LLM response.
@@ -97,4 +100,5 @@ async def chat_stream(
         if not content: break
         if not content[-1].get("text"): break
         yield str(content[-1]["text"])
-        
+
+    background_tasks.add_task(end_function)
