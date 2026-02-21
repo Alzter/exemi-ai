@@ -355,7 +355,7 @@ async def stream_llm_response_to_conversation(
             session=session,
             messages=messages,
             end_function=end_function,
-            end_function_kwargs=end_function_kwargs
+            end_function_kwargs=end_function_kwargs,
             background_tasks=background_tasks
         ),
         media_type="text/plain"
