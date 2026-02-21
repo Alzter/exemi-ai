@@ -1,6 +1,7 @@
 import os
 from .dependencies import get_current_user, get_current_magic, get_session
 from .models import User
+from typing import AsyncGenerator
 from sqlmodel import Session
 from fastapi import HTTPException, Depends
 from langchain.agents import create_agent
@@ -25,7 +26,7 @@ async def chat(
     user : User,
     magic : str,
     session : Session
-) -> list[BaseMessage]:
+) -> AsyncGenerator[bytes]:
     """
     Call the LLM to respond to the user's message(s).
     Supports tool calling in a loop (so-called agentic AI).
@@ -33,8 +34,8 @@ async def chat(
     Args:
         messages (list[dict]): List of messages in OpenAI format.
     
-    Returns:
-        list[BaseMessage]: The LLM response messages.
+    Yields:
+        bytes: The next chunk of the LLM response.
     """
     
     tools : list[BaseTool] = create_tools(user=user, magic=magic, session=session)
@@ -46,15 +47,25 @@ async def chat(
     )
 
     try:
+
+        for chunk in agent.astream(
+            {"messages":messages},
+            stream_mode="updates"
+        ):
+            for step, data in chunk.items():
+                content = data["messages"][-1].content_blocks
+                yield bytes(content)
+                print(f"step : {step}")
+                print(f"content : {content}")
 # pyright: reportArgumentType=false 
-        response = await agent.ainvoke({"messages": messages})
+    #    response = await agent.ainvoke({"messages": messages})
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating LLM response.\nDetail: {str(e)}")
     
-    try:
-        response_messages : list[BaseMessage] = response["messages"]
-        response_text = str(response_messages[-1].content)
-    except:
-        raise HTTPException(status_code=500, detail=f"LLM message not found in response.\nLLM response: {response}")
+    #try:
+    #    response_messages : list[BaseMessage] = response["messages"]
+    #    response_text = str(response_messages[-1].content)
+    #except:
+    #    raise HTTPException(status_code=500, detail=f"LLM message not found in response.\nLLM response: {response}")
     
-    return response_messages
+    #return response_messages

@@ -1,5 +1,6 @@
 from ..models import User, Conversation, NewMessage, ConversationPublic, ConversationPublicWithMessages, Message, MessageCreate, MessagePublic, MessageUpdate
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from sqlmodel import Session, select, desc
 from ..dependencies import get_current_magic, get_current_user, get_session
 from ..llm_api import chat
@@ -16,7 +17,7 @@ async def test_chat(
     user : User = Depends(get_current_user),
     magic : str = Depends(get_current_magic),
     session : Session = Depends(get_session)
-) -> list[BaseMessage]:
+) -> StreamingResponse:
     """
     Test the chat functionality of the LLM (ADMIN ONLY).
 
@@ -26,18 +27,27 @@ async def test_chat(
     Raises:
         HTTPException: Raises a 401 if the current user is not an admin.
 
-    Returns:
+    Yields:
         str: The LLM's response.
     """
     if not user.admin: raise HTTPException(status_code=401, detail="Unauthorised")
     messages = [{"role":"user","content":message}]
-    response_messages : list[BaseMessage] = await chat(
-        user=user,
-        magic=magic,
-        session=session,
-        messages=messages
+
+    return StreamingResponse(
+        chat(
+            user=user,
+            magic=magic,
+            session=session,
+            messages=messages
+            )
     )
-    return response_messages
+    # response_messages : list[BaseMessage] = await chat(
+    #     user=user,
+    #     magic=magic,
+    #     session=session,
+    #     messages=messages
+    # )
+    # return response_messages
 
 @router.get("/conversation/{id}", response_model=ConversationPublicWithMessages)
 async def get_conversation(id : int, user : User = Depends(get_current_user), session : Session = Depends(get_session)):
