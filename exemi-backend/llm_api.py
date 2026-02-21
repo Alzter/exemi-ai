@@ -68,7 +68,7 @@ async def chat_stream(
     magic : str,
     session : Session,
     end_function : Callable | None = None,
-    end_function_kwargs : dict[str, any] = {}
+    end_function_kwargs : dict[str, any] | None = None
 ) -> AsyncGenerator[str, None]:
     """
     Call the LLM to respond to the user's message(s).
@@ -84,8 +84,8 @@ async def chat_stream(
     Args:
         messages (list[dict]): List of messages in OpenAI format.
         end_function (Callable | None, optional): Arbitrary function to execute after the LLM response is complete. Defaults to None.
-        end_function_kwargs (dict[str, any]):
-            Keyword arguments to use when calling end_function.
+        end_function_kwargs (dict[str, any], optional):
+            Keyword arguments to use when calling end_function. Defaults to None.
             NOTE: A keyword argument "content" is automatically added containing the LLM's final response string.
     
     Yields:
@@ -100,26 +100,33 @@ async def chat_stream(
         tools=[]#tools
     )
 
-    chunks = []
+    chunks : list[str] = []
 
-    async for token, metadata in agent.astream(
-        {"messages":messages},
-        stream_mode="messages"
-    ):
-        node = metadata["langgraph_node"]
-        content : list[dict] = token.content_blocks
+    if end_function_kwargs is None: end_function_kwargs = {}
 
-        if node != "model": break
-        if not content: break
-        if not content[-1].get("text"): break
-        chunk = content[-1]["text"]
+    try:
 
-        chunks.append(chunk)
+        async for token, metadata in agent.astream(
+            {"messages":messages},
+            stream_mode="messages"
+        ):
+            node = metadata["langgraph_node"]
+            content : list[dict] = token.content_blocks
 
-        yield chunk
+            if node != "model": continue
+            if not content: continue
+            if not content[-1].get("text"): continue
+            chunk = content[-1]["text"]
 
-    response_text = "".join(chunks)
-    end_function_kwargs["content"] = response_text
+            chunks.append(chunk)
 
-    if end_function is not None:
-        background_tasks.add_task(end_function, **end_function_kwargs)
+            yield chunk
+    
+    finally:
+        # Add the LLM response to the DB even if an exception is encountered
+
+        if end_function is not None:
+            response_text = "".join(chunks)
+            end_function_kwargs["content"] = response_text
+
+            background_tasks.add_task(end_function, **end_function_kwargs)
