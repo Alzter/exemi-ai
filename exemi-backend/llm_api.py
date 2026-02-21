@@ -101,4 +101,5 @@ async def chat_stream(
         if not content[-1].get("text"): break
         yield str(content[-1]["text"])
 
-    background_tasks.add_task(end_function)
+    if end_function is not None:
+        background_tasks.add_task(end_function)
