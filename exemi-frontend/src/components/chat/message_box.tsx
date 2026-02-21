@@ -1,3 +1,5 @@
+import Markdown from 'react-markdown';
+
 type MessageProps = {
     content : string
     role : string
@@ -5,12 +7,12 @@ type MessageProps = {
 
 export default function MessageBox({content, role} : MessageProps){
     let stylingClass = role == "user" ? "user-message" : "message"
-    
+
     return(
         <div className={stylingClass}>
-            <p>
+            <Markdown>
                 {content}
-            </p>
+            </Markdown>
         </div>
     )
 }
