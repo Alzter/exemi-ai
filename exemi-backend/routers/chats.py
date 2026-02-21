@@ -348,7 +348,7 @@ async def stream_llm_response_to_conversation(
         "conversation_id" : conversation_id,
     }
 
-    return await chat_stream(
+    return chat_stream(
         user=user,
         magic=magic,
         session=session,
