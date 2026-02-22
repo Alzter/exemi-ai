@@ -400,6 +400,39 @@ async def conversation_continue(
 
     return new_conversation
 
+def get_message_list(
+    conversation_id : int,
+    user : User,
+    session : Session
+) -> list[dict[str, str]]:
+    """
+    Obtains a list of mesasges from an
+    existing conversation in the OpenAI
+    chat message template format.
+
+    Args:
+        conversation_id (int): Conversation ID to retrieve.
+
+    Returns:
+        list[dict[str, str]]: The messages with "role" and "content" fields.
+    """
+    existing_conversation = session.get(Conversation, conversation_id)
+    if not existing_conversation: raise HTTPException(status_code=404, detail="Conversation not found")
+    
+    if existing_conversation.user_id != user.id and not user.admin:
+        raise HTTPException(status_code=401, detail="You are not authorised to add messages to another user's conversation")
+
+    existing_messages = session.exec(
+        select(Message).where(Message.conversation_id == existing_conversation.id)
+    ).all()
+
+    message_dict = [{
+        "role": message.role, "content": message.content
+    } for message in existing_messages]
+
+    return message_dict
+
+
 @router.get("/conversation_reply/{conversation_id}", response_model=str)
 async def call_llm_response_to_conversation(
     conversation_id : int,
@@ -411,7 +444,8 @@ async def call_llm_response_to_conversation(
     """
     Queries the LLM to respond to a given conversation.
     Returns the LLM's response text. Adds the LLM's response
-    to the list of messages in the conversation.
+    to the list of messages in the conversation as a side
+    effect using a background task.
 
     Args:
         conversation_id (int): The conversation ID.
@@ -426,31 +460,17 @@ async def call_llm_response_to_conversation(
     Returns:
         str: The LLM's response text.
     """
-    existing_conversation = session.get(Conversation, conversation_id)
-    if not existing_conversation: raise HTTPException(status_code=404, detail="Conversation not found")
-    
-    if existing_conversation.user_id != user.id and not user.admin:
-        raise HTTPException(status_code=401, detail="You are not authorised to add messages to another user's conversation")
-
-    existing_messages = session.exec(
-        select(Message).where(Message.conversation_id == existing_conversation.id)
-    ).all()
-
-    if not existing_messages:
-        raise HTTPException(status_code=400, detail="A conversation must have messages to call an LLM response!")
-    
-    if existing_messages[-1].role != "user":
-        raise HTTPException(status_code=400, detail="Error: can only call the LLM response after a user message!")
-    
-    message_dict = [{
-        "role": message.role, "content": message.content
-    } for message in existing_messages]
+    messages = get_message_list(conversation_id=conversation_id, user=user, session=session)
+    if not messages:
+        raise HTTPException(status_code=400, detail="Error responding to conversation: conversation is empty!")
+    if messages[-1]["role"] != "user":
+        raise HTTPException(status_code=400, detail="Error responding to conversation: last message must be created by the user!")
 
     response_messages : list[BaseMessage] = await chat(
         user=user,
         magic=magic,
         session=session,
-        messages=message_dict
+        messages=messages
     )
 
     response_text = str(response_messages[-1].content)
@@ -463,68 +483,63 @@ async def call_llm_response_to_conversation(
         session=session
     )
 
-    return response_text 
+    return response_text
 
-# async def stream_llm_response_to_conversation(
-#     conversation_id : int,
-#     background_tasks : BackgroundTasks,
-#     user : User,
-#     magic : str,
-#     session : Session
-# ) -> AsyncGenerator[str, None]:
-#     """
-#     Queries the LLM to respond to a given conversation
-#     and adds its response to the list of messages.
-#     Uses LLM streaming to stream the response.
-# 
-#     Args:
-#         conversation_id (int): The conversation ID.
-# 
-#     Raises:
-#         HTTPException:
-#             Raises a 404 if the conversation does not exist.
-#             Raises a 401 if the user attempts to call the LLM to respond to another user's conversation.
-#             Raises a 400 if the conversation does not have any messages (nothing to respond to).
-# 
-#     Returns:
-#         AsyncGenerator[str, None]: The LLM's response chunks.
-#     """
-#     existing_conversation = session.get(Conversation, conversation_id)
-#     if not existing_conversation: raise HTTPException(status_code=404, detail="Conversation not found")
-#     
-#     if existing_conversation.user_id != user.id and not user.admin:
-#         raise HTTPException(status_code=401, detail="You are not authorised to add messages to another user's conversation")
-# 
-#     existing_messages = session.exec(
-#         select(Message).where(Message.conversation_id == existing_conversation.id)
-#     ).all()
-# 
-#     if not existing_messages:
-#         raise HTTPException(status_code=400, detail="A conversation must have messages to call an LLM response!")
-# 
-#     message_dict = [{
-#         "role": message.role, "content": message.content
-#     } for message in existing_messages]
-# 
-#     # Call the function 'add_llm_message_to_conversation'
-#     # after the LLM stream has finished to add the response
-#     # to the database using a FastAPI background task.
-#     end_function = add_llm_message_to_conversation
-#     end_function_kwargs = {
-#         "user" : user,
-#         "session" : session,
-#         "conversation_id" : conversation_id,
-#     }
-# 
-#     return chat_stream(
-#         user=user,
-#         magic=magic,
-#         session=session,
-#         messages=message_dict,
-#         end_function=end_function,
-#         end_function_kwargs=end_function_kwargs,
-#         background_tasks=background_tasks
-#     )
+@router.get("/conversation_stream_reply/{conversation_id}", response_class=StreamingResponse)
+async def stream_llm_response_to_conversation(
+    conversation_id : int,
+    background_tasks : BackgroundTasks,
+    user : User = Depends(get_current_user),
+    magic : str = Depends(get_current_magic),
+    session : Session = Depends(get_session)
+):
+    """
+    Queries the LLM to respond to a given conversation.
+    Returns the LLM's response text. Adds the LLM's response
+    to the list of messages in the conversation as a side
+    effect using a background task.
 
+    Args:
+        conversation_id (int): The conversation ID.
 
+    Raises:
+        HTTPException:
+            Raises a 404 if the conversation does not exist.
+            Raises a 401 if the user attempts to call the LLM to respond to another user's conversation.
+            Raises a 400 if the conversation does not have any messages (nothing to respond to).
+            Raises a 400 if the last message in the conversation was not a user message.
+
+    Returns:
+        StreamingResponse: The LLM's response text in chunks.
+    """
+    messages = get_message_list(conversation_id=conversation_id, user=user, session=session)
+    if not messages:
+        raise HTTPException(status_code=400, detail="Error responding to conversation: conversation is empty!")
+    if messages[-1]["role"] != "user":
+        raise HTTPException(status_code=400, detail="Error responding to conversation: last message must be created by the user!")
+    
+
+    # Declare a function to add the LLM's response to
+    # the database. Call this function using a background
+    # task after the LLM has finished streaming the response.
+    end_function = add_llm_message_to_conversation
+    end_function_kwargs = {
+        "conversation_id" : conversation_id,
+        "user" : user,
+        "session" : session
+    }
+    
+    response = StreamingResponse(
+        chat_stream(
+            user=user,
+            magic=magic,
+            session=session,
+            messages=messages,
+            background_tasks=background_tasks,
+            end_function=end_function,
+            end_function_kwargs=end_function_kwargs
+        )
+    )
+
+    return response
 

@@ -1,7 +1,7 @@
 import os
 from .dependencies import get_current_user, get_current_magic, get_session
 from .models import User
-from typing import AsyncGenerator, Callable
+from typing import AsyncGenerator, Callable, Any
 from sqlmodel import Session
 from fastapi import HTTPException, Depends, BackgroundTasks
 from langchain.agents import create_agent
@@ -68,7 +68,7 @@ async def chat_stream(
     magic : str,
     session : Session,
     end_function : Callable | None = None,
-    end_function_kwargs : dict[str, any] | None = None
+    end_function_kwargs : dict[str, Any] | None = None
 ) -> AsyncGenerator[str, None]:
     """
     Call the LLM to respond to the user's message(s).
@@ -84,7 +84,7 @@ async def chat_stream(
     Args:
         messages (list[dict]): List of messages in OpenAI format.
         end_function (Callable | None, optional): Arbitrary function to execute after the LLM response is complete. Defaults to None.
-        end_function_kwargs (dict[str, any], optional):
+        end_function_kwargs (dict[str, Any], optional):
             Keyword arguments to use when calling end_function. Defaults to None.
             NOTE: A keyword argument "content" is automatically added containing the LLM's final response string.
     
