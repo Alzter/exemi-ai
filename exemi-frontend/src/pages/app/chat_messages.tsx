@@ -66,6 +66,9 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
             ...prev,
             {"role":"assistant","content":"Thinking..."}
         ]);
+        
+        // Force DOM to update so that the "Thinking..." is rendered
+        await new Promise(requestAnimationFrame);
 
         const reader = llm_response.body.getReader();
         const decoder = new TextDecoder("utf-8");
@@ -93,34 +96,6 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
             ]);
             
         };
-
-        // if (!llm_response.ok){
-        //     let message = "System error! Please contact Alexander Small.";
-        //     try{
-        //         if (llm_response.status == 504){
-        //             message = "Error! The Exemi chatbot took too long to respond! Please try again later."
-        //         } else {
-        //              let data = await llm_response.json();
-        //              if (typeof data.detail === "string"){
-        //                  message = data.detail;
-        //              }
-        //         }
-        //         setError(message);
-        //     } catch {
-        //         setError(message);
-        //     }
-        //     return;
-        // }
-
-        // // Add the LLM's response on the client-side.
-        // // The server will add it to the database
-        // // asynchronously.
-        // const reply = await llm_response.json();
-
-        // setMessages(prev => [
-        //     ...prev,
-        //     {"role":"assistant","content":reply}
-        // ]);
     }
 
     async function sendMessage(event : React.SubmitEvent<HTMLFormElement>){
