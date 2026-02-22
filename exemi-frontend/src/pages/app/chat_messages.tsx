@@ -114,7 +114,8 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
 
         const llm_response = await fetch(URL, {
             headers:{
-                "Authorization" : "Bearer " + session.token
+                "Authorization" : "Bearer " + session.token,
+                accept:"application/json"
             },
             method:"GET"
         });
@@ -140,7 +141,8 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
         // Add the LLM's response on the client-side.
         // The server will at it to the database
         // asynchronously.
-        const reply = await llm_response.text();
+        const reply = await llm_response.json();
+
         setMessages(prev => [
             ...prev,
             {"role":"assistant","content":reply}
