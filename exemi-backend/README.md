@@ -102,7 +102,7 @@ LLM_API_URL = "http://localhost:11434"
 ```bash
 cd exemi-backend
 nix-shell
-DEVMODE=True fastapi run main.py
+fastapi dev main.py --host 0.0.0.0
 ```
 
 ### Production
