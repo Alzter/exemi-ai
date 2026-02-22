@@ -65,7 +65,7 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
         // Add an empty LLM message to the list of messages
         setMessages(prev => [
             ...prev,
-            {"role":"assistant","content":"Thinking..."}
+            {"role":"assistant","content":""}
         ]);
 
         const reader = llm_response.body.getReader();
@@ -82,12 +82,15 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
             
             if (chunkValue){
                 responseText += chunkValue;
+                
+                // Display "Thinking..." if there is no response yet
+                let responseTextDisplay = responseText ? responseText : "Thinking..."
 
                 // Replace the LLM's message with the
                 // current streamed content.
                 setMessages(prev => [
                     ...prev.slice(0, -1), // Drop the previous LLM message
-                    {"role":"assistant","content":responseText}
+                    {"role":"assistant","content":responseTextDisplay}
                 ]);
             }
         };
