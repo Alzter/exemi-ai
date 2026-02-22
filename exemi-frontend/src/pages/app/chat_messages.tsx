@@ -25,6 +25,8 @@ type Conversation = {
 
 export default function ChatMessagesUI({session, isViewing, conversationID, setConversationID, loading, setLoading, error, setError} : ChatUIProps){
 
+    const [awaitingLLMResponse, setAwaitingLLMResponse] = useState<boolean>(false);
+
     const [messages, setMessages] = useState<Message[]>([]);
 
     // The user's current message text.
@@ -39,18 +41,74 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
         )
     }
 
-    const messageBoxes = messages.map(
+    // If we're waiting for the LLM to respond, add a message with the text "Thinking..." to the end of the list
+    const messageBoxes = [...messages.map(
         message => <MessageBox role={message.role} content={message.content}/>
-    )
+    ), ...(
+        awaitingLLMResponse ? [<MessageBox role="assistant" content="Thinking..."/>] : []
+    )]
 
     function handleTextUpdate(event : React.ChangeEvent<HTMLInputElement>){
         setUserText(event.target.value);
     }
 
+    async function handleLLMResponse(conversationID : number) {
+        // Stream the LLM's response from the server.
+        // Credit to Irtiza Hafiz for the code: https://youtu.be/i7GlWbAFDtY
+
+        let URL = backendURL + "/conversation_stream_reply/" + conversationID
+
+        const llm_response = await fetch(URL, {
+            headers:{
+                "Authorization" : "Bearer " + session.token,
+                accept:"application/json"
+            },
+            method:"GET"
+        });
+
+        // Add an empty message before the LLM responds
+        setMessages(prev => [
+            ...prev,
+            {"role":"assistant","content":""}
+        ]);
+
+        const reader = llm_response.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+
+        let done = false;
+        let responseText = ""
+
+        while (!done){
+            const {value, done: readerDone} = await reader.read();
+            done = readerDone;
+            
+            const chunkValue : string = decoder.decode(value, {stream:true});
+            
+            if (!chunkValue) { continue };
+
+            setAwaitingLLMResponse(false);
+
+            responseText += chunkValue;
+
+            // Overwrite the placeholder LLM message with the
+            // current streamed content.
+            setMessages(prev => [
+                ...prev.slice(0, -1), // Drop the previous LLM message
+                {"role":"assistant","content":responseText}
+            ]);
+            
+        };
+    }
+
     async function sendMessage(event : React.SubmitEvent<HTMLFormElement>){
         event.preventDefault();
         setLoading(true);
+        setUserText("");
         
+        // Step 1: Send the user's message to the server
+        // and receive a Conversation object with the
+        // new list of messages and Conversation ID
+
         // Send the user's message on the client side
         // by updating the local list of messages
         // to contain the new message.
@@ -59,21 +117,15 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
             {"role":"user","content":userText}
         ]);
 
-        // Placeholder message while LLM responds
-        setMessages(prev => [
-            ...prev,
-            {"role":"assistant","content":"Thinking..."}
-        ]);
+        // Show a placeholder "Thinking..." message before the LLM responds properly
+        setAwaitingLLMResponse(true);
         
         let body = {"message_text" : userText};
 
-        let URL = backendURL + "/conversation"
-        if (conversationID) {URL += "/" + conversationID}
+        let URL = backendURL + "/conversation" + (conversationID ? "/" + conversationID : "")
         console.log(body);
         console.log(URL);
-
-        setUserText("");
-
+        
         const response = await fetch(URL, {
             headers:{
                 "Authorization" : "Bearer " + session.token,
@@ -90,27 +142,30 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
                 if (response.status == 504){
                     message = "Error! The Exemi chatbot took too long to respond! Please try again later."
                 } else {
-                     let data = await response.json();
-                     if (typeof data.detail === "string"){
-                         message = data.detail;
-                     }
+                    let data = await response.json();
+                    if (typeof data.detail === "string"){
+                        message = data.detail;
+                    }
                 }
                 setError(message);
-                return;
             } catch {
                 setError(message);
             }
             return;
         }
 
-        const data = await response.json();
-        setConversationID(data.id);
+        const conversation = await response.json();
+        setConversationID(conversation.id);
 
-        const messages : Message[] = data.messages as Message[];
+        const messages : Message[] = conversation.messages as Message[];
 
         setMessages(messages);
+        
+        // Step 2: If the Conversation returned successfully,
+        // call the LLM to respond to the user's message.
+        
+        await handleLLMResponse(conversation.id);
 
-        // TODO: call the backend API with the message.
         setLoading(false);
     }
 

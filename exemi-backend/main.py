@@ -5,10 +5,13 @@ from fastapi import Depends, FastAPI, HTTPException, Query
 from sqlmodel import Field, Relationship, Session, SQLModel, create_engine, select
 from fastapi.middleware.cors import CORSMiddleware
 from .routers import universities, users, canvas, chats, reminders 
-import os
+import sys
 
-# Enable devmode if "DEVMODE" environment variable
-DEVMODE = os.getenv("DEVMODE")
+# Enable devmode if "fastapi dev main.py" is used
+DEVMODE = False
+if len(sys.argv) > 1:
+    if sys.argv[1] == "dev":
+        DEVMODE = True
 
 def create_db_and_tables(engine = get_engine()):
     # TODO: This does not update table schemas after
