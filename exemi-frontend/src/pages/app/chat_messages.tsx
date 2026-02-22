@@ -52,14 +52,6 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
         // Stream the LLM's response from the server.
         // Credit to Irtiza Hafiz for the code: https://youtu.be/i7GlWbAFDtY
 
-        // Add an empty LLM message to the list of messages
-        setMessages(prev => [
-            ...prev,
-            {"role":"assistant","content":"Thinking..."}
-        ]);
-
-        console.log("Thinking...");
-
         let URL = backendURL + "/conversation_stream_reply/" + conversationID
 
         const llm_response = await fetch(URL, {
@@ -69,6 +61,12 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
             },
             method:"GET"
         });
+
+        // Add an empty LLM message to the list of messages
+        setMessages(prev => [
+            ...prev,
+            {"role":"assistant","content":""}
+        ]);
 
         const reader = llm_response.body.getReader();
         const decoder = new TextDecoder("utf-8");
@@ -84,18 +82,13 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
             
             if (chunkValue){
                 responseText += chunkValue;
-                
-                // Display "Thinking..." if there is no response yet
-                let responseTextDisplay = responseText ? responseText : "Thinking..."
 
                 // Replace the LLM's message with the
                 // current streamed content.
                 setMessages(prev => [
                     ...prev.slice(0, -1), // Drop the previous LLM message
-                    {"role":"assistant","content":responseTextDisplay}
+                    {"role":"assistant","content":responseText}
                 ]);
-
-                console.log(responseTextDisplay);
             }
         };
 
