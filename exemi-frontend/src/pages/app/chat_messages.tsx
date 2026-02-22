@@ -58,6 +58,8 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
             {"role":"assistant","content":"Thinking..."}
         ]);
 
+        console.log("Thinking...");
+
         let URL = backendURL + "/conversation_stream_reply/" + conversationID
 
         const llm_response = await fetch(URL, {
@@ -67,8 +69,6 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
             },
             method:"GET"
         });
-
-        console.log("Thinking...");
 
         const reader = llm_response.body.getReader();
         const decoder = new TextDecoder("utf-8");
