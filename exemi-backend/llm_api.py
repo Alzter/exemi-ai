@@ -91,7 +91,7 @@ async def chat_stream(
         end_function_kwargs (dict[str, Any], optional):
             Keyword arguments to use when calling end_function. Defaults to None.
             NOTE: A keyword argument "messages" (list[dict[str,str]]) is automatically added containing the LLM's response and any tool calls in OpenAI chat template format.
-        include_tool_responses (bool, optional): Includes the LLM's tool call responses in the chunks.
+        include_tool_responses (bool, optional): Includes the LLM's tool call responses in the streamed response. The reponse is not included in the database.
     
     Yields:
         str: The next chunk of the LLM response.
@@ -105,7 +105,14 @@ async def chat_stream(
         tools=tools
     )
     
-    messages : list[dict[str,str]] = []
+    # We will store the tool and LLM responses in
+    # a separate list using OpenAI format.
+    response_messages : list[dict[str,str]] = []
+
+    # We will store the LLM's streamed response
+    # chunks in a list. Once generation is complete,
+    # we will concatenate all the chunks to get the
+    # completed message.
     chunks : list[str] = []
 
     if end_function_kwargs is None: end_function_kwargs = {}
@@ -125,8 +132,6 @@ async def chat_stream(
             content : dict = content[-1]
             
             chunk : str | None = None
-            previous_node : str | None = None
-            last_tool_name : str | None = None
             
             if not content.get("type"): continue
 
@@ -144,20 +149,23 @@ async def chat_stream(
                         # Make the tool name human readable
                         # "get_assignments_from_Canvas" -> "get assignments from Canvas"
                         tool_name = tool_name.replace("_", " ")
-                        last_tool_name = tool_name
 
                         # Add the chunk: "I am calling the function: <tool name>"
                         chunk = f"\n\nI am calling the function: **{tool_name}**. Please wait...\n\n"
 
+                        # Consider the LLM calling a tool as its own message.
+                        response_messages.append({"role":"assistant", "content":chunk.strip()})
+
                 case "text":
                     chunk = content.get("text")
+                    if not chunk: continue
 
                     if node == "tools":
                         if include_tool_responses:
                             chunk = f"\n\nI have obtained the following information:\n\n---\n\n{chunk}\n\n---\n\n**Please wait while I reason with this information...**\n\n"
                         
                         # Add the tool call into the list of messages.
-                        messages.append({"role":"tool", "content":chunk})
+                        response_messages.append({"role":"tool", "content":chunk})
 
                     elif node == "model":
                         # Only include LLM text in the final message.
@@ -165,8 +173,6 @@ async def chat_stream(
 
             if chunk is not None:
                 yield chunk
-
-            previous_node = node
     
     finally:
         # Add the LLM response to the DB even if an exception is encountered
@@ -174,8 +180,9 @@ async def chat_stream(
         if end_function is not None:
             response_text = "".join(chunks).strip()
 
-            messages.append({"role":"assistant", "content":chunks})
+            if response_text:
+                response_messages.append({"role":"assistant", "content":response_text})
 
-            end_function_kwargs["messages"] = messages
+            end_function_kwargs["messages"] = response_messages
 
             background_tasks.add_task(end_function, **end_function_kwargs)
