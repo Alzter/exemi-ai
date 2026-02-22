@@ -41,6 +41,7 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
         )
     }
 
+    // If we're waiting for the LLM to respond, add a message with the text "Thinking..." to the end of the list
     const messageBoxes = [...messages.map(
         message => <MessageBox role={message.role} content={message.content}/>
     ), ...(
@@ -138,9 +139,13 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
         if (!response.ok){
             let message = "System error! Please contact Alexander Small.";
             try{
-                let data = await response.json();
-                if (typeof data.detail === "string"){
-                    message = data.detail;
+                if (response.status == 504){
+                    message = "Error! The Exemi chatbot took too long to respond! Please try again later."
+                } else {
+                    let data = await response.json();
+                    if (typeof data.detail === "string"){
+                        message = data.detail;
+                    }
                 }
                 setError(message);
             } catch {
