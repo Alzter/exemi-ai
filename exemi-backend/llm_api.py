@@ -165,7 +165,9 @@ async def chat_stream(
                     if node == "tools":
                         if include_tool_responses:
                             chunk = f"\n\nI have obtained the following information:\n\n---\n\n{chunk}\n\n---\n\n**Please wait while I reason with this information...**\n\n"
-                        
+                        else:
+                            chunk = None
+                            
                         system_prompt_amendment = f"TOOL RESULT from tool: {last_tool_name}\n\nUse the following information to inform your response:\n\n{chunk}"
                         # Add the tool call into the list of messages.
                         response_messages.append({"role":"system", "content":system_prompt_amendment})
