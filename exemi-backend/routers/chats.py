@@ -238,127 +238,6 @@ async def add_llm_message_to_conversation(
 
     return new_conversation
 
-async def call_llm_response_to_conversation(
-    conversation_id : int,
-    user : User,
-    magic : str,
-    session : Session
-) -> Conversation:
-    """
-    Queries the LLM to respond to a given conversation
-    and adds its response to the list of messages.
-    Assumes that the last message of the conversation was
-    created by the user, not the LLM.
-
-    Args:
-        conversation_id (int): The conversation ID.
-
-    Raises:
-        HTTPException:
-            Raises a 404 if the conversation does not exist.
-            Raises a 401 if the user attempts to call the LLM to respond to another user's conversation.
-            Raises a 400 if the conversation does not have any messages (nothing to respond to).
-
-    Returns:
-        Conversation: The conversation with the LLM response added to the list of messages.
-    """
-    existing_conversation = session.get(Conversation, conversation_id)
-    if not existing_conversation: raise HTTPException(status_code=404, detail="Conversation not found")
-    
-    if existing_conversation.user_id != user.id and not user.admin:
-        raise HTTPException(status_code=401, detail="You are not authorised to add messages to another user's conversation")
-
-    existing_messages = session.exec(
-        select(Message).where(Message.conversation_id == existing_conversation.id)
-    ).all()
-
-    if not existing_messages:
-        raise HTTPException(status_code=400, detail="A conversation must have messages to call an LLM response!")
-
-    message_dict = [{
-        "role": message.role, "content": message.content
-    } for message in existing_messages]
-
-    response_messages : list[BaseMessage] = await chat(
-        user=user,
-        magic=magic,
-        session=session,
-        messages=message_dict
-    )
-
-    response_text = response_messages[-1].content
-
-    new_conversation = await add_llm_message_to_conversation(
-        content=response_text,
-        conversation_id = conversation_id,
-        user=user,
-        session=session
-    )
-
-    return new_conversation
-
-async def stream_llm_response_to_conversation(
-    conversation_id : int,
-    background_tasks : BackgroundTasks,
-    user : User,
-    magic : str,
-    session : Session
-) -> AsyncGenerator[str, None]:
-    """
-    Queries the LLM to respond to a given conversation
-    and adds its response to the list of messages.
-    Uses LLM streaming to stream the response.
-
-    Args:
-        conversation_id (int): The conversation ID.
-
-    Raises:
-        HTTPException:
-            Raises a 404 if the conversation does not exist.
-            Raises a 401 if the user attempts to call the LLM to respond to another user's conversation.
-            Raises a 400 if the conversation does not have any messages (nothing to respond to).
-
-    Returns:
-        AsyncGenerator[str, None]: The LLM's response chunks.
-    """
-    existing_conversation = session.get(Conversation, conversation_id)
-    if not existing_conversation: raise HTTPException(status_code=404, detail="Conversation not found")
-    
-    if existing_conversation.user_id != user.id and not user.admin:
-        raise HTTPException(status_code=401, detail="You are not authorised to add messages to another user's conversation")
-
-    existing_messages = session.exec(
-        select(Message).where(Message.conversation_id == existing_conversation.id)
-    ).all()
-
-    if not existing_messages:
-        raise HTTPException(status_code=400, detail="A conversation must have messages to call an LLM response!")
-
-    message_dict = [{
-        "role": message.role, "content": message.content
-    } for message in existing_messages]
-
-    # Call the function 'add_llm_message_to_conversation'
-    # after the LLM stream has finished to add the response
-    # to the database using a FastAPI background task.
-    end_function = add_llm_message_to_conversation
-    end_function_kwargs = {
-        "user" : user,
-        "session" : session,
-        "conversation_id" : conversation_id,
-    }
-
-    return chat_stream(
-        user=user,
-        magic=magic,
-        session=session,
-        messages=message_dict,
-        end_function=end_function,
-        end_function_kwargs=end_function_kwargs,
-        background_tasks=background_tasks
-    )
-
-
 @router.patch("/message/{message_id}", response_model=ConversationPublicWithMessages)
 async def update_message_in_conversation(
     message_id : int,
@@ -370,8 +249,7 @@ async def update_message_in_conversation(
     """
     Replace the content of a user message in a conversation
     with new text. DELETES all messages after the edited
-    message and RETRIGGERS the LLM to respond to the
-    edited message.
+    message.
 
     Args:
         message_id (int): The ID of the message to replace.
@@ -410,13 +288,6 @@ async def update_message_in_conversation(
 
         session.commit()
         session.refresh(existing_conversation)
-        
-        existing_conversation = await call_llm_response_to_conversation(
-            conversation_id = existing_conversation.id,
-            user=user,
-            magic=magic,
-            session=session
-        )
 
     return existing_conversation 
 
@@ -451,16 +322,15 @@ async def delete_message_in_conversation(
 async def conversation_start(
     new_message : NewMessage,
     user : User = Depends(get_current_user),
-    magic : str = Depends(get_current_magic),
     session : Session = Depends(get_session)
 ):
     """
     Create a new conversation with the LLM as the current user.
-    Will return a new conversation object with a conversation ID,
-    the user's message, and a response message from the LLM.
+    Will return a new conversation object with a conversation ID
+    and the user's message.
 
     Args:
-        new_message (NewMessage): The user's message.
+        new_message (NewMessage): The user's message text.
 
     Returns:
         ConversationPublicWithMessages: The new conversation.
@@ -485,77 +355,74 @@ async def conversation_start(
         conversation_id = conversation.id,
         new_message=new_message,
         user=user,
-        magic=magic,
         session=session
     )
 
     return conversation_with_response
 
-@router.post("/conversation_stream", response_class=StreamingResponse)
-async def conversation_stream_start(
-    new_message : NewMessage,
-    background_tasks : BackgroundTasks,
-    user : User = Depends(get_current_user),
-    magic : str = Depends(get_current_magic),
-    session : Session = Depends(get_session)
-):
-    """
-    Create a new conversation with the LLM as the current user.
-    Will stream the LLM's response as chunks and add the LLM's
-    response to the database when it is completed as a side
-    effect using a FastAPI background task.
-
-    Args:
-        new_message (NewMessage): The user's message.
-
-    Returns:
-        ConversationPublicWithMessages: The new conversation.
-    """
-
-    conversation_data = {
-        "user_id" : user.id,
-        "user" : user,
-        "created_at" : datetime.now(timezone.utc)
-    }
-
-    conversation = Conversation.model_validate(conversation_data)
-
-    session.add(conversation)
-    session.commit()
-    session.refresh(conversation)
-
-    if not conversation:
-        raise HTTPException(status_code=500, detail="System error creating conversation!")
-
-    return await conversation_stream_continue(
-        conversation_id=conversation.id,
-        new_message=new_message,
-        background_tasks=background_tasks,
-        user=user,
-        magic=magic,
-        session=session
-    )
+# @router.post("/conversation_stream", response_class=StreamingResponse)
+# async def conversation_stream_start(
+#     new_message : NewMessage,
+#     background_tasks : BackgroundTasks,
+#     user : User = Depends(get_current_user),
+#     magic : str = Depends(get_current_magic),
+#     session : Session = Depends(get_session)
+# ):
+#     """
+#     Create a new conversation with the LLM as the current user.
+#     Will stream the LLM's response as chunks and add the LLM's
+#     response to the database when it is completed as a side
+#     effect using a FastAPI background task.
+# 
+#     Args:
+#         new_message (NewMessage): The user's message.
+# 
+#     Returns:
+#         ConversationPublicWithMessages: The new conversation.
+#     """
+# 
+#     conversation_data = {
+#         "user_id" : user.id,
+#         "user" : user,
+#         "created_at" : datetime.now(timezone.utc)
+#     }
+# 
+#     conversation = Conversation.model_validate(conversation_data)
+# 
+#     session.add(conversation)
+#     session.commit()
+#     session.refresh(conversation)
+# 
+#     if not conversation:
+#         raise HTTPException(status_code=500, detail="System error creating conversation!")
+# 
+#     return await conversation_stream_continue(
+#         conversation_id=conversation.id,
+#         new_message=new_message,
+#         background_tasks=background_tasks,
+#         user=user,
+#         magic=magic,
+#         session=session
+#     )
 
 @router.post("/conversation/{conversation_id}", response_model=ConversationPublicWithMessages)
 async def conversation_continue(
     conversation_id : int,
     new_message : NewMessage,
     user : User = Depends(get_current_user),
-    magic : str = Depends(get_current_magic),
     session : Session = Depends(get_session)
 ):
     """
     Continue an existing conversation with the LLM
-    by sending a new message and awaiting a new
-    LLM response.
+    by sending a new message.
 
     Args:
         conversation_id (int): The ID of the existing conversation.
-        new_message (NewMessage): The user's message.
+        new_message (NewMessage): The user's message text.
 
     Returns:
         ConversationPublicWithMessages:
-            The conversation updated to include both the user and the LLM's messages.
+            The conversation updated to include the new user message.
     """
     existing_conversation = session.get(Conversation, conversation_id)
     if not existing_conversation:
@@ -573,82 +440,203 @@ async def conversation_continue(
     new_conversation = await add_message_to_conversation(
         message_data,
         user=user,
-        session=session
-    )
-
-    new_conversation = await call_llm_response_to_conversation(
-        conversation_id=new_conversation.id,
-        user=user,
-        magic=magic,
         session=session
     )
 
     return new_conversation
 
-@router.post("/conversation_stream/{conversation_id}", response_class=StreamingResponse)
-async def conversation_stream_continue(
+# @router.post("/conversation_stream/{conversation_id}", response_class=StreamingResponse)
+# async def conversation_stream_continue(
+#     conversation_id : int,
+#     new_message : NewMessage,
+#     background_tasks : BackgroundTasks,
+#     user : User = Depends(get_current_user),
+#     magic : str = Depends(get_current_magic),
+#     session : Session = Depends(get_session)
+# ):
+#     """
+#     Continue an existing conversation with the LLM
+#     by sending a new message and streaming the
+#     LLM's response as chunks. The LLM's response
+#     will be added to the conversation in the DB
+#     through a side effect once the generation is
+#     complete using a FastAPI background task.
+# 
+#     Args:
+#         conversation_id (int): The ID of the existing conversation.
+#         message_text (str): The content of the user's message.
+# 
+#     Returns:
+#         StreamingResponse: The LLM's response chunks.
+# 
+#     """
+#     existing_conversation = session.get(Conversation, conversation_id)
+#     if not existing_conversation:
+#         raise HTTPException(status_code=404, detail="Conversation not found")
+#     
+#     if existing_conversation.user_id != user.id and not user.admin:
+#         raise HTTPException(status_code=401, detail="You are not authorised to add messages to another user's conversation")
+# 
+#     message_data = MessageCreate(
+#         conversation_id = conversation_id,
+#         role="user",
+#         content=new_message.message_text
+#     )
+#     
+#     new_conversation = await add_message_to_conversation(
+#         message_data,
+#         user=user,
+#         session=session
+#     )
+# 
+#     messages = [{"role":"user", "content":new_message.message_text}]
+# 
+#     return StreamingResponse(
+#         chat_stream(
+#             user=user,
+#             magic=magic,
+#             session=session,
+#             messages=messages,
+#             background_tasks=background_tasks
+#         ),
+#         media_type="text/plain"
+#     )
+# 
+#     # return StreamingResponse(
+#     #     stream_llm_response_to_conversation(
+#     #         conversation_id=conversation_id,
+#     #         background_tasks=background_tasks,
+#     #         user=user,
+#     #         magic=magic,
+#     #         session=session
+#     #     ),
+#     #     media_type="text/plain"
+#     # )
+
+@router.post("/conversation_reply/{conversation_id}", response_model=str)
+async def call_llm_response_to_conversation(
     conversation_id : int,
-    new_message : NewMessage,
-    background_tasks : BackgroundTasks,
     user : User = Depends(get_current_user),
     magic : str = Depends(get_current_magic),
     session : Session = Depends(get_session)
 ):
     """
-    Continue an existing conversation with the LLM
-    by sending a new message and streaming the
-    LLM's response as chunks. The LLM's response
-    will be added to the conversation in the DB
-    through a side effect once the generation is
-    complete using a FastAPI background task.
+    Queries the LLM to respond to a given conversation.
+    Returns the LLM's response text. Adds the LLM's response
+    to the list of messages in the conversation.
 
     Args:
-        conversation_id (int): The ID of the existing conversation.
-        message_text (str): The content of the user's message.
+        conversation_id (int): The conversation ID.
+
+    Raises:
+        HTTPException:
+            Raises a 404 if the conversation does not exist.
+            Raises a 401 if the user attempts to call the LLM to respond to another user's conversation.
+            Raises a 400 if the conversation does not have any messages (nothing to respond to).
+            Raises a 400 if the last message in the conversation was not a user message.
 
     Returns:
-        StreamingResponse: The LLM's response chunks.
-
+        str: The LLM's response text.
     """
     existing_conversation = session.get(Conversation, conversation_id)
-    if not existing_conversation:
-        raise HTTPException(status_code=404, detail="Conversation not found")
+    if not existing_conversation: raise HTTPException(status_code=404, detail="Conversation not found")
     
     if existing_conversation.user_id != user.id and not user.admin:
         raise HTTPException(status_code=401, detail="You are not authorised to add messages to another user's conversation")
 
-    message_data = MessageCreate(
-        conversation_id = conversation_id,
-        role="user",
-        content=new_message.message_text
-    )
+    existing_messages = session.exec(
+        select(Message).where(Message.conversation_id == existing_conversation.id)
+    ).all()
+
+    if not existing_messages:
+        raise HTTPException(status_code=400, detail="A conversation must have messages to call an LLM response!")
     
-    new_conversation = await add_message_to_conversation(
-        message_data,
+    if existing_messages[-1].role != "user":
+        raise HTTPException(status_code=400, detail="Error: can only call the LLM response after a user message!")
+    
+    message_dict = [{
+        "role": message.role, "content": message.content
+    } for message in existing_messages]
+
+    response_messages : list[BaseMessage] = await chat(
+        user=user,
+        magic=magic,
+        session=session,
+        messages=message_dict
+    )
+
+    response_text = str(response_messages[-1].content)
+    
+    # TODO: make this a background task
+    await add_llm_message_to_conversation(
+        content=response_text,
+        conversation_id = conversation_id,
         user=user,
         session=session
     )
 
-    messages = [{"role":"user", "content":new_message.message_text}]
+    return response_text 
 
-    return StreamingResponse(
-        chat_stream(
-            user=user,
-            magic=magic,
-            session=session,
-            messages=messages,
-            background_tasks=background_tasks
-        ),
-        media_type="text/plain"
-    )
+# async def stream_llm_response_to_conversation(
+#     conversation_id : int,
+#     background_tasks : BackgroundTasks,
+#     user : User,
+#     magic : str,
+#     session : Session
+# ) -> AsyncGenerator[str, None]:
+#     """
+#     Queries the LLM to respond to a given conversation
+#     and adds its response to the list of messages.
+#     Uses LLM streaming to stream the response.
+# 
+#     Args:
+#         conversation_id (int): The conversation ID.
+# 
+#     Raises:
+#         HTTPException:
+#             Raises a 404 if the conversation does not exist.
+#             Raises a 401 if the user attempts to call the LLM to respond to another user's conversation.
+#             Raises a 400 if the conversation does not have any messages (nothing to respond to).
+# 
+#     Returns:
+#         AsyncGenerator[str, None]: The LLM's response chunks.
+#     """
+#     existing_conversation = session.get(Conversation, conversation_id)
+#     if not existing_conversation: raise HTTPException(status_code=404, detail="Conversation not found")
+#     
+#     if existing_conversation.user_id != user.id and not user.admin:
+#         raise HTTPException(status_code=401, detail="You are not authorised to add messages to another user's conversation")
+# 
+#     existing_messages = session.exec(
+#         select(Message).where(Message.conversation_id == existing_conversation.id)
+#     ).all()
+# 
+#     if not existing_messages:
+#         raise HTTPException(status_code=400, detail="A conversation must have messages to call an LLM response!")
+# 
+#     message_dict = [{
+#         "role": message.role, "content": message.content
+#     } for message in existing_messages]
+# 
+#     # Call the function 'add_llm_message_to_conversation'
+#     # after the LLM stream has finished to add the response
+#     # to the database using a FastAPI background task.
+#     end_function = add_llm_message_to_conversation
+#     end_function_kwargs = {
+#         "user" : user,
+#         "session" : session,
+#         "conversation_id" : conversation_id,
+#     }
+# 
+#     return chat_stream(
+#         user=user,
+#         magic=magic,
+#         session=session,
+#         messages=message_dict,
+#         end_function=end_function,
+#         end_function_kwargs=end_function_kwargs,
+#         background_tasks=background_tasks
+#     )
 
-    # return StreamingResponse(
-    #     stream_llm_response_to_conversation(
-    #         conversation_id=conversation_id,
-    #         background_tasks=background_tasks,
-    #         user=user,
-    #         magic=magic,
-    #         session=session
-    #     ),
-    #     media_type="text/plain"
-    # )
+
+
