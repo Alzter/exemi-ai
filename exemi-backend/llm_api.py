@@ -140,10 +140,10 @@ async def chat_stream(
                     if tool_name:
                         # Make the tool name human readable
                         # "get_assignments" -> "Get assignments"
-                        tool_name = tool_name.replace("_", " ").capitalize()
+                        tool_name = tool_name.replace("_", " ").lower()
 
                         # Add the chunk: "Calling tool: <tool name>"
-                        chunk = f"\n\nCalling tool: {tool_name}\n\n"
+                        chunk = f"\n\nI am calling the function: **{tool_name}**. Please wait...\n\n"
 
                 case "text":
                     chunk = content.get("text")
