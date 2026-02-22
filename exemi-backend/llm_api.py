@@ -96,8 +96,8 @@ async def chat_stream(
 
     agent = create_agent(
         model=model,
-        system_prompt=get_system_prompt(user=user, magic=magic, session=session),
-        tools=tools
+        system_prompt="",#get_system_prompt(user=user, magic=magic, session=session),
+        tools=[]#tools
     )
 
     chunks : list[str] = []
