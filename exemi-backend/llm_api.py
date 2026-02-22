@@ -132,6 +132,7 @@ async def chat_stream(
             content : dict = content[-1]
             
             chunk : str | None = None
+            last_tool_name : str | None = None
             
             if not content.get("type"): continue
 
@@ -146,6 +147,7 @@ async def chat_stream(
                     tool_name : str | None = content.get("name")
 
                     if tool_name:
+                        last_tool_name = tool_name
                         # Make the tool name human readable
                         # "get_assignments_from_Canvas" -> "get assignments from Canvas"
                         tool_name = tool_name.replace("_", " ")
@@ -164,7 +166,7 @@ async def chat_stream(
                         if include_tool_responses:
                             chunk = f"\n\nI have obtained the following information:\n\n---\n\n{chunk}\n\n---\n\n**Please wait while I reason with this information...**\n\n"
                         
-                        system_prompt_amendment = f"Use the following information to inform your response:\n\n{chunk}"
+                        system_prompt_amendment = f"TOOL RESULT from tool: {last_tool_name}\n\nUse the following information to inform your response:\n\n{chunk}"
                         # Add the tool call into the list of messages.
                         response_messages.append({"role":"system", "content":system_prompt_amendment})
 
