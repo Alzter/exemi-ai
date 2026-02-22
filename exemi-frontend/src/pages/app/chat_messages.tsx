@@ -47,7 +47,12 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
         setUserText(event.target.value);
     }
 
+    //
     async function handleLLMResponse(conversationID : number) {
+        // Stream the LLM's response from the server.
+        // Credit to Irtiza Hafiz for the code: https://youtu.be/i7GlWbAFDtY
+        let responseText = ""
+
         let URL = backendURL + "/conversation_stream_reply/" + conversationID
 
         const llm_response = await fetch(URL, {
@@ -62,6 +67,12 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
         const decoder = new TextDecoder("utf-8");
         let done = false;
 
+        // Create an empty LLM message
+        setMessages(prev => [
+            ...prev,
+            {"role":"assistant","content":""}
+        ]);
+
         while (!done){
             const {value, done: readerDone} = await reader.read();
             done = readerDone;
@@ -69,6 +80,7 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
             const chunkValue = decoder.decode(value, {stream:true});
 
             console.log(chunkValue);
+            responseText += chunkValue;
         };
 
         // if (!llm_response.ok){
