@@ -65,7 +65,7 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
         // Add an empty LLM message to the list of messages
         setMessages(prev => [
             ...prev,
-            {"role":"assistant","content":""}
+            {"role":"assistant","content":"Thinking..."}
         ]);
 
         const reader = llm_response.body.getReader();
