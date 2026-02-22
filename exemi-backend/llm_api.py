@@ -99,7 +99,7 @@ async def chat_stream(
 
     agent = create_agent(
         model=model,
-        system_prompt="",#get_system_prompt(user=user, magic=magic, session=session),
+        system_prompt=get_system_prompt(user=user, magic=magic, session=session),
         tools=tools
     )
 
@@ -130,7 +130,7 @@ async def chat_stream(
             match content["type"]:
 
                 # When the LLM executes a tool call,
-                # yield the text "Calling tool: <tool name>"
+                # yield the text "I am calling the function: <tool name>"
                 case "tool_call_chunk":
 
                     # Obtain the function name of the LLM's tool call
@@ -139,10 +139,10 @@ async def chat_stream(
 
                     if tool_name:
                         # Make the tool name human readable
-                        # "get_assignments" -> "Get assignments"
-                        tool_name = tool_name.replace("_", " ").lower()
+                        # "get_assignments_from_Canvas" -> "get assignments from Canvas"
+                        tool_name = tool_name.replace("_", " ")
 
-                        # Add the chunk: "Calling tool: <tool name>"
+                        # Add the chunk: "I am calling the function: <tool name>"
                         chunk = f"\n\nI am calling the function: **{tool_name}**. Please wait...\n\n"
 
                 case "text":

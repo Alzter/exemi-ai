@@ -72,7 +72,7 @@ Response rules after using a tool:
 def create_tools(user : User, magic : str, session : Session) -> list[BaseTool]:
 
     @tool
-    async def get_assignments() -> str:
+    async def get_assignments_from_Canvas() -> str:
         """
         Obtains the user's incomplete assignments.
 
@@ -114,7 +114,7 @@ def create_tools(user : User, magic : str, session : Session) -> list[BaseTool]:
         create_reminder(data, user=user, session=session)
         return "Reminder created successfully!"
         
-    return [get_assignments, add_assignment_reminder]
+    return [get_assignments_from_Canvas, add_assignment_reminder]
 
 # @tool
 # async def get_weather(city : str) -> str:
