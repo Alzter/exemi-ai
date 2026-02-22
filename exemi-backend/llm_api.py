@@ -174,7 +174,7 @@ async def chat_stream(
         if end_function is not None:
             response_text = "".join(chunks).strip()
 
-            messages.append({"role":assistant, "content":chunks})
+            messages.append({"role":"assistant", "content":chunks})
 
             end_function_kwargs["content"] = response_text
             end_function_kwargs["messages"] = messages
