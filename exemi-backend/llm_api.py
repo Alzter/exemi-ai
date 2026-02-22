@@ -164,8 +164,9 @@ async def chat_stream(
                         if include_tool_responses:
                             chunk = f"\n\nI have obtained the following information:\n\n---\n\n{chunk}\n\n---\n\n**Please wait while I reason with this information...**\n\n"
                         
+                        system_prompt_amendment = f"Use the following information to inform your response:\n\n{chunk}"
                         # Add the tool call into the list of messages.
-                        response_messages.append({"role":"tool", "content":chunk})
+                        response_messages.append({"role":"system", "content":system_prompt_amendment})
 
                     elif node == "model":
                         # Only include LLM text in the final message.
