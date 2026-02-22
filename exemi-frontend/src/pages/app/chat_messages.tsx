@@ -69,6 +69,7 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
         
         // Force DOM to update so that the "Thinking..." is rendered
         await new Promise(requestAnimationFrame);
+        console.log("Thinking...");
 
         const reader = llm_response.body.getReader();
         const decoder = new TextDecoder("utf-8");
@@ -161,8 +162,6 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
         // Step 2: If the Conversation returned successfully,
         // call the LLM to respond to the user's message.
         
-        await new Promise(requestAnimationFrame);
-
         await handleLLMResponse(conversation.id);
 
         setLoading(false);
