@@ -61,22 +61,11 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
             method:"GET"
         });
 
-        // Add an empty LLM message to the list of messages
-        setMessages(prev => [
-            ...prev,
-            {"role":"assistant","content":"Thinking..."}
-        ]);
-        
-        // Force DOM to update so that the "Thinking..." is rendered
-        await new Promise(requestAnimationFrame);
-        console.log("Thinking...");
-
         const reader = llm_response.body.getReader();
         const decoder = new TextDecoder("utf-8");
 
         let done = false;
         let responseText = ""
-        let receivedFirstChunk = false;
 
         while (!done){
             const {value, done: readerDone} = await reader.read();
@@ -87,9 +76,8 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
             if (!chunkValue) { continue };
 
             responseText += chunkValue;
-            if (!receivedFirstChunk) {receivedFirstChunk = true;}
 
-            // Replace the LLM's message with the
+            // Overwrite the placeholder LLM message with the
             // current streamed content.
             setMessages(prev => [
                 ...prev.slice(0, -1), // Drop the previous LLM message
@@ -116,11 +104,11 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
             {"role":"user","content":userText}
         ]);
 
-        // Placeholder message while LLM responds
-        // setMessages(prev => [
-        //     ...prev,
-        //     {"role":"assistant","content":"Thinking..."}
-        // ]);
+        // Show a placeholder message before the LLM responds properly
+        setMessages(prev => [
+            ...prev,
+            {"role":"assistant","content":"Thinking..."}
+        ]);
         
         let body = {"message_text" : userText};
 
@@ -155,9 +143,9 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
         const conversation = await response.json();
         setConversationID(conversation.id);
 
-        const messages : Message[] = conversation.messages as Message[];
+        // const messages : Message[] = conversation.messages as Message[];
 
-        setMessages(messages);
+        // setMessages(messages);
         
         // Step 2: If the Conversation returned successfully,
         // call the LLM to respond to the user's message.
