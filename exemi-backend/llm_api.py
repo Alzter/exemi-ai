@@ -69,7 +69,7 @@ async def chat_stream(
     session : Session,
     end_function : Callable | None = None,
     end_function_kwargs : dict[str, Any] | None = None,
-    include_tool_responses : bool = True
+    include_tool_responses : bool = False
 ) -> AsyncGenerator[str, None]:
     """
     Call the LLM to respond to the user's message(s).
