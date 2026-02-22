@@ -231,9 +231,6 @@ async def add_messages_to_conversation(
 
     for message in messages:
 
-        if not message.get("role") or not message.get("content"):
-            raise HTTPException(status_code=400, detail="Chat messages must contain a 'role' and 'content' field!")
-        
         message_data = MessageCreate(
             conversation_id = conversation_id,
             role=message.get("role"),
