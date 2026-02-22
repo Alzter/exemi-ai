@@ -114,6 +114,8 @@ async def chat_stream(
     # we will concatenate all the chunks to get the
     # completed message.
     chunks : list[str] = []
+    
+    last_tool_name : str | None = None
 
     if end_function_kwargs is None: end_function_kwargs = {}
 
@@ -132,7 +134,6 @@ async def chat_stream(
             content : dict = content[-1]
             
             chunk : str | None = None
-            last_tool_name : str | None = None
             
             if not content.get("type"): continue
 
@@ -153,7 +154,7 @@ async def chat_stream(
                         tool_name = tool_name.replace("_", " ")
 
                         # Add the chunk: "I am calling the function: <tool name>"
-                        chunk = f"\n\nI am calling the function: **{tool_name}**. Please wait...\n\n"
+                        chunk = f"\n\nI am calling the function: **{tool_name}**. Please wait...\n\n\n"
 
                         # Consider the LLM calling a tool as its own message.
                         response_messages.append({"role":"assistant", "content":chunk.strip()})
@@ -165,7 +166,7 @@ async def chat_stream(
                     if node == "tools":
                         system_prompt_amendment = ""
                         if last_tool_name: system_prompt_amendment += f"Obtained result from tool call: {last_tool_name}\n\n"
-                        system_prompt_amendment += "Use the following information to inform your response:\n\n{chunk}"
+                        system_prompt_amendment += f"Use the following information to inform your response:\n\n{chunk}"
 
                         # Add the tool call into the list of messages.
                         response_messages.append({"role":"system", "content":system_prompt_amendment})
