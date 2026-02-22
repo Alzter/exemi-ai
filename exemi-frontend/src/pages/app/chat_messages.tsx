@@ -50,7 +50,12 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
     async function sendMessage(event : React.SubmitEvent<HTMLFormElement>){
         event.preventDefault();
         setLoading(true);
+        setUserText("");
         
+        // Step 1: Send the user's message to the server
+        // and receive a Conversation object with the
+        // new list of messages and Conversation ID
+
         // Send the user's message on the client side
         // by updating the local list of messages
         // to contain the new message.
@@ -60,20 +65,17 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
         ]);
 
         // Placeholder message while LLM responds
-        setMessages(prev => [
-            ...prev,
-            {"role":"assistant","content":"Thinking..."}
-        ]);
+        // setMessages(prev => [
+        //     ...prev,
+        //     {"role":"assistant","content":"Thinking..."}
+        // ]);
         
         let body = {"message_text" : userText};
 
-        let URL = backendURL + "/conversation"
-        if (conversationID) {URL += "/" + conversationID}
+        let URL = backendURL + "/conversation" + (conversationID ? "/" + conversationID : "")
         console.log(body);
         console.log(URL);
-
-        setUserText("");
-
+        
         const response = await fetch(URL, {
             headers:{
                 "Authorization" : "Bearer " + session.token,
@@ -87,6 +89,39 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
         if (!response.ok){
             let message = "System error! Please contact Alexander Small.";
             try{
+                let data = await response.json();
+                if (typeof data.detail === "string"){
+                    message = data.detail;
+                }
+                setError(message);
+            } catch {
+                setError(message);
+            }
+            return;
+        }
+
+        const conversation = await response.json();
+        setConversationID(conversation.id);
+
+        const messages : Message[] = conversation.messages as Message[];
+
+        setMessages(messages);
+        
+        // Step 2: If the Conversation returned successfully,
+        // call the LLM to respond to the user's message.
+        
+        URL = backendURL + "/conversation_reply/" + conversation.id
+
+        const llm_response = await fetch(URL, {
+            headers:{
+                "Authorization" : "Bearer " + session.token
+            },
+            method:"GET"
+        });
+
+        if (!llm_response.ok){
+            let message = "System error! Please contact Alexander Small.";
+            try{
                 if (response.status == 504){
                     message = "Error! The Exemi chatbot took too long to respond! Please try again later."
                 } else {
@@ -96,21 +131,21 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
                      }
                 }
                 setError(message);
-                return;
             } catch {
                 setError(message);
             }
             return;
         }
 
-        const data = await response.json();
-        setConversationID(data.id);
+        // Add the LLM's response on the client-side.
+        // The server will at it to the database
+        // asynchronously.
+        const reply = await llm_response.text();
+        setMessages(prev => [
+            ...prev,
+            {"role":"assistant","content":reply}
+        ]);
 
-        const messages : Message[] = data.messages as Message[];
-
-        setMessages(messages);
-
-        // TODO: call the backend API with the message.
         setLoading(false);
     }
 
