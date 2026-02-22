@@ -163,14 +163,17 @@ async def chat_stream(
                     if not chunk: continue
 
                     if node == "tools":
+                        system_prompt_amendment = ""
+                        if last_tool_name: system_prompt_amendment += f"Obtained result from tool call: {last_tool_name}\n\n"
+                        system_prompt_amendment += "Use the following information to inform your response:\n\n{chunk}"
+
+                        # Add the tool call into the list of messages.
+                        response_messages.append({"role":"system", "content":system_prompt_amendment})
+
                         if include_tool_responses:
                             chunk = f"\n\nI have obtained the following information:\n\n---\n\n{chunk}\n\n---\n\n**Please wait while I reason with this information...**\n\n"
                         else:
                             chunk = None
-                            
-                        system_prompt_amendment = f"TOOL RESULT from tool: {last_tool_name}\n\nUse the following information to inform your response:\n\n{chunk}"
-                        # Add the tool call into the list of messages.
-                        response_messages.append({"role":"system", "content":system_prompt_amendment})
 
                     elif node == "model":
                         # Only include LLM text in the final message.
