@@ -47,6 +47,46 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
         setUserText(event.target.value);
     }
 
+    async function handleLLMResponse(conversationID : number) {
+        let URL = backendURL + "/conversation_reply/" + conversationID
+
+        const llm_response = await fetch(URL, {
+            headers:{
+                "Authorization" : "Bearer " + session.token,
+                accept:"application/json"
+            },
+            method:"GET"
+        });
+
+        if (!llm_response.ok){
+            let message = "System error! Please contact Alexander Small.";
+            try{
+                if (llm_response.status == 504){
+                    message = "Error! The Exemi chatbot took too long to respond! Please try again later."
+                } else {
+                     let data = await llm_response.json();
+                     if (typeof data.detail === "string"){
+                         message = data.detail;
+                     }
+                }
+                setError(message);
+            } catch {
+                setError(message);
+            }
+            return;
+        }
+
+        // Add the LLM's response on the client-side.
+        // The server will add it to the database
+        // asynchronously.
+        const reply = await llm_response.json();
+
+        setMessages(prev => [
+            ...prev,
+            {"role":"assistant","content":reply}
+        ]);
+    }
+
     async function sendMessage(event : React.SubmitEvent<HTMLFormElement>){
         event.preventDefault();
         setLoading(true);
@@ -110,43 +150,7 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
         // Step 2: If the Conversation returned successfully,
         // call the LLM to respond to the user's message.
         
-        URL = backendURL + "/conversation_reply/" + conversation.id
-
-        const llm_response = await fetch(URL, {
-            headers:{
-                "Authorization" : "Bearer " + session.token,
-                accept:"application/json"
-            },
-            method:"GET"
-        });
-
-        if (!llm_response.ok){
-            let message = "System error! Please contact Alexander Small.";
-            try{
-                if (response.status == 504){
-                    message = "Error! The Exemi chatbot took too long to respond! Please try again later."
-                } else {
-                     let data = await response.json();
-                     if (typeof data.detail === "string"){
-                         message = data.detail;
-                     }
-                }
-                setError(message);
-            } catch {
-                setError(message);
-            }
-            return;
-        }
-
-        // Add the LLM's response on the client-side.
-        // The server will at it to the database
-        // asynchronously.
-        const reply = await llm_response.json();
-
-        setMessages(prev => [
-            ...prev,
-            {"role":"assistant","content":reply}
-        ]);
+        await handleLLMResponse(conversation.id);
 
         setLoading(false);
     }
