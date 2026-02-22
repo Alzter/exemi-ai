@@ -513,7 +513,7 @@ async def conversation_continue(
 #     #     media_type="text/plain"
 #     # )
 
-@router.post("/conversation_reply/{conversation_id}", response_model=str)
+@router.get("/conversation_reply/{conversation_id}", response_model=str)
 async def call_llm_response_to_conversation(
     conversation_id : int,
     user : User = Depends(get_current_user),
