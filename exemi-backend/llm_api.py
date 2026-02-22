@@ -80,6 +80,9 @@ async def chat_stream(
 
     For more information, see "What is correct way to do DB operation after successfully streaming response?":
     https://github.com/fastapi/fastapi/discussions/11433#discussioncomment-9161859
+
+    Also see LangChain Agent LLM Token streaming:
+    https://docs.langchain.com/oss/python/langchain/streaming/overview#llm-tokens
     
     Args:
         messages (list[dict]): List of messages in OpenAI format.
@@ -97,7 +100,7 @@ async def chat_stream(
     agent = create_agent(
         model=model,
         system_prompt="",#get_system_prompt(user=user, magic=magic, session=session),
-        tools=[]#tools
+        tools=tools
     )
 
     chunks : list[str] = []
@@ -113,14 +116,41 @@ async def chat_stream(
             node = metadata["langgraph_node"]
             content : list[dict] = token.content_blocks
 
+            # Ignore streaming chunks from tools, we only
+            # want LLM tokens or the names of tool calls.
             if node != "model": continue
-            if not content: continue
-            if not content[-1].get("text"): continue
-            chunk = content[-1]["text"]
+            if not content: continue # Ignore empty chunks
 
-            chunks.append(chunk)
+            # No idea why LangChain wraps LLM tokens in a list.
+            content : dict = content[-1]
+            
+            chunk : str | None = None
+            
+            if not content.get("type"): continue
+            match content["type"]:
 
-            yield chunk
+                # When the LLM executes a tool call,
+                # yield the text "Calling tool: <tool name>"
+                case "tool_call_chunk":
+
+                    # Obtain the function name of the LLM's tool call
+                    # (e.g., "get_assignments")
+                    tool_name : str | None = content.get("name")
+
+                    if tool_name:
+                        # Make the tool name human readable
+                        # "get_assignments" -> "Get assignments"
+                        tool_name = tool_name.replace("_", " ").capitalize()
+
+                        # Add the chunk: "Calling tool: <tool name>"
+                        chunk = f"\n\nCalling tool: {tool_name}\n\n"
+
+                case "text":
+                    chunk = content.get("text")
+
+            if chunk is not None:
+                chunks.append(chunk)
+                yield chunk
     
     finally:
         # Add the LLM response to the DB even if an exception is encountered
