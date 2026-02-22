@@ -25,6 +25,8 @@ type Conversation = {
 
 export default function ChatMessagesUI({session, isViewing, conversationID, setConversationID, loading, setLoading, error, setError} : ChatUIProps){
 
+    const [awaitingLLMResponse, setAwaitingLLMResponse] = useState<boolean>(false);
+
     const [messages, setMessages] = useState<Message[]>([]);
 
     // The user's current message text.
@@ -39,9 +41,11 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
         )
     }
 
-    const messageBoxes = messages.map(
+    const messageBoxes = [...messages.map(
         message => <MessageBox role={message.role} content={message.content}/>
-    )
+    ), ...(
+        awaitingLLMResponse ? [<MessageBox role="assistant" content="Thinking..."/>] : []
+    )]
 
     function handleTextUpdate(event : React.ChangeEvent<HTMLInputElement>){
         setUserText(event.target.value);
@@ -61,6 +65,12 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
             method:"GET"
         });
 
+        // Add an empty message before the LLM responds
+        setMessages(prev => [
+            ...prev,
+            {"role":"assistant","content":""}
+        ]);
+
         const reader = llm_response.body.getReader();
         const decoder = new TextDecoder("utf-8");
 
@@ -74,6 +84,8 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
             const chunkValue : string = decoder.decode(value, {stream:true});
             
             if (!chunkValue) { continue };
+
+            setAwaitingLLMResponse(false);
 
             responseText += chunkValue;
 
@@ -104,11 +116,8 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
             {"role":"user","content":userText}
         ]);
 
-        // Show a placeholder message before the LLM responds properly
-        setMessages(prev => [
-            ...prev,
-            {"role":"assistant","content":"Thinking..."}
-        ]);
+        // Show a placeholder "Thinking..." message before the LLM responds properly
+        setAwaitingLLMResponse(true);
         
         let body = {"message_text" : userText};
 
