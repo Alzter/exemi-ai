@@ -147,7 +147,7 @@ async def chat_stream(
                 case "text":
                     chunk = content.get("text")
 
-                    if node == "tool":
+                    if node == "tools":
                         chunk = f"\n\nI have obtained the following information:\n\n{chunk}\n\nPlease wait while I reason with this information...\n\n"
 
             if chunk is not None:
