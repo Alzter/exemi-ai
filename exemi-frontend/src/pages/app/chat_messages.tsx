@@ -157,9 +157,9 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
         const conversation = await response.json();
         setConversationID(conversation.id);
 
-        // const messages : Message[] = conversation.messages as Message[];
+        const messages : Message[] = conversation.messages as Message[];
 
-        // setMessages(messages);
+        setMessages(messages);
         
         // Step 2: If the Conversation returned successfully,
         // call the LLM to respond to the user's message.
