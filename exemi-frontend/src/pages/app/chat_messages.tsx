@@ -68,6 +68,8 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
             {"role":"assistant","content":"Thinking..."}
         ]);
 
+        console.log("Thinking...");
+
         const reader = llm_response.body.getReader();
         const decoder = new TextDecoder("utf-8");
 
@@ -92,6 +94,8 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
                     ...prev.slice(0, -1), // Drop the previous LLM message
                     {"role":"assistant","content":responseTextDisplay}
                 ]);
+
+                console.log(responseTextDisplay);
             }
         };
 
