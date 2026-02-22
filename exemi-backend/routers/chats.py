@@ -72,7 +72,11 @@ async def test_chat_stream(
             messages=messages,
             background_tasks=background_tasks
         ),
-        media_type="text/plain"
+        media_type="text/plain",
+        headers={
+            "Cache-Control": "no-cache, no-transform",
+            "X-Accel-Buffering": "no"
+        }
     )
 
 @router.get("/conversation/{id}", response_model=ConversationPublicWithMessages)
@@ -538,7 +542,12 @@ async def stream_llm_response_to_conversation(
             background_tasks=background_tasks,
             end_function=end_function,
             end_function_kwargs=end_function_kwargs
-        )
+        ),
+        media_type="text/plain",
+        headers={
+            "Cache-Control": "no-cache, no-transform",
+            "X-Accel-Buffering": "no"
+        }
     )
 
     return response
