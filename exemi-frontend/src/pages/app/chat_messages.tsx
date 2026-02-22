@@ -47,7 +47,6 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
         setUserText(event.target.value);
     }
 
-    //
     async function handleLLMResponse(conversationID : number) {
         // Stream the LLM's response from the server.
         // Credit to Irtiza Hafiz for the code: https://youtu.be/i7GlWbAFDtY
@@ -65,7 +64,7 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
         // Add an empty LLM message to the list of messages
         setMessages(prev => [
             ...prev,
-            {"role":"assistant","content":""}
+            {"role":"assistant","content":"Thinking..."}
         ]);
 
         const reader = llm_response.body.getReader();
@@ -73,6 +72,7 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
 
         let done = false;
         let responseText = ""
+        let receivedFirstChunk = false;
 
         while (!done){
             const {value, done: readerDone} = await reader.read();
@@ -80,16 +80,18 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
             
             const chunkValue : string = decoder.decode(value, {stream:true});
             
-            if (chunkValue){
-                responseText += chunkValue;
+            if (!chunkValue) { continue };
 
-                // Replace the LLM's message with the
-                // current streamed content.
-                setMessages(prev => [
-                    ...prev.slice(0, -1), // Drop the previous LLM message
-                    {"role":"assistant","content":responseText}
-                ]);
-            }
+            responseText += chunkValue;
+            if (!receivedFirstChunk) {receivedFirstChunk = true;}
+
+            // Replace the LLM's message with the
+            // current streamed content.
+            setMessages(prev => [
+                ...prev.slice(0, -1), // Drop the previous LLM message
+                {"role":"assistant","content":responseText}
+            ]);
+            
         };
 
         // if (!llm_response.ok){
