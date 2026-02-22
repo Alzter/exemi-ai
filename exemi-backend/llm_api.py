@@ -116,15 +116,13 @@ async def chat_stream(
             node = metadata["langgraph_node"]
             content : list[dict] = token.content_blocks
 
-            # Ignore streaming chunks from tools, we only
-            # want LLM tokens or the names of tool calls.
-            if node != "model": continue
             if not content: continue # Ignore empty chunks
 
             # No idea why LangChain wraps LLM tokens in a list.
             content : dict = content[-1]
             
             chunk : str | None = None
+            last_tool_name : str | None = None
             
             if not content.get("type"): continue
             match content["type"]:
@@ -141,12 +139,16 @@ async def chat_stream(
                         # Make the tool name human readable
                         # "get_assignments_from_Canvas" -> "get assignments from Canvas"
                         tool_name = tool_name.replace("_", " ")
+                        last_tool_name = tool_name
 
                         # Add the chunk: "I am calling the function: <tool name>"
                         chunk = f"\n\nI am calling the function: **{tool_name}**. Please wait...\n\n"
 
                 case "text":
                     chunk = content.get("text")
+
+                    if node == "tool":
+                        chunk = f"\n\nI have obtained the following information:\n\n```{chunk}```\n\nPlease wait while I reason with this information...\n\n"
 
             if chunk is not None:
                 chunks.append(chunk)
