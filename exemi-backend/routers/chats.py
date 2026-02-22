@@ -360,51 +360,6 @@ async def conversation_start(
 
     return conversation_with_response
 
-# @router.post("/conversation_stream", response_class=StreamingResponse)
-# async def conversation_stream_start(
-#     new_message : NewMessage,
-#     background_tasks : BackgroundTasks,
-#     user : User = Depends(get_current_user),
-#     magic : str = Depends(get_current_magic),
-#     session : Session = Depends(get_session)
-# ):
-#     """
-#     Create a new conversation with the LLM as the current user.
-#     Will stream the LLM's response as chunks and add the LLM's
-#     response to the database when it is completed as a side
-#     effect using a FastAPI background task.
-# 
-#     Args:
-#         new_message (NewMessage): The user's message.
-# 
-#     Returns:
-#         ConversationPublicWithMessages: The new conversation.
-#     """
-# 
-#     conversation_data = {
-#         "user_id" : user.id,
-#         "user" : user,
-#         "created_at" : datetime.now(timezone.utc)
-#     }
-# 
-#     conversation = Conversation.model_validate(conversation_data)
-# 
-#     session.add(conversation)
-#     session.commit()
-#     session.refresh(conversation)
-# 
-#     if not conversation:
-#         raise HTTPException(status_code=500, detail="System error creating conversation!")
-# 
-#     return await conversation_stream_continue(
-#         conversation_id=conversation.id,
-#         new_message=new_message,
-#         background_tasks=background_tasks,
-#         user=user,
-#         magic=magic,
-#         session=session
-#     )
-
 @router.post("/conversation/{conversation_id}", response_model=ConversationPublicWithMessages)
 async def conversation_continue(
     conversation_id : int,
@@ -445,77 +400,10 @@ async def conversation_continue(
 
     return new_conversation
 
-# @router.post("/conversation_stream/{conversation_id}", response_class=StreamingResponse)
-# async def conversation_stream_continue(
-#     conversation_id : int,
-#     new_message : NewMessage,
-#     background_tasks : BackgroundTasks,
-#     user : User = Depends(get_current_user),
-#     magic : str = Depends(get_current_magic),
-#     session : Session = Depends(get_session)
-# ):
-#     """
-#     Continue an existing conversation with the LLM
-#     by sending a new message and streaming the
-#     LLM's response as chunks. The LLM's response
-#     will be added to the conversation in the DB
-#     through a side effect once the generation is
-#     complete using a FastAPI background task.
-# 
-#     Args:
-#         conversation_id (int): The ID of the existing conversation.
-#         message_text (str): The content of the user's message.
-# 
-#     Returns:
-#         StreamingResponse: The LLM's response chunks.
-# 
-#     """
-#     existing_conversation = session.get(Conversation, conversation_id)
-#     if not existing_conversation:
-#         raise HTTPException(status_code=404, detail="Conversation not found")
-#     
-#     if existing_conversation.user_id != user.id and not user.admin:
-#         raise HTTPException(status_code=401, detail="You are not authorised to add messages to another user's conversation")
-# 
-#     message_data = MessageCreate(
-#         conversation_id = conversation_id,
-#         role="user",
-#         content=new_message.message_text
-#     )
-#     
-#     new_conversation = await add_message_to_conversation(
-#         message_data,
-#         user=user,
-#         session=session
-#     )
-# 
-#     messages = [{"role":"user", "content":new_message.message_text}]
-# 
-#     return StreamingResponse(
-#         chat_stream(
-#             user=user,
-#             magic=magic,
-#             session=session,
-#             messages=messages,
-#             background_tasks=background_tasks
-#         ),
-#         media_type="text/plain"
-#     )
-# 
-#     # return StreamingResponse(
-#     #     stream_llm_response_to_conversation(
-#     #         conversation_id=conversation_id,
-#     #         background_tasks=background_tasks,
-#     #         user=user,
-#     #         magic=magic,
-#     #         session=session
-#     #     ),
-#     #     media_type="text/plain"
-#     # )
-
 @router.get("/conversation_reply/{conversation_id}", response_model=str)
 async def call_llm_response_to_conversation(
     conversation_id : int,
+    background_tasks : BackgroundTasks,
     user : User = Depends(get_current_user),
     magic : str = Depends(get_current_magic),
     session : Session = Depends(get_session)
@@ -567,8 +455,8 @@ async def call_llm_response_to_conversation(
 
     response_text = str(response_messages[-1].content)
     
-    # TODO: make this a background task
-    await add_llm_message_to_conversation(
+    background_tasks.add_task(
+        add_llm_message_to_conversation,
         content=response_text,
         conversation_id = conversation_id,
         user=user,
