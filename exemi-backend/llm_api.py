@@ -176,7 +176,6 @@ async def chat_stream(
 
             messages.append({"role":"assistant", "content":chunks})
 
-            end_function_kwargs["content"] = response_text
             end_function_kwargs["messages"] = messages
 
             background_tasks.add_task(end_function, **end_function_kwargs)
