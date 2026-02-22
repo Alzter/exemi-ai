@@ -161,6 +161,8 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
         // Step 2: If the Conversation returned successfully,
         // call the LLM to respond to the user's message.
         
+        await new Promise(requestAnimationFrame);
+
         await handleLLMResponse(conversation.id);
 
         setLoading(false);
