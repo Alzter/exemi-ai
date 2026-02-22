@@ -68,7 +68,8 @@ async def chat_stream(
     magic : str,
     session : Session,
     end_function : Callable | None = None,
-    end_function_kwargs : dict[str, Any] | None = None
+    end_function_kwargs : dict[str, Any] | None = None,
+    include_tool_responses : bool = True
 ) -> AsyncGenerator[str, None]:
     """
     Call the LLM to respond to the user's message(s).
@@ -89,7 +90,8 @@ async def chat_stream(
         end_function (Callable | None, optional): Arbitrary function to execute after the LLM response is complete. Defaults to None.
         end_function_kwargs (dict[str, Any], optional):
             Keyword arguments to use when calling end_function. Defaults to None.
-            NOTE: A keyword argument "content" is automatically added containing the LLM's final response string.
+            NOTE: A keyword argument "messages" (list[dict[str,str]]) is automatically added containing the LLM's response and any tool calls in OpenAI chat template format.
+        include_tool_responses (bool, optional): Includes the LLM's tool call responses in the chunks.
     
     Yields:
         str: The next chunk of the LLM response.
@@ -102,7 +104,8 @@ async def chat_stream(
         system_prompt=get_system_prompt(user=user, magic=magic, session=session),
         tools=tools
     )
-
+    
+    messages : list[dict[str,str]] = []
     chunks : list[str] = []
 
     if end_function_kwargs is None: end_function_kwargs = {}
@@ -122,9 +125,11 @@ async def chat_stream(
             content : dict = content[-1]
             
             chunk : str | None = None
+            previous_node : str | None = None
             last_tool_name : str | None = None
             
             if not content.get("type"): continue
+
             match content["type"]:
 
                 # When the LLM executes a tool call,
@@ -148,17 +153,30 @@ async def chat_stream(
                     chunk = content.get("text")
 
                     if node == "tools":
-                        chunk = f"\n\nI have obtained the following information:\n\n---\n{chunk}\n---\n\n**Please wait while I reason with this information...**\n\n"
+                        if include_tool_responses:
+                            chunk = f"\n\nI have obtained the following information:\n\n---\n\n{chunk}\n\n---\n\n**Please wait while I reason with this information...**\n\n"
+                        
+                        # Add the tool call into the list of messages.
+                        messages.append({"role":"tool", "content":chunk})
+
+                    elif node == "model":
+                        # Only include LLM text in the final message.
+                        chunks.append(chunk)
 
             if chunk is not None:
-                chunks.append(chunk)
                 yield chunk
+
+            previous_node = node
     
     finally:
         # Add the LLM response to the DB even if an exception is encountered
 
         if end_function is not None:
-            response_text = "".join(chunks)
+            response_text = "".join(chunks).strip()
+
+            messages.append({"role":assistant, "content":chunks})
+
             end_function_kwargs["content"] = response_text
+            end_function_kwargs["messages"] = messages
 
             background_tasks.add_task(end_function, **end_function_kwargs)

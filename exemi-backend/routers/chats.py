@@ -200,17 +200,18 @@ async def add_message_to_conversation(
 
     return existing_conversation
 
-async def add_llm_message_to_conversation(
-    content : str,
+async def add_messages_to_conversation(
+    messages : list[dict[str,str]],
     conversation_id : int,
     user : User,
     session : Session
 ) -> Conversation:
     """
-    Adds a generated LLM response to an existing conversation.
+    Add a list of messages in the OpenAI chat template
+    format to an existing conversation.
 
     Args:
-        content (str): The LLM response content.
+        messages (list[dict[str,str]]): The messages in OpenAI chat template format.
         conversation_id (int): The conversation ID.
 
     Raises:
@@ -228,17 +229,22 @@ async def add_llm_message_to_conversation(
     if existing_conversation.user_id != user.id and not user.admin:
         raise HTTPException(status_code=401, detail="You are not authorised to add messages to another user's conversation")
 
-    assistant_message_data = MessageCreate(
-        conversation_id = conversation_id,
-        role="assistant",
-        content=content
-    )
+    for message in messages:
 
-    new_conversation = await add_message_to_conversation(
-        assistant_message_data,
-        user=user,
-        session=session
-    )
+        if not message.get("role") or not message.get("content"):
+            raise HTTPException(status_code=400, detail="Chat messages must contain a 'role' and 'content' field!")
+        
+        message_data = MessageCreate(
+            conversation_id = conversation_id,
+            role=message.get("role"),
+            content=message.get("content")
+        )
+
+        new_conversation = await add_message_to_conversation(
+            message_data,
+            user=user,
+            session=session
+        )
 
     return new_conversation
 
@@ -478,10 +484,12 @@ async def call_llm_response_to_conversation(
     )
 
     response_text = str(response_messages[-1].content)
+
+    response_messages = [{"role":"assistant","content":response_text}]
     
     background_tasks.add_task(
-        add_llm_message_to_conversation,
-        content=response_text,
+        add_messages_to_conversation,
+        messages=response_messages,
         conversation_id = conversation_id,
         user=user,
         session=session
@@ -526,7 +534,7 @@ async def stream_llm_response_to_conversation(
     # Declare a function to add the LLM's response to
     # the database. Call this function using a background
     # task after the LLM has finished streaming the response.
-    end_function = add_llm_message_to_conversation
+    end_function = add_messages_to_conversation
     end_function_kwargs = {
         "conversation_id" : conversation_id,
         "user" : user,
