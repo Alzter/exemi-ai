@@ -30,13 +30,13 @@ def get_reminder_list(user : User, session : Session) -> str:
 
     if not reminders: return ""
     
-    reminders_list = "### Your reminders:\n\n"
+    reminders_list = "### Your reminders:\n"
 
     for reminder in reminders:
         days_remaining_string : str = get_days_remaining_string(reminder.due_at)
 
-        reminders_list += "\n\n".join([
-            f"- **{reminder.assignment_name}** ({days_remaining_string})",
+        reminders_list += "\n".join([
+            f"\n- **{reminder.assignment_name}** ({days_remaining_string})",
             f"{reminder.description}"
         ])
 
