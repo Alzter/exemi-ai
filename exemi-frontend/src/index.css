@@ -5,6 +5,8 @@ html, body {
   font-size: 14px;
 }
 
+/* Make the font size bigger on wider displays */
+
 @media only screen and (min-width: 600px){
   html, body {
     font-size: 16px;
@@ -21,7 +23,9 @@ html, body {
   box-sizing: border-box;
   font-family: system-ui, -apple-system, BlinkMacSystemFont,
                "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  transition: 0.1s ease-in-out;
+
+  /* When resizing the window, interpolate the changes in font size */
+  transition: font-size 0.1s ease-in-out;
 }
 
 a {
@@ -121,7 +125,7 @@ button.sidebar-button{
   height: 4em;
   width: 4em;
   text-align: center;
-  transition: 0.1s ease-in-out;
+  transition: left 0.1s ease-in-out;
   border-radius: 0px 8px 8px 0px;
   background-color: #aaa;
   color: #222;
@@ -155,7 +159,7 @@ div.chat-sidebar{
   border-right : 2px solid #aaa;
   border-radius: 0px;
   padding: 0px 10px;
-  transition: 0.1s ease-in-out;
+  transition: width 0.1s ease-in-out;
   overflow-x:hidden;
 
 }
