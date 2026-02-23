@@ -25,8 +25,6 @@ export default function ChatSidebar({session, enabled, setEnabled, isViewing, lo
 
     let navigate = useNavigate();
 
-    const sidebarRef = useRef<HTMLDivElement>(null);
-    const sidebarButtonRef = useRef<HTMLButtonElement>(null);
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [username, setUsername] = useState<string>(session.user.username);
 
@@ -34,17 +32,6 @@ export default function ChatSidebar({session, enabled, setEnabled, isViewing, lo
         if (enabled){ setEnabled(false); } else { setEnabled(true); }
         // setEnabled(prev => !prev);
     };
-
-    // Handle changing the sidebar's CSS class
-    // to hide it if it is disabled
-    useEffect(() => {
-        const sidebar = sidebarRef.current;
-        const sidebarButton = sidebarButtonRef.current;
-        if (!sidebar || !sidebarButton) return;
-        sidebar.classList.toggle("hidden", !enabled);
-        sidebarButton.classList.toggle("hidden", !enabled);
-
-    }, [enabled]);
 
     useEffect(() => {
         setConversationID(null)
@@ -125,8 +112,8 @@ export default function ChatSidebar({session, enabled, setEnabled, isViewing, lo
 
     return (
         <div>
-            <button onClick={toggleChatSidebar} className="sidebar-button" ref={sidebarButtonRef}>☰</button>
-            <div className="chat-sidebar" ref={sidebarRef}>
+            <button onClick={toggleChatSidebar} className={"sidebar-button" + (enabled ? "" : " hidden")}>☰</button>
+            <div className={"chat-sidebar" + (enabled ? "" : " hidden")}>
                 <div className="chat-sidebar-header">
                 <p className="logo">exemi</p>
                 </div>
