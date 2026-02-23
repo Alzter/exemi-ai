@@ -117,11 +117,25 @@ button.sidebar-button{
   position: fixed;
   top: 0px;
   left: calc(min(50dvw, 400px));
-  margin: 10px;
+  margin: 10px 0px;
   height: 4em;
   width: 4em;
   text-align: center;
   transition: 0.1s ease-in-out;
+  border-radius: 0px 8px 8px 0px;
+  background-color: #aaa;
+  color: #222;
+}
+
+button.sidebar-button:hover{
+  background-color: #999;
+  transform: scale(1.1) translateX(2px);
+  box-shadow: -1px 3px 3px #aaa8;
+}
+button.sidebar-button:active{
+  background-color: #777;
+  transform: scale(1) translateX(0px);
+  box-shadow: -2px 3px 3px #aaaa;
 }
 
 button.sidebar-button.hidden{
@@ -138,15 +152,18 @@ div.chat-sidebar{
   background-color: #eee;
   gap:10px;
   color:#222;
+  border-right : 2px solid #aaa;
   border-radius: 0px;
   padding: 0px 10px;
   transition: 0.1s ease-in-out;
   overflow-x:hidden;
+
 }
 
 div.chat-sidebar.hidden{
   width:0px;
   padding:0px 0px;
+  border-right-width: 0px;
 }
 
 div.chat-sidebar-header{
@@ -215,17 +232,21 @@ button.conversation-selected:disabled{
 
 button.conversation:hover{
   background-color: #ccc;
-  transform: scale(1);
+  transform: none;
   box-shadow: none;
 }
 
 button.conversation:active{
   background-color: #aaa;
+  transform: none;
+  box-shadow: none;
 }
 
 button.conversation:disabled{
   cursor:auto;
   background-color: #eee;
+  transform: none;
+  box-shadow: none;
 }
 
 div.chat-messages{
