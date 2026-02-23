@@ -4,6 +4,7 @@ from fastapi.responses import StreamingResponse
 from sqlmodel import Session, select, desc
 from ..dependencies import get_current_magic, get_current_user, get_session
 from ..llm_api import chat, chat_stream
+from ..llm_tools import get_greeting
 from langchain_core.messages import BaseMessage
 from datetime import datetime, timezone
 from typing import Literal, AsyncGenerator
@@ -328,16 +329,37 @@ async def delete_message_in_conversation(
     session.refresh(existing_conversation)
     return existing_conversation
 
+@router.get("/conversation_greeting", response_model=str)
+async def get_conversation_greeting(
+    user : User = Depends(get_current_user),
+    magic : str = Depends(get_current_magic),
+    session : Session = Depends(get_session)
+):
+    """
+    Unlike general-purpose chatbots, the Exemi chatbot initiates conversations
+    with the user by sending an assistant message *first*. This function
+    obtains the contents of the first assistant message to send the user
+    to begin a conversation with them.
+    """
+
+    existing_conversations : list[Conversation] = await get_conversations_for_self(offset=0, limit=1, user=user, session=session)
+    
+    is_first_conversation = len(existing_conversations) > 0
+
+    return get_greeting(is_first_conversation=is_first_conversation, user=user, magic=magic, session=session)
+
 @router.post("/conversation", response_model=ConversationPublicWithMessages)
 async def conversation_start(
     new_message : NewMessage,
     user : User = Depends(get_current_user),
+    magic : str = Depends(get_current_magic),
     session : Session = Depends(get_session)
 ):
     """
     Create a new conversation with the LLM as the current user.
-    Will return a new conversation object with a conversation ID
-    and the user's message.
+    Will return a new conversation object with a conversation ID,
+    the LLM's initial message (see get_conversation_greeting) and
+    the user's message.
 
     Args:
         new_message (NewMessage): The user's message text.
@@ -361,6 +383,23 @@ async def conversation_start(
     if not conversation:
         raise HTTPException(status_code=500, detail="System error creating conversation!")
     
+    # Add the chatbot's initial "greeting"
+    # message to the conversation.
+
+    greeting_message_data = MessageCreate(
+        conversation_id=conversation.id,
+        role="assistant",
+        content = get_conversation_greeting(
+            user=user, magic=magic, session=session
+            )
+        )
+
+    await add_message_to_conversation(
+        greeting_message_data,
+        user=user,
+        session=session
+    )
+
     conversation_with_response = await conversation_continue(
         conversation_id = conversation.id,
         new_message=new_message,
@@ -395,7 +434,7 @@ async def conversation_continue(
     
     if existing_conversation.user_id != user.id and not user.admin:
         raise HTTPException(status_code=401, detail="You are not authorised to add messages to another user's conversation")
-
+    
     message_data = MessageCreate(
         conversation_id = conversation_id,
         role="user",
