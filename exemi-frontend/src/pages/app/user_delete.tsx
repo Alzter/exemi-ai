@@ -21,7 +21,12 @@ export default function UserDelete({session} : any){
             setError("You cannot delete your own account!");
             setLoading(false);
             return;
-        }
+        };
+
+        if (!window.confirm("Are you sure you want to delete this user? This is IRREVERSIBLE!")){
+            setLoading(false);
+            return;
+        };
         
         const response = await fetch(backendURL + "/users/" + username, {
             headers:{
@@ -52,8 +57,8 @@ export default function UserDelete({session} : any){
             } catch {
                 setError(message);
                 setLoading(false);
-            }
-        }
+            };
+        };
     };
 
     return (
@@ -66,5 +71,5 @@ export default function UserDelete({session} : any){
                 {error ? (<div className='error'><p>{error}</p></div>) : null}
             </form>
         </div>
-    )
+    );
 }
