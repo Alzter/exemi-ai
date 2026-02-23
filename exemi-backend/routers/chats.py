@@ -386,13 +386,15 @@ async def conversation_start(
     # Add the chatbot's initial "greeting"
     # message to the conversation.
 
+    greeting_message = await get_conversation_greeting(
+        user=user, magic=magic, session=session
+    )
+
     greeting_message_data = MessageCreate(
         conversation_id=conversation.id,
         role="assistant",
-        content = get_conversation_greeting(
-            user=user, magic=magic, session=session
-            )
-        )
+        content = greeting_message
+    )
 
     await add_message_to_conversation(
         greeting_message_data,
