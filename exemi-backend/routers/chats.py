@@ -376,6 +376,17 @@ async def conversation_start(
 
     conversation = Conversation.model_validate(conversation_data)
 
+    # Get the conversation's greeting message
+    # *before* we add it to the database, since
+    # the get_conversation_greeting method checks
+    # if we have any existing conversations in the
+    # DB to determine whether to show the initial
+    # greeting message or not.
+
+    greeting_message = await get_conversation_greeting(
+        user=user, magic=magic, session=session
+    )
+
     session.add(conversation)
     session.commit()
     session.refresh(conversation)
@@ -385,10 +396,6 @@ async def conversation_start(
     
     # Add the chatbot's initial "greeting"
     # message to the conversation.
-
-    greeting_message = await get_conversation_greeting(
-        user=user, magic=magic, session=session
-    )
 
     greeting_message_data = MessageCreate(
         conversation_id=conversation.id,
