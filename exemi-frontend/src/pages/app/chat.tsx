@@ -16,57 +16,26 @@ type Conversation = {
     id : number
 }
 
-export default function ChatUI({session, isViewing, logOut} : ChatUIParams){
+type ChatSidebarParams = {
+    session : Session,
+    isViewing : boolean,
+    loading : boolean,
+    conversationID : number | null,
+    setConversationID : any,
+    setError : any,
+    logOut : any
+}
 
-    const [username, setUsername] = useState<string>(session.user.username);
+function ChatSidebar({session, isViewing, loading, conversationID, setConversationID, setError, logOut} : ChatSidebarParams) {
 
     let navigate = useNavigate();
+
+    const [conversations, setConversations] = useState<Conversation[]>([]);
+    const [username, setUsername] = useState<string>(session.user.username);
 
     useEffect(() => {
         setConversationID(null)
     }, [username])
-
-    function ConversationSelector({conversation} : any){
-        let ID = conversation ? conversation.id : null;
-        
-        let title = "";
-        if (conversation){
-            let conversationDateString = conversation.created_at.toLocaleString(
-                "en-AU", {timeZone: "Australia/Sydney"}
-            )
-            title = conversationDateString;
-        } else {
-            title = "+ Create New Chat";
-        };
-
-        function assignConversation(){
-            setConversationID(ID);
-        };
-
-        let className = conversationID==ID ? "conversation-selected" : "conversation";
-        if (!conversation) {className = "";}
-
-        return (
-            <button
-                onClick = {assignConversation}
-                className={className}
-                disabled={conversationID==ID || loading}>
-                    {title}
-            </button>
-        );
-    };
-
-    const [conversations, setConversations] = useState<Conversation[]>([]);
-    const [conversationID, setConversationID] = useState<number|null>(null);
-    const [loading, setLoading] = useState<boolean>(false);
-    const [error, setError] = useState<string|null>(null);
-
-    // const conversationSelectors = [<ConversationSelector conversation={null}/>, ...conversations.map(
-    //     conversation => <ConversationSelector conversation={conversation}/>
-    // )];
-    const conversationSelectors = conversations.map(
-        conversation => <ConversationSelector conversation={conversation}/>
-    );
 
     async function parseConversations(data : Array<any>){
         const conversations: Conversation[] = data.map(item => ({
@@ -105,34 +74,93 @@ export default function ChatUI({session, isViewing, logOut} : ChatUIParams){
     // When component loads, fetch conversations.
     useEffect(() => {
         loadConversations();
-    }, [conversationID, username])
+    }, [conversationID, username]);
+
+    function ConversationSelector({conversation} : any){
+        let ID = conversation ? conversation.id : null;
+        
+        let title = "";
+        if (conversation){
+            let conversationDateString = conversation.created_at.toLocaleString(
+                "en-AU", {timeZone: "Australia/Sydney"}
+            )
+            title = conversationDateString;
+        } else {
+            title = "+ Create New Chat";
+        };
+
+        function assignConversation(){
+            setConversationID(ID);
+        };
+
+        let className = conversationID==ID ? "conversation-selected" : "conversation";
+        if (!conversation) {className = "";}
+
+        return (
+            <button
+                onClick = {assignConversation}
+                className={className}
+                disabled={conversationID==ID || loading}>
+                    {title}
+            </button>
+        );
+    };
+
+    // const conversationSelectors = [<ConversationSelector conversation={null}/>, ...conversations.map(
+    //     conversation => <ConversationSelector conversation={conversation}/>
+    // )];
+    const conversationSelectors = conversations.map(
+        conversation => <ConversationSelector conversation={conversation}/>
+    );
+
+    return (
+        <div className="chat-sidebar">
+            <div className="chat-sidebar-header">
+            <p className="logo">exemi</p>
+            </div>
+
+            {isViewing ? (
+            <UserSelector session={session} setError={setError} username={username} setUsername={setUsername} refreshTrigger={null}/>
+            ) : (
+            <ConversationSelector conversation={null}/>
+            )}
+
+            <p>Your chats:</p>
+            <div className="conversation-container">
+                {conversationSelectors}
+            </div>
+            
+            <div className="chat-sidebar-footer">
+            {session.user.admin ? (
+                <button onClick={() => {navigate("/");}}>Back to Dashboard</button>
+            ) : (
+                <button onClick={logOut}>Log Out</button>
+            )}
+            </div>
+        </div>
+    )
+}
+
+export default function ChatUI({session, isViewing, logOut} : ChatUIParams){
+
+    let navigate = useNavigate();
+
+    const [conversationID, setConversationID] = useState<number|null>(null);
+    const [loading, setLoading] = useState<boolean>(false);
+    const [error, setError] = useState<string|null>(null);
 
     return(
         <div className="chat">
-            <div className="chat-sidebar">
-                <div className="chat-sidebar-header">
-                  <p className="logo">exemi</p>
-                </div>
-
-                {isViewing ? (
-                  <UserSelector session={session} setError={setError} username={username} setUsername={setUsername} refreshTrigger={null}/>
-                ) : (
-                  <ConversationSelector conversation={null}/>
-                )}
-
-                <p>Your chats:</p>
-                <div className="conversation-container">
-                    {conversationSelectors}
-                </div>
-
-                <div className="chat-sidebar-footer">
-                {session.user.admin ? (
-                    <button onClick={() => {navigate("/");}}>Back to Dashboard</button>
-                ) : (
-                    <button onClick={logOut}>Log Out</button>
-                )}
-                </div>
-            </div>
+            <ChatSidebar
+                session={session}
+                isViewing={isViewing}
+                loading={loading}
+                conversationID={conversationID}
+                setConversationID={setConversationID}
+                setError={setError}
+                logOut={logOut}
+            />
+            {/* <button className="sidebar-button">☰</button> */}
             <ChatMessagesUI
                 session={session}
                 isViewing={isViewing}
