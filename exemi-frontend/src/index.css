@@ -276,7 +276,7 @@ div.message-container{
   padding:2em;
   flex-direction: column;
   /* min-width: 300px; */
-  /* max-width: 42em; */
+  max-width: 42em;
   width:100%;
   margin:auto;
   gap:1em;
