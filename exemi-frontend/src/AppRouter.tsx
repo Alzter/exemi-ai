@@ -3,8 +3,9 @@ import Loading from './pages/loading';
 import Login from './pages/auth';
 import LoggedInFlow from './pages/app';
 import Onboarding from './pages/onboarding';
-const backendURL = import.meta.env.VITE_BACKEND_API_URL;
+import InitialSetup from './pages/setup';
 import {type User, type Session} from './models';
+const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 
 export default function AppRouter() {
 
@@ -17,9 +18,10 @@ export default function AppRouter() {
     const [error, setError] = useState<string | null>(null);
     const [isMagicValid, setMagicValid] = useState<boolean | null>(null);
     const [doUserUnitsExist, setUserUnitsExist] = useState<boolean | null>(null);
+    const [isInitialSetupRequired, setInitialSetupRequired] = useState<boolean|null>(null);
 
     const isLoggedIn = session.token !== null;
-    const isLoading = (isLoggedIn && isMagicValid == null) || (isMagicValid && doUserUnitsExist == null);
+    const isLoading = (isInitialSetupRequired == null) || (isLoggedIn && isMagicValid == null) || (isMagicValid && doUserUnitsExist == null);
 
     async function logOut() {
         setSession({
@@ -42,6 +44,24 @@ export default function AppRouter() {
         };
     };
     
+    async function checkIfInitialSetupRequired() {
+        const response = await fetch(backendURL + "/admins", {
+            headers: {"Authorization" : "Bearer " + session.token,
+                accept: "application/json"
+            },
+            method: "GET",
+        });
+
+        if (!response.ok){
+            setError("System error fetching administrator accounts!");
+            return;
+        }
+
+        let doAdminAccountsExist : boolean = await response.json() as boolean;
+
+        setInitialSetupRequired(!doAdminAccountsExist);
+    }
+
     // Call the backend API to determine if the user's current magic is valid.
     async function checkIfUserMagicValid() {
         try{
@@ -106,29 +126,35 @@ export default function AppRouter() {
         // }
     }
 
+    useEffect(() => {
+        if (isInitialSetupRequired == null){
+            checkIfInitialSetupRequired();
+        }
+    }, []);
+
     // Synchronise user session (token) with local storage
     useEffect(() => {
         if (session.token){
             localStorage.setItem("token", session.token);
         } else {
             localStorage.removeItem("token");
-        }
+        };
 
         if (session.user_id){
             localStorage.setItem("user_id", String(session.user_id));
         } else {
             localStorage.removeItem("user_id");
-        }
+        };
 
         if (session.user_id && !session.user){
             fetchUser();
-        }
+        };
 
         if (session.user){
             localStorage.setItem("user", JSON.stringify(session.user));
         } else{
             localStorage.removeItem("user");
-        }
+        };
         
         if (isLoggedIn){
             setError(null);
@@ -136,15 +162,21 @@ export default function AppRouter() {
         } else {
             setMagicValid(null);
         };
+
         if (isLoggedIn && isMagicValid == null){
             checkIfUserMagicValid();
         };
+
         if (isMagicValid && doUserUnitsExist == null){
             fetchUserUnits();
         }
     });
 
     if (isLoading) {return <Loading/>}
+
+    if (isInitialSetupRequired){
+        return <InitialSetup error={error} setError={setError} setSession={setSession}/>
+    }
 
     if (isLoggedIn) {
         // TODO: Check if the user has a magic. If not, send them to onboarding to generate one.

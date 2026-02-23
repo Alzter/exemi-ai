@@ -53,10 +53,17 @@ div.form {
   align-items: center;
   justify-content: center;
   flex-direction: column;
-  height:90dvh;
-  width: 80%;
-  margin-left:10%;
-  gap:1em;
+  height:100dvh;
+  width: 50%;
+  min-width:20em;
+  margin-left : calc((100% - max(50%, 20em)) / 2);
+  text-align: center;
+  gap:0.5em;
+  padding-bottom:3em;
+}
+
+div.form h1{
+  margin-bottom:0;
 }
 
 div.slideshow{

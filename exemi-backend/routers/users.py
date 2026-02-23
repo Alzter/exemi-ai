@@ -196,9 +196,27 @@ async def get_user_safe(
         raise HTTPException(status_code=401, detail="Unauthorised")
     return get_user_unsafe(username, session)
 
-@router.post("/admins", response_model = UserPublic)
+@router.get("/admins")
+async def do_admin_accounts_exist(
+    session : Session = Depends(get_session)
+):
+    """
+    Checks if there are any existing
+    administrator accounts in the database.
+
+    Returns:
+        boolean: Whether any admin accounts exist.
+    """
+
+    existing_admins = session.exec(
+        select(User).where(User.admin == True)
+    ).all()
+
+    return len(existing_admins) > 0
+
+@router.post("/users/admin", response_model = UserPublic)
 async def create_admin_user(
-    data : UserCreate
+    data : UserCreate,
     session : Session = Depends(get_session)
 ):
     """
