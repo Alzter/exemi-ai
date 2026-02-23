@@ -1,6 +1,6 @@
 import React, {useState, useEffect, useRef} from 'react'
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
-import MessageBox from '../../components/chat/message_box';
+import MessageBox from './message_box';
 
 type ChatUIProps = {
     session : any,
