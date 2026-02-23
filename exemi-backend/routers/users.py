@@ -196,6 +196,75 @@ async def get_user_safe(
         raise HTTPException(status_code=401, detail="Unauthorised")
     return get_user_unsafe(username, session)
 
+@router.get("/admins")
+async def do_admin_accounts_exist(
+    session : Session = Depends(get_session)
+):
+    """
+    Checks if there are any existing
+    administrator accounts in the database.
+
+    Returns:
+        boolean: Whether any admin accounts exist.
+    """
+
+    existing_admins = session.exec(
+        select(User).where(User.admin == True)
+    ).all()
+
+    return len(existing_admins) > 0
+
+@router.post("/users/admin", response_model = UserPublic)
+async def create_admin_user(
+    data : UserCreate,
+    session : Session = Depends(get_session)
+):
+    """
+    Create an administrator account without
+    authorisation if no other administrator
+    accounts currently exist.
+
+    Args:
+        data (UserCreate): 
+            The administrator's username and plaintext password,
+            and optionally their university name and magic.
+
+    Raises:
+        HTTPException:
+            Raises a 400 if the username or password is blank.
+            Raises a 401 if any other administrator accounts exist.
+            Raises a 401 if the magic is invalid.
+            Raises a 400 if magic is given without university_name.
+
+    Returns:
+        UserPublic: The created user object.
+    """
+
+    if len(data.username) == 0 or len(data.password) == 0:
+        raise HTTPException(status_code=400, detail="Username or password must not be empty")
+    
+    existing_admins = session.exec(
+        select(User).where(User.admin == True)
+    ).all()
+
+    if existing_admins:
+        raise HTTPException(status_code=401, detail="Unauthorised")
+    
+    extra_data = {
+        "password_hash" : PasswordHasher.hash(data.password),
+        "admin" : True
+    }
+
+    if data.magic is not None:
+        extra_data["magic_hash"] = await encrypt_magic(data.magic, data.university_name) 
+
+    user = User.model_validate(data, update = extra_data)
+
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return user
+
 @router.post("/users", response_model = UserPublic)
 async def create_user(
     data : UserCreate,

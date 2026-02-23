@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import Loading from './pages/loading';
 import Login from './pages/auth';
 import LoggedInFlow from './pages/app';
-import Onboarding from './pages/onboarding';
-const backendURL = import.meta.env.VITE_BACKEND_API_URL;
+import InitialSetup from './pages/setup';
 import {type User, type Session} from './models';
+const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 
 export default function AppRouter() {
 
@@ -15,11 +15,10 @@ export default function AppRouter() {
     });
 
     const [error, setError] = useState<string | null>(null);
-    const [isMagicValid, setMagicValid] = useState<boolean | null>(null);
-    const [doUserUnitsExist, setUserUnitsExist] = useState<boolean | null>(null);
+    const [isInitialSetupRequired, setInitialSetupRequired] = useState<boolean|null>(null);
 
     const isLoggedIn = session.token !== null;
-    const isLoading = (isLoggedIn && isMagicValid == null) || (isMagicValid && doUserUnitsExist == null);
+    const isLoading = (isInitialSetupRequired == null);
 
     async function logOut() {
         setSession({
@@ -42,19 +41,22 @@ export default function AppRouter() {
         };
     };
     
-    // Call the backend API to determine if the user's current magic is valid.
-    async function checkIfUserMagicValid() {
-        try{
-            const response = await fetch(backendURL + "/magic_valid", {
-                headers: {"Authorization" : "Bearer " + session.token},
-                method: "GET",
-            });
-            setMagicValid(response.ok);
+    async function checkIfInitialSetupRequired() {
+        const response = await fetch(backendURL + "/admins", {
+            headers: {"Authorization" : "Bearer " + session.token,
+                accept: "application/json"
+            },
+            method: "GET",
+        });
 
-        } catch {
-            logOut();
-            setError("System error verifying Canvas token! Please contact Alexander Small.");
+        if (!response.ok){
+            setError("System error fetching administrator accounts!");
+            return;
         }
+
+        let doAdminAccountsExist : boolean = await response.json() as boolean;
+
+        setInitialSetupRequired(!doAdminAccountsExist);
     };
 
     // Set session.user to the current User object.
@@ -83,28 +85,14 @@ export default function AppRouter() {
             // Mega oops if this happens.
             logOut();
             setError("System error obtaining user account! Contact Alexander Small.");
-        }
-    }
+        };
+    };
 
-    // Call the backend API to retrieve the user's units.
-    async function fetchUserUnits() {
-        setUserUnitsExist(true);
-        // try{
-        //     const response = await fetch(backendURL + "/canvas/units", {
-        //         headers: {"Authorization" : "Bearer " + session.token},
-        //         method: "POST",
-        //     });
-        //     if (!response.ok){
-        //         logOut();
-        //         setError("System error fetching units! Please contact Alexander Small.");
-        //     } else{
-        //         setUserUnitsExist(true);
-        //     }
-        // } catch {
-        //     logOut();
-        //     setError("System error fetching units! Please contact Alexander Small.");
-        // }
-    }
+    useEffect(() => {
+        if (isInitialSetupRequired == null){
+            checkIfInitialSetupRequired();
+        }
+    }, []);
 
     // Synchronise user session (token) with local storage
     useEffect(() => {
@@ -112,48 +100,39 @@ export default function AppRouter() {
             localStorage.setItem("token", session.token);
         } else {
             localStorage.removeItem("token");
-        }
+        };
 
         if (session.user_id){
             localStorage.setItem("user_id", String(session.user_id));
         } else {
             localStorage.removeItem("user_id");
-        }
+        };
 
         if (session.user_id && !session.user){
             fetchUser();
-        }
+        };
 
         if (session.user){
             localStorage.setItem("user", JSON.stringify(session.user));
         } else{
             localStorage.removeItem("user");
-        }
+        };
         
         if (isLoggedIn){
             setError(null);
             logOutIfJWTExpires();
-        } else {
-            setMagicValid(null);
         };
-        if (isLoggedIn && isMagicValid == null){
-            checkIfUserMagicValid();
-        };
-        if (isMagicValid && doUserUnitsExist == null){
-            fetchUserUnits();
-        }
     });
 
     if (isLoading) {return <Loading/>}
 
+    if (isInitialSetupRequired){
+        return <InitialSetup error={error} setError={setError} setSession={setSession}/>
+    };
+
     if (isLoggedIn) {
-        // TODO: Check if the user has a magic. If not, send them to onboarding to generate one.
-        if (isMagicValid){
-            return <LoggedInFlow session={session} setSession={setSession} logOut={logOut}/>
-        } else {
-            return <Onboarding session={session} setSession={setSession} setMagicValid={setMagicValid} logOut={logOut}/>
-        }
+        return <LoggedInFlow session={session} setSession={setSession} setError={setError} logOut={logOut}/>
     } else {
         return <Login error={error} setError={setError} setSession={setSession}/>
-    }
-}
+    };
+};
