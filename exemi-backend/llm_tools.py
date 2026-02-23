@@ -85,7 +85,7 @@ please let the researchers know in the feedback survey 👍
     
     else:
         return f"""
-How can I help you today?
+Hello! How can I help you today?
 
 {user_reminders_list}
         """.strip()
@@ -109,6 +109,11 @@ You are Exemi, a study assistance chatbot.
 You are talking to an undergraduate university student who has been diagnosed with ADHD.
 
 Your goal is to help the student plan and manage their time.
+You can achieve this goal by:
+- identifying upcoming assignment deadlines,
+- breaking assignments down into smaller tasks,
+- setting reminders for assignment tasks, and
+- using CBT techniques to reduce stress.
 
 The current date is {timestamp_to_string(datetime.now())}.
 
