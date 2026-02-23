@@ -264,7 +264,7 @@ div.chat-messages{
   height:100dvh;
   width:100%;
   flex-direction: column;
-  transition: margin-top 0.2s ease-in-out;
+  transition: margin-top 0.2s ease-in-out height 0.2s ease-in-out;
 }
 
 @media only screen and (max-width: 900px){
