@@ -37,7 +37,7 @@ def get_reminder_list(user : User, session : Session) -> str:
 
         reminders_list += "\n".join([
             f"\n- **{reminder.assignment_name}** ({days_remaining_string}):",
-            f"\n{reminder.description}"
+            f"{reminder.description}"
         ])
 
     return reminders_list.strip()
