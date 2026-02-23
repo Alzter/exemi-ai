@@ -30,7 +30,7 @@ def get_reminder_list(user : User, session : Session) -> str:
 
     if not reminders: return ""
     
-    reminders_list = "### Your reminders:\n"
+    reminders_list = "#### Your reminders:\n"
 
     for reminder in reminders:
         days_remaining_string : str = get_days_remaining_string(reminder.due_at)
@@ -68,17 +68,40 @@ def get_greeting(
 
     if is_first_conversation:
         return """
-### INITIAL GREETING MESSAGE.
+Hi, I'm **Exemi**! I'm an AI chatbot designed to
+help you plan and manage your time for your university course 😊
 
-Hello world!
+I can help you with:
+- identifying upcoming assignment deadlines,
+- breaking assignments down into smaller tasks,
+- setting reminders for assignment tasks, and
+- using practical strategies to reduce stress.
+
+I am an **early prototype** of what could become a fully-featured AI
+study assistant for students like you! Since I'm still in development,
+**you may find issues or bugs** when using me. If this happens to you,
+please let the researchers know in the feedback survey 👍
         """.strip()
     
     else:
         return f"""
-### REGULAR GREETING MESSAGE.
+How can I help you today?
 
 {user_reminders_list}
         """.strip()
+
+# ### Frequently Asked Questions:
+# #### Why do you take so long to answer my questions?
+# Currently, I am only being powered by a *single computer*. This limits how fast I can read and answer your questions 🙁
+
+# #### Why do you get confused when answering my questions?
+# The generative AI model that is powering me is *smaller in size than the ones used by commercial AI chatbots like ChatGPT or Copilot*. This can limit my ability to understand complex information. If I get confused in a chat, try starting a new chat to refresh my memory!
+
+# #### What kind of AI are you using?
+# I use **Llama 3.1 8B**, a large language model trained by Meta, to respond to your questions.
+
+# #### Can anyone see my chats?
+# Your chats will not be visible to any other students , but **will be visible to the researchers** conducting this pilot study.
 
 def get_system_prompt(user : User, magic : str, session : Session) -> str:
     return f"""
