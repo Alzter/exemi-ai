@@ -51,6 +51,33 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
     function handleTextUpdate(event : React.ChangeEvent<HTMLInputElement>){
         setUserText(event.target.value);
     }
+    
+    async function getInitialMessage() {
+        // Obtain the LLM's conversation starter
+        // message before the conversation is
+        // formally created.
+        
+        const URL = backendURL + "/conversation_greeting"
+        
+        const response = await fetch(URL, {
+            headers:{
+                "Authorization" : "Bearer " + session.token,
+                accept:"application/json"
+            },
+            method:"GET"
+        });
+        
+        if (!response.ok) {
+            setError("Error obtaining LLM initial message.");
+            return;
+        }
+
+        let initial_message = await response.json();
+        setMessages(prev => [
+            ...prev,
+            {"role":"assistant","content":initial_message}
+        ]);
+    }
 
     async function handleLLMResponse(conversationID : number) {
         // Stream the LLM's response from the server.
@@ -181,6 +208,11 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
     async function loadMessages(conversationID : number | null){
         if (!conversationID) {
             setMessages([]);
+
+            if (!isViewing){
+                await getInitialMessage();
+            }
+            
             return;
         }
 

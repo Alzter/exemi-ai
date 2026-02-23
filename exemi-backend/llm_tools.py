@@ -6,38 +6,102 @@ from .routers.canvas import canvas_get_all_assignments
 from sqlmodel import Session
 from .models import ReminderCreate, ReminderPublic, User, Reminder
 from .models_canvas import CanvasAssignment
-from .date_utils import parse_timestamp, timestamp_to_string 
+from .date_utils import parse_timestamp, timestamp_to_string, get_days_remaining_string
 
 def get_reminder_list(user : User, session : Session) -> str:
     """
-    Obtain a plain text list of the user's current
-    assignment reminders which are due in less
-    than a week's time.
+    Obtain a markdown-formatted list of the user's current
+    assignment reminders which are due in less than two weeks
+    time. If the user has no reminders, returns an empty string.
+    
+    Args:
+        user (User): The currently logged-in user.
+        session (Session): Connection to the database.
+
+    Returns: Reminders list in a markdown format.
     """
-    reminders = get_reminders(
+    reminders : list[Reminder] = get_reminders(
         offset=0,
         limit=100,
-        min_days_remaining=7,
+        min_days_remaining=14,
         user=user,
         session=session
     )
 
     if not reminders: return ""
     
-    reminders = "\n\n".join(
-        ["\n".join([
-            f"Assignment name: {reminder.assignment_name}",
-            f"Description: {reminder.description}",
-            f"Due at: {reminder.due_at}"
-        ])
-    for reminder in reminders])
-    
-    return "\n\n".join([
-        "IMPORTANT: You have assigned the student the following assignment reminders:",
-        reminders.strip(),
-        "Please notify the student of these reminders."
-    ])
+    reminders_list = "#### Your reminders:\n"
 
+    for reminder in reminders:
+        days_remaining_string : str = get_days_remaining_string(reminder.due_at)
+
+        reminders_list += "\n".join([
+            f"\n- **{reminder.assignment_name}** ({days_remaining_string}):",
+            f"{reminder.description}"
+        ])
+
+    return reminders_list.strip()
+
+def get_greeting(
+    user : User,
+    magic : str,
+    session : Session,
+    is_first_conversation : bool
+) -> str:
+    """
+    Unlike general-purpose chatbots, the Exemi chatbot initiates conversations
+    with the user by sending an assistant message *first*. This function
+    obtains the contents of the first assistant message to send the user
+    to begin a conversation with them.
+
+    Args:
+        user (User): The currently logged-in user.
+        magic (str): The user's magic.
+        session (Session): A SQLModel connection with the backend database.
+        is_first_conversation (bool): Whether this is the user's first conversation with the chatbot.
+
+    Returns:
+        str: Greeting message to begin user conversation.
+    """
+    
+    user_reminders_list = get_reminder_list(user=user, session=session)
+
+    if is_first_conversation:
+        return """
+Hi, I'm **Exemi**! I'm an AI chatbot designed to
+help you plan and manage your time for your university course 😊
+
+I can help you with:
+- identifying upcoming assignment deadlines,
+- breaking assignments down into smaller tasks,
+- setting reminders for assignment tasks, and
+- using practical strategies to reduce stress.
+
+I am an **early prototype** of what could become a fully-featured AI
+study assistant for students like you! Since I'm still in development,
+**you may find issues or bugs** when using me. If this happens to you,
+please let the researchers know in the feedback survey 👍
+        """.strip()
+    
+    else:
+        return f"""
+Hello! How can I help you today?
+
+{user_reminders_list}
+        """.strip()
+
+# ### Frequently Asked Questions:
+# #### Why do you take so long to answer my questions?
+# Currently, I am only being powered by a *single computer*. This limits how fast I can read and answer your questions 🙁
+
+# #### Why do you get confused when answering my questions?
+# The generative AI model that is powering me is *smaller in size than the ones used by commercial AI chatbots like ChatGPT or Copilot*. This can limit my ability to understand complex information. If I get confused in a chat, try starting a new chat to refresh my memory!
+
+# #### What kind of AI are you using?
+# I use **Llama 3.1 8B**, a large language model trained by Meta, to respond to your questions.
+
+# #### Can anyone see my chats?
+# Your chats will not be visible to any other students , but **will be visible to the researchers** conducting this pilot study.
 
 def get_system_prompt(user : User, magic : str, session : Session) -> str:
     return f"""
@@ -45,13 +109,20 @@ You are Exemi, a study assistance chatbot.
 You are talking to an undergraduate university student who has been diagnosed with ADHD.
 
 Your goal is to help the student plan and manage their time.
+You can achieve this goal by:
+- identifying upcoming assignment deadlines,
+- breaking assignments down into smaller tasks,
+- setting reminders for assignment tasks, and
+- using CBT techniques to reduce stress.
 
 The current date is {timestamp_to_string(datetime.now())}.
 
 General rules:
 - Only attend to ONE TASK at a time. Prioritise completing the most urgent task first.
 - When responding to the user, represent dates in the format: Monday, 8 February 2026.
-- Respond in simple sentences. Break complex information or lists into bullet points using markdown formatting.
+- Respond in simple sentences. Break complex information or lists into bullet points.
+- Use markdown formatting for responses, but avoid using many layered headings.
+- Use emojis to convey warmth and concern for the student.
 - Be concise.
 
 Tool usage rules:
@@ -65,8 +136,6 @@ Response rules after using a tool:
 - NEVER mention tools, function calls, or that you used an external source.
 - Incorporate tool results naturally, as if you already knew the information.
 - Respond directly to the user in plain language.
-
-{get_reminder_list(user=user, session=session)}
 """.strip()
 
 def create_tools(user : User, magic : str, session : Session) -> list[BaseTool]:
