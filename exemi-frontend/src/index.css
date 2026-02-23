@@ -272,7 +272,7 @@ div.message-container{
   padding:2em;
   flex-direction: column;
   /* min-width: 300px; */
-  max-width: 42em;
+  /* max-width: 42em; */
   width:100%;
   margin:auto;
   gap:1em;
@@ -345,6 +345,16 @@ form.chatbox textarea{
   min-height: 4em;
   max-height: 50dvh;
   resize: none;
+  container-type: inline-size;
+}
+
+/* Hide the "Ask anything" placeholder text
+if the chatbox is too thin to fit it without
+wrapping the text */
+@container (max-width: 150px) {
+  form.chatbox textarea::placeholder {
+    color: transparent;
+  }
 }
 
 form.chatbox button{

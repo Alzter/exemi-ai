@@ -33,13 +33,27 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
     const [userText, setUserText] = useState<string>("");
 
     // Auto-update the height of the chat box
-    // according to the user message.
+    // when the user message text changes
+    // OR the size of the textarea changes.
     useEffect(() => {
         const chatbox = chatboxTextRef.current;
-        if (chatbox){
+        if (!chatbox) return;
+
+        const updateHeight = () => {
+            console.log("Size updated");
             chatbox.style.height = "auto";
             chatbox.style.height = `${chatbox.scrollHeight + 4}px`;
         };
+
+        // Observe width changes
+        const resizeObserver = new ResizeObserver(() => {
+            updateHeight();
+        });
+
+        resizeObserver.observe(chatbox);
+
+        return () => resizeObserver.disconnect();
+        
     }, [userText]);
 
     // The HTML element for the chat text box.
@@ -329,7 +343,6 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
               </div>
             ) : (
               <form className="chatbox" ref={chatboxRef} onSubmit={sendMessage}>
-                  {/* TODO: User message box should wrap text and expand vertically */}
                   <textarea
                     placeholder="Ask anything"
                     ref={chatboxTextRef}
