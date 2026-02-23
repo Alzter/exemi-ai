@@ -30,7 +30,7 @@ def get_reminder_list(user : User, session : Session) -> str:
 
     if not reminders: return ""
     
-    reminders_list = "#### Your reminders:\n"
+    reminders_list = "Remind the user to complete the following assignment tasks:\n"
 
     for reminder in reminders:
         days_remaining_string : str = get_days_remaining_string(reminder.due_at)
@@ -63,8 +63,6 @@ def get_greeting(
     Returns:
         str: Greeting message to begin user conversation.
     """
-    
-    user_reminders_list = get_reminder_list(user=user, session=session)
 
     if is_first_conversation:
         return """
@@ -84,11 +82,7 @@ please let the researchers know in the feedback survey 👍
         """.strip()
     
     else:
-        return f"""
-Hello! How can I help you today?
-
-{user_reminders_list}
-        """.strip()
+        return f"## Hello! How can I help you today?"
 
 # ### Frequently Asked Questions:
 # #### Why do you take so long to answer my questions?
@@ -136,6 +130,8 @@ Response rules after using a tool:
 - NEVER mention tools, function calls, or that you used an external source.
 - Incorporate tool results naturally, as if you already knew the information.
 - Respond directly to the user in plain language.
+
+{get_reminder_list(user=user, session=session)}
 """.strip()
 
 def create_tools(user : User, magic : str, session : Session) -> list[BaseTool]:
