@@ -10,7 +10,7 @@ from ..dependencies import is_magic_valid as root_is_magic_valid
 from datetime import datetime, timedelta, timezone
 from pwdlib import PasswordHash
 PasswordHasher = PasswordHash.recommended()
-LOGIN_SESSION_EXPIRY = timedelta(minutes=30)
+LOGIN_SESSION_EXPIRY = timedelta(minutes=60)
 router = APIRouter()
 
 @router.get("/users", response_model = list[UserPublic])

@@ -5,6 +5,8 @@ html, body {
   font-size: 14px;
 }
 
+/* Make the font size bigger on wider displays */
+
 @media only screen and (min-width: 600px){
   html, body {
     font-size: 16px;
@@ -13,7 +15,7 @@ html, body {
 
 @media only screen and (min-width: 900px){
   html, body {
-    font-size: 20px;
+    font-size: 18px;
   }
 }
 
@@ -21,6 +23,9 @@ html, body {
   box-sizing: border-box;
   font-family: system-ui, -apple-system, BlinkMacSystemFont,
                "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+  /* When resizing the window, interpolate the changes in font size */
+  transition: font-size 0.1s ease-in-out;
 }
 
 a {
@@ -109,20 +114,59 @@ div.chat{
   height:100dvh;
   width:100%;
   flex-direction: row;
+  overflow-y: hidden;
+}
+
+button.sidebar-button{
+  position: fixed;
+  top: 0px;
+  left: calc(min(50dvw, 400px));
+  margin: 10px 0px;
+  height: 4em;
+  width: 4em;
+  text-align: center;
+  transition: left 0.2s ease-in-out;
+  border-radius: 0px 8px 8px 0px;
+  background-color: #aaa;
+  color: #222;
+}
+
+button.sidebar-button:hover{
+  background-color: #999;
+  transform: scale(1.1) translateX(2px);
+  box-shadow: -1px 3px 3px #aaa8;
+}
+button.sidebar-button:active{
+  background-color: #777;
+  transform: scale(1) translateX(0px);
+  box-shadow: -2px 3px 3px #aaaa;
+}
+
+button.sidebar-button.hidden{
+  left:0px;
 }
 
 div.chat-sidebar{
+  width:calc(min(50dvw, 400px));
+  flex-shrink: 0;
   display:flex;
+  margin-left:0px;
   flex-direction: column;
   height:100%;
-  width: 20em;
-  /* 300px; */
   background-color: #eee;
   gap:10px;
   color:#222;
+  border-right : 2px solid #aaa;
   border-radius: 0px;
-  margin:0px;
   padding: 0px 10px;
+  transition: width 0.2s ease-in-out;
+  overflow-x:hidden;
+}
+
+div.chat-sidebar.hidden{
+  width:0px;
+  padding:0px 0px;
+  border-right-width: 0px;
 }
 
 div.chat-sidebar-header{
@@ -131,7 +175,6 @@ div.chat-sidebar-header{
   align-items:center;
   width:100%;
   max-height:50px;
-  margin:auto;
   /* background-color: aqua; */
 }
 
@@ -192,17 +235,21 @@ button.conversation-selected:disabled{
 
 button.conversation:hover{
   background-color: #ccc;
-  transform: scale(1);
+  transform: none;
   box-shadow: none;
 }
 
 button.conversation:active{
   background-color: #aaa;
+  transform: none;
+  box-shadow: none;
 }
 
 button.conversation:disabled{
   cursor:auto;
   background-color: #eee;
+  transform: none;
+  box-shadow: none;
 }
 
 div.chat-messages{
@@ -210,6 +257,13 @@ div.chat-messages{
   height:100dvh;
   width:100%;
   flex-direction: column;
+}
+
+@media only screen and (max-width: 900px){
+  div.chat-messages{
+    margin-top:4em;
+    height:calc(100dvh - 4em);
+  }
 }
 
 div.message-container{
@@ -275,7 +329,7 @@ form.magic{
 .chatbox{
   display:flex;
   flex-direction: row;
-  align-items:baseline;
+  align-items:stretch;
   width:100%;
   padding:32px;
   max-width: 42em;
@@ -287,22 +341,38 @@ form.chatbox *{
   height: 4em;
 }
 
-form.chatbox input{
-  padding: 0.5em;
+form.chatbox textarea{
+  display: flex;
+  margin:0;
+  padding: 1.25em 0.5em;
+  min-height: 4em;
+  max-height: 50dvh;
+  resize: none;
+  container-type: inline-size;
+}
+
+/* Hide the "Ask anything" placeholder text
+if the chatbox is too thin to fit it without
+wrapping the text */
+@container (max-width: 150px) {
+  form.chatbox textarea::placeholder {
+    color: transparent;
+  }
 }
 
 form.chatbox button{
   max-width: fit-content;
   padding: 0.5em 1em;
+  height:auto;
 }
 
-input, button {
+input, button, textarea {
   width: 100%;
   font-size: 1em;
   border-radius: 4px;
 }
 
-input{
+input, textarea {
   padding:0.4em 0.5em;
   transition:box-shadow 0.1s ease, border-color 0.1s ease;
 }
@@ -312,13 +382,13 @@ button {
   transition: transform 0.15s ease, box-shadow 0.1s ease, background-color 0.1s ease;
 }
 
-input {
+input, textarea {
   margin-top: 0.5em;
   border: 2px solid #aaa;
   box-shadow: 0 0px 0px rgba(0, 0, 0, 0);
 }
 
-input:focus {
+input:focus, textarea:focus {
   outline: none;
   border-color: #4f46e5;
   box-shadow: 0 3px 3px rgba(0, 0, 0, 0.2);

@@ -1,6 +1,6 @@
-import {useState, useEffect} from 'react'
+import React, {useState, useEffect, useRef} from 'react'
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
-import MessageBox from '../../components/chat/message_box';
+import MessageBox from './message_box';
 
 type ChatUIProps = {
     session : any,
@@ -32,6 +32,34 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
     // The user's current message text.
     const [userText, setUserText] = useState<string>("");
 
+    // Auto-update the height of the chat box
+    // when the user message text changes
+    // OR the size of the textarea changes.
+    useEffect(() => {
+        const chatbox = chatboxTextRef.current;
+        if (!chatbox) return;
+
+        const updateHeight = () => {
+            console.log("Size updated");
+            chatbox.style.height = "auto";
+            chatbox.style.height = `${chatbox.scrollHeight + 4}px`;
+        };
+
+        // Observe width changes
+        const resizeObserver = new ResizeObserver(() => {
+            updateHeight();
+        });
+
+        resizeObserver.observe(chatbox);
+
+        return () => resizeObserver.disconnect();
+        
+    }, [userText]);
+
+    // The HTML element for the chat text box.
+    const chatboxRef = useRef<HTMLFormElement>(null);
+    const chatboxTextRef = useRef<HTMLTextAreaElement>(null);
+
     function ErrorDisplay() {
         if (!error) return (null)
         return(
@@ -48,8 +76,26 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
         awaitingLLMResponse ? [<MessageBox role="assistant" content="Thinking..."/>] : []
     )]
 
-    function handleTextUpdate(event : React.ChangeEvent<HTMLInputElement>){
+    function handleTextUpdate(event : React.ChangeEvent<HTMLTextAreaElement>){
         setUserText(event.target.value);
+    }
+
+    function handleTextKeyDown(event : React.KeyboardEvent<HTMLTextAreaElement>){
+        // Manually intercept the HTML text area
+        // "key down" event to submit the user's
+        // message if the Enter key is pressed
+        // without the Shift key.
+
+        // By default, HTML text areas do not
+        // call a form submit when Enter is pressed.
+        if (event.key === "Enter" && !event.shiftKey){
+            event.preventDefault();
+
+            let chatbox = chatboxRef.current;
+            if (chatbox){
+                chatbox.requestSubmit();
+            };
+        }
     }
     
     async function getInitialMessage() {
@@ -129,6 +175,12 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
 
     async function sendMessage(event : React.SubmitEvent<HTMLFormElement>){
         event.preventDefault();
+
+        // Prevent the user sending an empty message
+        if (!userText.trim() || loading){
+            return;
+        }
+
         setLoading(true);
         setUserText("");
         
@@ -290,9 +342,15 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
                 <button disabled={loading || !conversationID} onClick={deleteConversation}>Delete Chat</button>
               </div>
             ) : (
-              <form className="chatbox" onSubmit={sendMessage}>
-                  {/* TODO: User message box should wrap text and expand vertically */}
-                  <input type="text" onChange={handleTextUpdate} value={userText}/>
+              <form className="chatbox" ref={chatboxRef} onSubmit={sendMessage}>
+                  <textarea
+                    placeholder="Ask anything"
+                    ref={chatboxTextRef}
+                    rows={1}
+                    onChange={handleTextUpdate}
+                    onKeyDown={handleTextKeyDown}
+                    value={userText}
+                />
                   <button type="submit" disabled={loading}>Send</button>
               </form>
             )}
