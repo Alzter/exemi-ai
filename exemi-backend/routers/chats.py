@@ -344,7 +344,7 @@ async def get_conversation_greeting(
 
     existing_conversations : list[Conversation] = await get_conversations_for_self(offset=0, limit=1, user=user, session=session)
     
-    is_first_conversation = len(existing_conversations) > 0
+    is_first_conversation = len(existing_conversations) == 0
 
     return get_greeting(is_first_conversation=is_first_conversation, user=user, magic=magic, session=session)
 
