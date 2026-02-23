@@ -1,5 +1,6 @@
 import {useState, useEffect, type ReactNode} from 'react';
 import MagicForm from "./form";
+import { useNavigate } from 'react-router';
 
 interface Slide {
   photoURL : string,
@@ -54,8 +55,18 @@ export default function Onboarding({session, setSession, setMagicValid, logOut} 
 
   const [progress, setProgress] = useState<number>(0);
 
+  let navigate = useNavigate();
+
   async function back(){
-    if (progress == 0){ logOut(); return; }
+    if (progress == 0){
+
+      if (session.user.admin){
+        navigate("/");
+      } else {
+        logOut();
+        return;
+      }
+    }
     setProgress((prev) => prev - 1);
   }
 
