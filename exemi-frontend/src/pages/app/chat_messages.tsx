@@ -208,7 +208,11 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
     async function loadMessages(conversationID : number | null){
         if (!conversationID) {
             setMessages([]);
-            await getInitialMessage();
+
+            if (!isViewing){
+                await getInitialMessage();
+            }
+            
             return;
         }
 
