@@ -15,7 +15,7 @@ export default function ChatUI({session, isViewing, logOut} : ChatUIParams){
 
     let navigate = useNavigate();
 
-    const [sidebarEnabled, setSidebarEnabled] = useState<boolean>(isViewing);
+    const [sidebarEnabled, setSidebarEnabled] = useState<boolean>(true);
     const [conversationID, setConversationID] = useState<number|null>(null);
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string|null>(null);

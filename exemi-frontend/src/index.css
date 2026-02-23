@@ -161,7 +161,6 @@ div.chat-sidebar{
   padding: 0px 10px;
   transition: width 0.2s ease-in-out;
   overflow-x:hidden;
-
 }
 
 div.chat-sidebar.hidden{
