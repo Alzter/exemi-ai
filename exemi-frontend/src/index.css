@@ -295,7 +295,7 @@ div.message{
   display: block;
   padding:0 1em;
   text-align: left;
-  overflow-wrap: break-word;
+  word-break: break-all;
   /* border: 2px solid #ccc; */
   /* box-shadow: 0 3px 3px rgba(0, 0, 0, 0.08); */
 }
@@ -308,7 +308,7 @@ div.user-message{
   text-align: left;
   box-shadow: 0 3px 3px rgba(0, 0, 0, 0.08);
   margin-left:auto;
-  overflow-wrap: break-word;
+  word-break: break-all;
 }
 
 form.login{
