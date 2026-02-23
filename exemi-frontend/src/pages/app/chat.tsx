@@ -27,13 +27,25 @@ export default function ChatUI({session, isViewing, logOut} : ChatUIParams){
     }, [username])
 
     function ConversationSelector({conversation} : any){
-        let ID = conversation ? conversation.id : null
-        let title = conversation ? conversation.created_at.toLocaleString() : "+ Create New Chat";
+        let ID = conversation ? conversation.id : null;
+        
+        let title = "";
+        if (conversation){
+            let conversationDateString = conversation.created_at.toLocaleString(
+                "en-AU", {timeZone: "Australia/Sydney"}
+            )
+            let title = conversationDateString;
+        } else {
+            let title = "+ Create New Chat";
+        };
+
         function assignConversation(){
             setConversationID(ID);
-        }
-        let className = conversationID==ID ? "conversation-selected" : "conversation"
+        };
+
+        let className = conversationID==ID ? "conversation-selected" : "conversation";
         if (!conversation) {className = "";}
+
         return (
             <button
                 onClick = {assignConversation}
@@ -41,8 +53,8 @@ export default function ChatUI({session, isViewing, logOut} : ChatUIParams){
                 disabled={conversationID==ID || loading}>
                     {title}
             </button>
-        )
-    }
+        );
+    };
 
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [conversationID, setConversationID] = useState<number|null>(null);
