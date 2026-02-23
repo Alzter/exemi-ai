@@ -110,6 +110,7 @@ div.chat{
   height:100dvh;
   width:100%;
   flex-direction: row;
+  overflow-y: hidden;
 }
 
 button.sidebar-button{
@@ -232,6 +233,13 @@ div.chat-messages{
   height:100dvh;
   width:100%;
   flex-direction: column;
+}
+
+@media only screen and (max-width: 900px){
+  div.chat-messages{
+    margin-top:4em;
+    height:calc(100dvh - 4em);
+  }
 }
 
 div.message-container{
