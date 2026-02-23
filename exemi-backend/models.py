@@ -1,7 +1,18 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlmodel import SQLModel, Field, Relationship, Column
 from datetime import datetime, timezone
 from sqlalchemy.dialects.mysql import TEXT, LONGTEXT
+
+# Force timestamps to be UTC formatted
+class UTCModel(BaseModel):
+    @field_validator("*", mode="before")
+    @classmethod
+    def ensure_utc(cls, v):
+        if isinstance(v, datetime):
+            if v.tzinfo is None:
+                return v.replace(tzinfo=timezone.utc)
+            return v.astimezone(timezone.utc)
+        return v
 
 class University(SQLModel, table=True):
     name : str = Field(primary_key=True, index=True, max_length=255)
@@ -159,7 +170,7 @@ class Conversation(ConversationBase, table=True):
 class NewMessage(SQLModel):
     message_text : str = Field(sa_column=Column(TEXT))
 
-class ConversationPublic(ConversationBase):
+class ConversationPublic(ConversationBase, UTCModel):
     id : int
     user_id : int
     created_at : datetime
@@ -176,7 +187,7 @@ class Message(MessageBase, table=True):
 
 class MessageCreate(MessageBase): pass
 
-class MessagePublic(MessageBase):
+class MessagePublic(MessageBase, UTCModel):
     id : int
     created_at : datetime
 
@@ -198,7 +209,7 @@ class Reminder(ReminderBase, table=True):
     user_id : int = Field(foreign_key="user.id", ondelete="CASCADE")
     user : User = Relationship(back_populates="reminders")
 
-class ReminderPublic(ReminderBase):
+class ReminderPublic(ReminderBase, UTCModel):
     id : int
     created_at : datetime
     user_id : int
