@@ -15,6 +15,7 @@ export default function ChatUI({session, isViewing, logOut} : ChatUIParams){
 
     let navigate = useNavigate();
 
+    const [sidebarEnabled, setSidebarEnabled] = useState<boolean>(true);
     const [conversationID, setConversationID] = useState<number|null>(null);
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string|null>(null);
@@ -23,6 +24,8 @@ export default function ChatUI({session, isViewing, logOut} : ChatUIParams){
         <div className="chat">
             <ChatSidebar
                 session={session}
+                enabled={sidebarEnabled}
+                setEnabled={setSidebarEnabled}
                 isViewing={isViewing}
                 loading={loading}
                 conversationID={conversationID}
@@ -30,7 +33,6 @@ export default function ChatUI({session, isViewing, logOut} : ChatUIParams){
                 setError={setError}
                 logOut={logOut}
             />
-            {/* <button className="sidebar-button">☰</button> */}
             <ChatMessages
                 session={session}
                 isViewing={isViewing}

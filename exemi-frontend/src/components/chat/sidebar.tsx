@@ -1,4 +1,4 @@
-import {useState, useEffect} from 'react'
+import {useState, useEffect, useRef} from 'react'
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 import { useNavigate } from 'react-router-dom';
 import {type Session} from '../../models';
@@ -6,6 +6,8 @@ import UserSelector from '../admin/user_selector';
 
 type ChatSidebarParams = {
     session : Session,
+    enabled : boolean,
+    setEnabled : any,
     isViewing : boolean,
     loading : boolean,
     conversationID : number | null,
@@ -19,16 +21,34 @@ type Conversation = {
     id : number
 }
 
-export default function ChatSidebar({session, isViewing, loading, conversationID, setConversationID, setError, logOut} : ChatSidebarParams) {
+export default function ChatSidebar({session, enabled, setEnabled, isViewing, loading, conversationID, setConversationID, setError, logOut} : ChatSidebarParams) {
 
     let navigate = useNavigate();
 
+    const sidebarRef = useRef<HTMLDivElement>(null);
+    const sidebarButtonRef = useRef<HTMLButtonElement>(null);
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [username, setUsername] = useState<string>(session.user.username);
 
+    function toggleChatSidebar(){
+        if (enabled){ setEnabled(false); } else { setEnabled(true); }
+        // setEnabled(prev => !prev);
+    };
+
+    // Handle changing the sidebar's CSS class
+    // to hide it if it is disabled
+    useEffect(() => {
+        const sidebar = sidebarRef.current;
+        const sidebarButton = sidebarButtonRef.current;
+        if (!sidebar || !sidebarButton) return;
+        sidebar.classList.toggle("hidden", !enabled);
+        sidebarButton.classList.toggle("hidden", !enabled);
+
+    }, [enabled]);
+
     useEffect(() => {
         setConversationID(null)
-    }, [username])
+    }, [username]);
 
     async function parseConversations(data : Array<any>){
         const conversations: Conversation[] = data.map(item => ({
@@ -99,36 +119,36 @@ export default function ChatSidebar({session, isViewing, loading, conversationID
         );
     };
 
-    // const conversationSelectors = [<ConversationSelector conversation={null}/>, ...conversations.map(
-    //     conversation => <ConversationSelector conversation={conversation}/>
-    // )];
     const conversationSelectors = conversations.map(
         conversation => <ConversationSelector conversation={conversation}/>
     );
 
     return (
-        <div className="chat-sidebar">
-            <div className="chat-sidebar-header">
-            <p className="logo">exemi</p>
-            </div>
+        <div>
+            <button onClick={toggleChatSidebar} className="sidebar-button" ref={sidebarButtonRef}>☰</button>
+            <div className="chat-sidebar" ref={sidebarRef}>
+                <div className="chat-sidebar-header">
+                <p className="logo">exemi</p>
+                </div>
 
-            {isViewing ? (
-            <UserSelector session={session} setError={setError} username={username} setUsername={setUsername} refreshTrigger={null}/>
-            ) : (
-            <ConversationSelector conversation={null}/>
-            )}
+                {isViewing ? (
+                    <UserSelector session={session} setError={setError} username={username} setUsername={setUsername} refreshTrigger={null}/>
+                ) : (
+                    <ConversationSelector conversation={null}/>
+                )}
 
-            <p>Your chats:</p>
-            <div className="conversation-container">
-                {conversationSelectors}
-            </div>
-            
-            <div className="chat-sidebar-footer">
-            {session.user.admin ? (
-                <button onClick={() => {navigate("/");}}>Back to Dashboard</button>
-            ) : (
-                <button onClick={logOut}>Log Out</button>
-            )}
+                <p>Your chats:</p>
+                <div className="conversation-container">
+                    {conversationSelectors}
+                </div>
+                
+                <div className="chat-sidebar-footer">
+                {session.user.admin ? (
+                    <button onClick={() => {navigate("/");}}>Back to Dashboard</button>
+                ) : (
+                    <button onClick={logOut}>Log Out</button>
+                )}
+                </div>
             </div>
         </div>
     );

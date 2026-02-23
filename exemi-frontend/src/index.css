@@ -21,6 +21,7 @@ html, body {
   box-sizing: border-box;
   font-family: system-ui, -apple-system, BlinkMacSystemFont,
                "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  transition: 0.1s ease-in-out;
 }
 
 a {
@@ -112,27 +113,39 @@ div.chat{
 }
 
 button.sidebar-button{
-  position:fixed;
-  top:0px;
-  left:0px;
-  margin:10px;
-  height: 64px;
-  width: 64px;
+  position: fixed;
+  top: 0px;
+  left: calc(min(50dvw, 400px));
+  margin: 10px;
+  height: 4em;
+  width: 4em;
   text-align: center;
+  transition: 0.1s ease-in-out;
+}
+
+button.sidebar-button.hidden{
+  left:0px;
 }
 
 div.chat-sidebar{
+  width:calc(min(50dvw, 400px));
+  flex-shrink: 0;
   display:flex;
+  margin-left:0px;
   flex-direction: column;
   height:100%;
-  width: 20em;
-  /* 300px; */
   background-color: #eee;
   gap:10px;
   color:#222;
   border-radius: 0px;
-  margin:0px;
   padding: 0px 10px;
+  transition: 0.1s ease-in-out;
+  overflow-x:hidden;
+}
+
+div.chat-sidebar.hidden{
+  width:0px;
+  padding:0px 0px;
 }
 
 div.chat-sidebar-header{
