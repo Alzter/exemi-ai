@@ -34,9 +34,9 @@ export default function ChatUI({session, isViewing, logOut} : ChatUIParams){
             let conversationDateString = conversation.created_at.toLocaleString(
                 "en-AU", {timeZone: "Australia/Sydney"}
             )
-            let title = conversationDateString;
+            title = conversationDateString;
         } else {
-            let title = "+ Create New Chat";
+            title = "+ Create New Chat";
         };
 
         function assignConversation(){
