@@ -111,6 +111,16 @@ div.chat{
   flex-direction: row;
 }
 
+button.sidebar-button{
+  position:fixed;
+  top:0px;
+  left:0px;
+  margin:10px;
+  height: 64px;
+  width: 64px;
+  text-align: center;
+}
+
 div.chat-sidebar{
   display:flex;
   flex-direction: column;
@@ -131,7 +141,6 @@ div.chat-sidebar-header{
   align-items:center;
   width:100%;
   max-height:50px;
-  margin:auto;
   /* background-color: aqua; */
 }
 
