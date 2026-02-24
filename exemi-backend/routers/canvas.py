@@ -10,6 +10,7 @@ from sqlmodel import Session, select
 from fastapi import APIRouter, Depends, HTTPException, Query
 from ..dependencies import get_session, get_secret_key, get_current_user, get_current_magic
 from ..canvas_api import query_canvas
+from typing import Literal
 
 router = APIRouter()
 
@@ -276,6 +277,40 @@ async def canvas_get_assignment_groups(
     assignment_groups = canvas_assignment_group_adapter.validate_json(raw_assignment_groups)
     return assignment_groups
 
+
+@router.get("/canvas/units/{unit_id}/assignments", response_model=list[CanvasAssignment])
+async def canvas_get_assignments(
+    unit_id : int,
+    user : User = Depends(get_current_user),
+    magic : str = Depends(get_current_magic)
+):
+    assignment_groups = await canvas_get_assignment_groups(unit_id=unit_id, user=user, magic=magic)
+    
+    assignments = []
+    for group in assignment_groups:
+        assignments.extend(group.assignments)
+
+    return assignments
+
+@router.get("/canvas/assignments", response_model = list[CanvasAssignment])
+async def canvas_get_all_assignments(
+    exclude_complete_units : bool = True,
+    exclude_organisation_units : bool = True,
+    user : User = Depends(get_current_user),
+    magic : str = Depends(get_current_magic)
+):
+    units : list[CanvasUnit] = await canvas_get_units(
+        exclude_complete_units=exclude_complete_units,
+        exclude_organisation_units=exclude_organisation_units,
+        user=user, magic=magic)
+    
+    assignments = []
+    for unit in units:
+        unit_assignments = await canvas_get_assignments(unit_id=unit.id, user=user, magic=magic)
+        assignments.extend(unit_assignments)
+    
+    return assignments
+
 def parse_canvas_assignment_group(data : CanvasAssignmentGroup) -> dict | None:
     return {
         "name" : data.name,
@@ -400,7 +435,7 @@ async def commit_canvas_groups_and_assignments(
     if not all_canvas_assignments:
         session.commit()
         return []
-
+    
     # --------------------------------------------------
     # 5. Bulk fetch existing Assignments
     # --------------------------------------------------
@@ -449,35 +484,48 @@ async def commit_canvas_groups_and_assignments(
 
     return modified_assignments
 
-@router.get("/canvas/units/{unit_id}/assignments", response_model=list[CanvasAssignment])
-async def canvas_get_assignments(
-    unit_id : int,
+@router.post("/canvas/all", response_model = Literal[True])
+async def sync_canvas_to_db(
     user : User = Depends(get_current_user),
+    session : Session = Depends(get_session),
     magic : str = Depends(get_current_magic)
 ):
-    assignment_groups = await canvas_get_assignment_groups(unit_id=unit_id, user=user, magic=magic)
-    
-    assignments = []
-    for group in assignment_groups:
-        assignments.extend(group.assignments)
+    """
+    Synchronises the current user's terms, units,
+    assignment groups, and assignments from Canvas
+    into the database.
 
-    return assignments
+    For each term/unit/assignment group/assignment:
+    - Creates if missing
+    - Updates if existing
 
-@router.get("/canvas/assignments", response_model = list[CanvasAssignment])
-async def canvas_get_all_assignments(
-    exclude_complete_units : bool = True,
-    exclude_organisation_units : bool = True,
-    user : User = Depends(get_current_user),
-    magic : str = Depends(get_current_magic)
-):
-    units : list[CanvasUnit] = await canvas_get_units(
-        exclude_complete_units=exclude_complete_units,
-        exclude_organisation_units=exclude_organisation_units,
-        user=user, magic=magic)
+    Args:
+        user (User): The currently logged-in user.
+        session (Session): SQLModel connection with the database.
+        magic (str): The user's magic..
+
+    Raises:
+        HTTPException: Raises a 500 if any stage of the process fails.
+
+    Returns:
+        Literal[True]: Returns True if the process succeeded.
+    """
+    try:
+        await commit_canvas_terms(user=user, session=session, magic=magic)
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(status_code=500, detail=f"Error downloading semester information from Canvas! Error message: {str(e)}")
     
-    assignments = []
-    for unit in units:
-        unit_assignments = await canvas_get_assignments(unit_id=unit.id, user=user, magic=magic)
-        assignments.extend(unit_assignments)
+    try:
+        await commit_canvas_units(user=user, session=session, magic=magic)
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(status_code=500, detail=f"Error downloading units from Canvas! Error message: {str(e)}")
     
-    return assignments
+    try:
+        await commit_canvas_groups_and_assignments(user=user, session=session, magic=magic)
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(status_code=500, detail=f"Error downloading assignments from Canvas! Error message: {str(e)}")
+    
+    return True
