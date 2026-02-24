@@ -57,7 +57,7 @@ class TermBase(SQLModel):
     university_name : str = Field(max_length=255, index=True, foreign_key='university.name')
     start_at : datetime
     end_at : datetime
-    name : str = Field(max_length=255, unique=True)
+    name : str = Field(max_length=255)
     canvas_id : int = Field()
 
 class Term(TermBase, table=True):
@@ -75,7 +75,7 @@ class TermUpdate(SQLModel):
     name : str | None = None
 
 class UnitBase(SQLModel):
-    name : str = Field(max_length=255, unique=True)
+    name : str = Field(max_length=255)
     term_id : int = Field(foreign_key="term.id")
     canvas_id : int = Field()
 
