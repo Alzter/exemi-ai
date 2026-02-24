@@ -10,8 +10,7 @@ const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 
 export default function LoggedInFlow({session, setSession, setError, logOut} : any) {
     const [isMagicValid, setMagicValid] = useState<boolean | null>(null);
-    const [doUserUnitsExist, setUserUnitsExist] = useState<boolean | null>(null);
-    const isLoading = (isMagicValid == null) || (isMagicValid && doUserUnitsExist == null);
+    const isLoading = (isMagicValid == null);
 
     // Call the backend API to determine if the user's current magic is valid.
     async function checkIfUserMagicValid() {
@@ -30,7 +29,6 @@ export default function LoggedInFlow({session, setSession, setError, logOut} : a
 
     // Call the backend API to retrieve the user's units.
     async function fetchUserUnits() {
-        setUserUnitsExist(true);
         const response = await fetch(backendURL + "/canvas/all", {
             headers: {"Authorization" : "Bearer " + session.token},
             method: "POST",
@@ -48,16 +46,24 @@ export default function LoggedInFlow({session, setSession, setError, logOut} : a
                 logOut();
             };
             return;
+        } else {
+            setSession(
+                (prev : any) => ({...prev, last_sync_date : Date.now()})
+            );
         };
     };
 
     useEffect(() => {
         if (isMagicValid == null){
             checkIfUserMagicValid();
-        } else if (doUserUnitsExist == null){
+        }
+    });
+
+    useEffect(() => {
+        if (session.last_sync_date == null){
             fetchUserUnits();
         };
-    });
+    }, []);
 
     if (isLoading){
         return (<Loading/>);
