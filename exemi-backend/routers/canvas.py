@@ -4,6 +4,7 @@ from ..models import University, User, UserCreate, UserUpdate, UserPublic
 from ..models import Term, TermCreate, TermPublic, TermUpdate
 from ..models import Unit, UnitCreate, UnitPublic, UnitUpdate
 from ..models import Assignment, AssignmentCreate, AssignmentPublic, AssignmentUpdate
+from ..models import AssignmentGroup, AssignmentGroupCreate, AssignmentGroupPublicWithUnit, AssignmentGroupUpdate
 from ..models_canvas import CanvasTerm, CanvasUnit, CanvasAssignment, CanvasAssignmentGroup
 from sqlmodel import Session, select
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -211,8 +212,6 @@ async def commit_canvas_units(
         data = parse_canvas_unit(canvas_unit)
         if not data: continue
 
-        data["university_name"] = user.university_name
-
         existing_term = existing_terms_by_canvas_id.get(
             canvas_unit.term.id
         )
@@ -274,8 +273,9 @@ def enrol_user_in_units(
 @router.get("/canvas/units/{unit_id}/assignment_groups", response_model = list[CanvasAssignmentGroup])
 async def canvas_get_assignment_groups(
     unit_id : int,
+    include_assignments : bool = True,
     user : User = Depends(get_current_user),
-    magic : str = Depends(get_current_magic)
+    magic : str = Depends(get_current_magic),
 ):
     path = f"courses/{unit_id}/assignment_groups"
     params = {"include":"assignments"}
@@ -284,6 +284,92 @@ async def canvas_get_assignment_groups(
     
     assignment_groups = canvas_assignment_group_adapter.validate_json(raw_assignment_groups)
     return assignment_groups
+
+def parse_canvas_assignment_group(data : AssignmentGroup) -> dict | None:
+    return {
+        "name" : data.name,
+        "canvas_id" : data.id,
+        "group_weight" : data.group_weight
+    }
+
+@router.post("/canvas/assignment_groups", response_model=list[AssignmentGroupPublicWithUnit])
+async def commit_canvas_assignment_groups(
+    session : Session = Depends(get_session),
+    user : User = Depends(get_current_user),
+    magic : str = Depends(get_current_magic)
+):
+    """
+    Sync Canvas assignment groups into DB:
+    - Create if missing
+    - Update if existing
+
+    Preconditions:
+    - POST /canvas/units
+    - POST /canvas/terms
+    """
+
+    existing_units : list[Unit] = await commit_canvas_units(session=session,user=user,magic=magic)
+
+    modified_groups : list[AssignmentGroup] = []
+
+    for unit in existing_units:
+        groups : list[CanvasAssignmentGroup] = await canvas_get_assignment_groups(
+            unit_id=unit.canvas_id,
+            include_assignments=False,
+            user=user,
+            magic=magic
+        )
+    
+        canvas_ids = [g.id for g in groups]
+
+        existing_groups = session.exec(
+            select(AssignmentGroup)
+            .join(Unit)
+            .join(Term)
+            .where(AssignmentGroup.canvas_id.in_(canvas_ids))
+            .where(Term.university_name == user.university_name)
+        )
+
+        existing_groups_by_canvas_id : dict[int, AssignmentGroup] = {g.canvas_id : g for g in existing_groups}
+
+        for canvas_assignment_group in groups:
+            data = parse_canvas_assignment_group(canvas_assignment_group)
+            if not data: continue
+
+            data["unit_id"] = unit.id
+
+            existing_group = existing_groups_by_canvas_id.get(
+                canvas_assignment_group.id
+            )
+
+            if existing_group:
+                update_data = AssignmentGroupUpdate.model_validate(data).model_dump(exclude_unset=True)
+                
+                # Only modify fields which were changed
+                changed = False
+                for k, v in update_data.items():
+                    if getattr(existing_group, k) != v:
+                        setattr(existing_group, k, v)
+                        changed = True
+
+                if changed:
+                    session.add(existing_group)
+
+                modified_groups.append(existing_group)
+            else:
+                new_group = AssignmentGroup.model_validate(
+                    AssignmentGroupCreate.model_validate(data)
+                )
+                session.add(new_group)
+                modified_groups.append(new_group)
+    
+    session.commit()
+
+    for group in modified_groups:
+        session.refresh(group)
+
+    return modified_groups
+
 
 @router.get("/canvas/units/{unit_id}/assignments", response_model=list[CanvasAssignment])
 async def canvas_get_assignments(
