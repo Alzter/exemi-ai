@@ -1,5 +1,5 @@
 from pydantic import TypeAdapter
-from ..models import User, UserCreate, UserUpdate, UserPublic
+from ..models import TermUpdate, University, User, UserCreate, UserUpdate, UserPublic
 # from ..models import University, UniversityCreate, UniversityPublic
 from ..models import Term, TermCreate, TermPublic
 from ..models import Unit, UnitCreate, UnitPublic
@@ -34,49 +34,55 @@ async def canvas_get_terms(
 
     return terms
 
-# @router.post("/canvas/terms", response_model=list[TermPublic])
-# async def create_terms_from_canvas(
-#     session: Session = Depends(get_session),
-#     user: User = Depends(get_current_user),
-#     magic: str = Depends(get_current_magic)
-# ):
-#     """
-#     Creates Term objects in the database to represent
-#     all the Terms that the student has access to from
-#     Canvas.
-#     """
-# 
-#     db_terms: list[Term] = []
-#     new_terms: list[Term] = []
-# 
-#     # Get terms from Canvas
-#     canvas_terms: list[CanvasTerm] = await canvas_get_terms(user=user, magic=magic)
-# 
-#     for term in canvas_terms:
-#         # Check if term already exists
-#         existing_term = session.exec(
-#             select(Term)
-#             .where(Term.canvas_id == term.id)
-#             .where(Term.university_name == user.university_name)
-#         ).first()
-# 
-#         if existing_term:
-#             db_terms.append(existing_term)
-#         else:
-#             new_terms.append(term)
-# 
-#     # Add all new terms at once
-#     session.add_all(new_terms)
-#     session.commit()
-# 
-#     # Refresh new terms so IDs are populated
-#     for term in new_terms:
-#         session.refresh(term)
-# 
-#     # Combine existing and newly added terms
-#     db_terms.extend(new_terms)
-# 
-#     return db_terms
+async def parse_canvas_term(data : CanvasTerm) -> dict:
+    """
+    Map CanvasTerm objects to dicts
+    which can be used to create
+    TermCreate or TermUpdate models.
+    """
+    return {
+        "canvas_id" : data.id,
+        "name" : data.name,
+        "start_at" : data.start_at,
+        "end_at" : data.end_at
+    }
+
+@router.post("/canvas/terms", response_model=list[TermPublic])
+async def create_terms_from_canvas(
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+    magic: str = Depends(get_current_magic)
+):
+    """
+    Given a list of CanvasTerms, create Term
+    objects in the database if they do not already
+    exist and update ones which do already exist.
+    """
+
+    # Get terms from Canvas
+    canvas_terms: list[CanvasTerm] = await canvas_get_terms(user=user, magic=magic)
+
+    for term in canvas_terms:
+        data = parse_canvas_term(term)
+
+        # Check if term already exists.
+        existing_term = session.exec(
+            select(Term).join(University)
+            .where(Term.canvas_id == term.id)
+            .where(University.name == user.university_name)
+        ).first()
+        
+        if existing_term:
+            update = TermUpdate.model_validate(data).model_dump(exclude_unset=True)
+            existing_term.sqlmodel_update(data)
+            session.add(existing_term)
+        else:
+            create = TermCreate.model_validate(data)
+            session.add(create)
+        
+        session.commit()
+        # TODO: return a list of the TermPublic objects
+        # session.refresh()
 
 @router.get("/canvas/units", response_model=list[CanvasUnit])
 async def canvas_get_units(
