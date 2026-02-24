@@ -127,7 +127,7 @@ class UnitPublicWithAssignmentGroups(UnitPublic):
     assignment_groups : list[AssignmentGroupPublic] = []
 
 class AssignmentGroupPublicWithUnit(AssignmentGroupPublic):
-    unit : UnitPublic
+    unit : UnitPublicWithTerm
 
 class AssignmentBase(SQLModel):
     group_id : int = Field(foreign_key="assignment_group.id")
@@ -157,7 +157,7 @@ class AssignmentGroupPublicWithAssignments(AssignmentGroupPublic):
     assignments : list[AssignmentPublic] = []
 
 class AssignmentPublicWithGroup(AssignmentPublic):
-    group : AssignmentGroupPublic
+    group : AssignmentGroupPublicWithUnit
 
 class ConversationBase(SQLModel):
     pass
