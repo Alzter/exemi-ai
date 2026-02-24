@@ -29,6 +29,10 @@ export default function LoggedInFlow({session, setSession, setError, logOut} : a
 
     // Call the backend API to retrieve the user's units.
     async function fetchUserUnits() {
+        setSession(
+            (prev : any) => ({...prev, last_sync_date : Date.now()})
+        );
+
         const response = await fetch(backendURL + "/canvas/all", {
             headers: {"Authorization" : "Bearer " + session.token},
             method: "POST",
@@ -45,11 +49,6 @@ export default function LoggedInFlow({session, setSession, setError, logOut} : a
                 setError(message);
                 logOut();
             };
-            return;
-        } else {
-            setSession(
-                (prev : any) => ({...prev, last_sync_date : Date.now()})
-            );
         };
     };
 
