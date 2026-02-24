@@ -33,4 +33,6 @@ class CanvasAssignmentGroup(BaseModel):
     id : int
     name : str
     group_weight : float 
+
+class CanvasAssignmentGroupWithAssignments(CanvasAssignmentGroup):
     assignments : list[CanvasAssignment]
