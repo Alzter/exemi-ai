@@ -31,21 +31,24 @@ export default function LoggedInFlow({session, setSession, setError, logOut} : a
     // Call the backend API to retrieve the user's units.
     async function fetchUserUnits() {
         setUserUnitsExist(true);
-        // try{
-        //     const response = await fetch(backendURL + "/canvas/units", {
-        //         headers: {"Authorization" : "Bearer " + session.token},
-        //         method: "POST",
-        //     });
-        //     if (!response.ok){
-        //         logOut();
-        //         setError("System error fetching units! Please contact Alexander Small.");
-        //     } else{
-        //         setUserUnitsExist(true);
-        //     }
-        // } catch {
-        //     logOut();
-        //     setError("System error fetching units! Please contact Alexander Small.");
-        // }
+        const response = await fetch(backendURL + "/canvas/all", {
+            headers: {"Authorization" : "Bearer " + session.token},
+            method: "POST",
+        });
+
+        if (!response.ok){
+            let message = "System error obtaining information from Canvas! Contact Alexander Small.";
+            try{
+                let data = await response.json();
+                if (typeof data.detail === "string"){
+                    message = data.detail;
+                }
+            } finally {
+                setError(message);
+                logOut();
+            };
+            return;
+        };
     };
 
     useEffect(() => {
