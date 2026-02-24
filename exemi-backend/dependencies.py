@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 from datetime import timedelta
 from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
-from .models import User
+from .models import User, University
 
 load_dotenv()
 
@@ -127,3 +127,28 @@ async def get_current_magic(user : User = Depends(get_current_user)) -> str:
     magic = decrypt_magic_hash(magic_hash)
     return magic
 
+async def create_university_if_not_exists(
+    data : University,
+    current_user : User = Depends(get_current_user),
+    session : Session = Depends(get_session)
+):
+    """
+    Create a new University object or return one if it already exists.
+
+    Args:
+        data (University): The name of the university wrapped in a University class.
+    
+    Raises:
+        HTTPException: Raises a 401 if the current user is not an admin.
+
+    Returns:
+        University: The new or existing university.
+    """
+    name = data.name.lower().strip()
+    existing_university = session.get(University,name)
+    if existing_university: return existing_university
+    
+    new_university = University(name=name)
+    session.add(new_university)
+    session.commit()
+    return new_university

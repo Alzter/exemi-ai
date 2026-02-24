@@ -7,6 +7,7 @@ import jwt
 from ..dependencies import get_current_magic, get_session, get_secret_key, encrypt_magic
 from ..dependencies import get_current_user as root_get_current_user
 from ..dependencies import is_magic_valid as root_is_magic_valid
+from ..dependencies import create_university_if_not_exists
 from datetime import datetime, timedelta, timezone
 from pwdlib import PasswordHash
 PasswordHasher = PasswordHash.recommended()
@@ -306,6 +307,9 @@ async def create_user(
     extra_data = {
         "password_hash" : PasswordHasher.hash(data.password)
     }
+
+    if data.university_name is not None:
+        await create_university_if_not_exists(university_name)
     
     if data.magic is not None:
         extra_data["magic_hash"] = await encrypt_magic(data.magic, data.university_name) 
@@ -343,6 +347,9 @@ async def update_user(
     if new_data.password is not None:
         extra_data["password_hash"] = PasswordHasher.hash(new_data.password)
 
+    if data.university_name is not None:
+        await create_university_if_not_exists(university_name)
+    
     if new_data.magic is not None:
         extra_data["magic_hash"] = await encrypt_magic(new_data.magic, new_data.university_name) 
     
