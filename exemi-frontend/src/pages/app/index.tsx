@@ -59,6 +59,7 @@ export default function LoggedInFlow({session, setSession, setError, logOut} : a
     });
 
     useEffect(() => {
+        console.log(session.last_sync_date);
         if (session.last_sync_date == null){
             fetchUserUnits();
         };
