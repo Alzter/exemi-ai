@@ -251,90 +251,25 @@ async def commit_canvas_units(
     for unit in modified_units:
         session.refresh(unit)
 
-    # TODO: Add all the units from modified_units
-    # into the user's list of units.
+    enrol_user_in_units(
+        units=modified_units,
+        session=session,
+        user=user
+    )
 
     return modified_units
 
-
-# @router.post("/canvas/units", response_model=list[UnitPublic])
-# async def create_units_from_canvas(
-#     session : Session = Depends(get_session),
-#     user : User = Depends(get_current_user),
-#     magic : str = Depends(get_current_magic)
-# ):
-#     """
-#     Creates Unit objects in the database to represent
-#     all the Units that the student has access to from
-#     Canvas.
-# 
-#     Preconditions:
-#     -   You must call POST /canvas/terms first. 
-#     """
-#     new_units = []
-#     db_units = []
-# 
-#     canvas_units : list[Unit] = await canvas_get_units(user=user, magic=magic)
-# 
-#     for unit in canvas_units:
-#         
-#         # Obtain the Term object from the DB which contains the unit.
-#         existing_term = session.exec(
-#             select(Term).where(
-#                 Term.canvas_id==unit.canvas_term_id
-#             ).where(
-#                 Term.university_name==user.university_name
-#             )
-#         ).first()
-#         
-#         # If there is no Term in the DB to contain the unit, vomit
-#         if not existing_term: raise HTTPException(
-#             status_code=404,
-#             detail=f"Cannot create unit {unit.name} because its term does not exist in the database. Run POST /canvas_terms first!!"
-#         )
-#         
-#         existing_unit = session.exec(
-#             select(Unit).join(Term).where(
-#                 Unit.canvas_id==unit.canvas_id
-#             ).where(
-#                 Term.university_name==user.university_name
-#             )
-#         ).first()
-# 
-#         if existing_unit:
-#             db_units.append(existing_unit)
-#             continue
-#         
-#         unit.term_id = existing_term.id
-#         new_units.append(unit)
-#     
-#     session.add_all(new_units)
-#     session.commit()
-# 
-#     # TODO: Enrol the user in all active units
-#     # by adding entries in the UsersUnits table! FIXME
-# 
-#     for unit in new_units:
-#         unit = session.refresh(unit)
-#     
-#     db_units.extend(new_units)
-#     return db_units
-# 
-# # @router.get("/canvas/units/{unit_id}/term", response_model=TermPublic)
-# # async def canvas_get_term(unit_id : int, user : User = Depends(get_current_user), magic : str = Depends(get_current_magic)):
-# #     
-# #     # TODO: Terms provide a start_at and end_at date.
-# #     # HOWEVER, the dates provided by SUT are often inaccurate!!
-# #     # Find a way to CROSS REFERENCE the term start and end dates
-# #     # using the name of the term (e.g., "Semester 1 2024")
-# #     # through Swinburne's official timetable!! FIXME
-# # 
-# #     params = {"include":"term"}
-# #     unit_data = await query_canvas(path=f"courses/{unit_id}", magic=magic, provider=user.university_name, max_items=50, params=params)
-# #     term_df = decode_canvas_response( unit_data.term.to_list() )
-# #     term_data = term_df.to_dict(orient='records')[0]
-# #     
-# #     return Term.model_validate(term_data)
+def enrol_user_in_units(
+    units : list[Unit],
+    session : Session,
+    user : User
+):
+    for unit in units:
+        if unit not in user.units:
+            user.units.append(unit)
+    
+    session.add(user)
+    session.commit()
  
 @router.get("/canvas/units/{unit_id}/assignment_groups", response_model = list[CanvasAssignmentGroup])
 async def canvas_get_assignment_groups(

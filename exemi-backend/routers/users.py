@@ -1,4 +1,4 @@
-from ..models import User, UserCreate, UserUpdate, UserPublic
+from ..models import User, UserCreate, UserUpdate, UserPublic, UserPublicWithUnits
 from typing import Annotated, Literal
 from sqlmodel import Session, select
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -172,7 +172,7 @@ async def is_magic_valid(
     if not valid: raise HTTPException(status_code=401, detail="The current user's magic is not valid")
     return True
 
-@router.get("/users/{username}", response_model = UserPublic)
+@router.get("/users/{username}", response_model = UserPublicWithUnits)
 async def get_user_safe(
     username : str,
     current_user : User = Depends(root_get_current_user),

@@ -94,10 +94,13 @@ class UnitUpdate(SQLModel):
     name : str | None = None
 
 class TermPublicWithUnits(TermPublic):
-    units : list[Unit] = []
+    units : list[UnitPublic] = []
 
 class UnitPublicWithTerm(UnitPublic):
     term : TermPublic | None = None
+
+class UserPublicWithUnits(UserPublic):
+    units : list[UnitPublicWithTerm] = []
 
 class AssignmentGroupBase(SQLModel):
     unit_id : int = Field(foreign_key="unit.id")
