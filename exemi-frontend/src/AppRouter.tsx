@@ -121,9 +121,7 @@ export default function AppRouter() {
         };
 
         if (session.last_sync_date){
-            let date : Date = session.last_sync_date as Date;
-            let string : string = date.toISOString();
-            localStorage.setItem("last_sync_date", string);
+            localStorage.setItem("last_sync_date", session.last_sync_date.toISOString());
         } else {
             localStorage.removeItem("last_sync_date");
         };
