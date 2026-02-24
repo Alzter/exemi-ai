@@ -157,7 +157,7 @@ class AssignmentGroupPublicWithAssignments(AssignmentGroupPublic):
     assignments : list[AssignmentPublic] = []
 
 class AssignmentPublicWithGroup(AssignmentPublic):
-    group : AssignmentGroupPublicWithUnit
+    group : AssignmentGroupPublic
 
 class ConversationBase(SQLModel):
     pass

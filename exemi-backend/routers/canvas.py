@@ -2,7 +2,7 @@ from pydantic import TypeAdapter
 from ..models import University, User, UserCreate, UserUpdate, UserPublic
 # from ..models import University, UniversityCreate, UniversityPublic
 from ..models import Term, TermCreate, TermPublic, TermUpdate
-from ..models import Unit, UnitCreate, UnitPublic, UnitUpdate
+from ..models import Unit, UnitCreate, UnitPublic, UnitPublicWithTerm, UnitUpdate
 from ..models import Assignment, AssignmentCreate, AssignmentPublic, AssignmentPublicWithGroup, AssignmentUpdate
 from ..models import AssignmentGroup, AssignmentGroupCreate, AssignmentGroupPublicWithUnit, AssignmentGroupUpdate
 from ..models_canvas import CanvasTerm, CanvasUnit, CanvasAssignment, CanvasAssignmentGroup
@@ -104,15 +104,7 @@ async def commit_canvas_terms(
         if existing_term:
             update_data = TermUpdate.model_validate(data).model_dump(exclude_unset=True)
             
-            # Only modify fields which were changed
-            changed = False
-            for k, v in update_data.items():
-                if getattr(existing_term, k) != v:
-                    setattr(existing_term, k, v)
-                    changed = True
-
-            if changed:
-                session.add(existing_term)
+            existing_term.sqlmodel_update(update_data)
 
             modified_terms.append(existing_term)
         else:
@@ -171,7 +163,7 @@ def parse_canvas_unit(data : CanvasUnit) -> dict | None:
         "canvas_id" : data.id
     }
 
-@router.post("/canvas/units", response_model=list[UnitPublic])
+@router.post("/canvas/units", response_model=list[UnitPublicWithTerm])
 async def commit_canvas_units(
     session : Session = Depends(get_session),
     user : User = Depends(get_current_user),
@@ -182,11 +174,15 @@ async def commit_canvas_units(
     - Create if missing
     - Update if existing
 
-    Preconditions:
+    Preconditions (call these functions first):
     - POST /canvas/terms
     """
 
-    existing_terms : list[Term] = await commit_canvas_terms(session=session,user=user,magic=magic)
+    existing_terms = session.exec(
+        select(Term)
+    ).all()
+
+    # existing_terms : list[Term] = await commit_canvas_terms(session=session,user=user,magic=magic)
 
     canvas_units: list[CanvasUnit] = await canvas_get_units(exclude_complete_units=False, user=user, magic=magic)
     if not canvas_units: return []
@@ -228,15 +224,7 @@ async def commit_canvas_units(
         if existing_unit:
             update_data = UnitUpdate.model_validate(data).model_dump(exclude_unset=True)
             
-            # Only modify fields which were changed
-            changed = False
-            for k, v in update_data.items():
-                if getattr(existing_unit, k) != v:
-                    setattr(existing_unit, k, v)
-                    changed = True
-
-            if changed:
-                session.add(existing_unit)
+            existing_unit.sqlmodel_update(update_data)
 
             modified_units.append(existing_unit)
 
@@ -288,19 +276,6 @@ async def canvas_get_assignment_groups(
     assignment_groups = canvas_assignment_group_adapter.validate_json(raw_assignment_groups)
     return assignment_groups
 
-# @router.get("/canvas/units/{unit_id}/assignment_group/{group_id}", response_model=CanvasAssignmentGroup)
-# async def canvas_get_assignment_group(
-#     unit_id : int,
-#     group_id : int,
-#     user : User = Depends(get_current_user),
-#     magic : str = Depends(get_current_magic)
-# ):
-#     path = f"courses/{unit_id}/assignment_groups/{group_id}"
-#     params = {"include":"assignments"}
-#     raw_assignment_group = await query_canvas(path=path, magic=magic, provider=user.university_name, max_items=50, params=params)
-#     assignment_group = canvas_assignment_group_individual_adapter.validate_json(raw_assignment_group)
-#     return assignment_group
-
 def parse_canvas_assignment_group(data : CanvasAssignmentGroup) -> dict | None:
     return {
         "name" : data.name,
@@ -336,12 +311,16 @@ async def commit_canvas_groups_and_assignments(
     - Create if missing
     - Update if existing
 
-    Preconditions:
+    Preconditions (call these functions first):
     - POST /canvas/units
     - POST /canvas/terms
     """
 
-    units = await commit_canvas_units(session=session, user=user, magic=magic)
+    units = session.exec(
+        select(Unit)
+    ).all()
+
+    # units = await commit_canvas_units(session=session, user=user, magic=magic)
 
     # --------------------------------------------------
     # 1. Fetch Canvas groups WITH assignments
@@ -392,9 +371,7 @@ async def commit_canvas_groups_and_assignments(
 
         if existing:
             update = AssignmentGroupUpdate.model_validate(data).model_dump(exclude_unset=True)
-            for k, v in update.items():
-                setattr(existing, k, v)
-            session.add(existing)
+            existing.sqlmodel_update(update)
             modified_groups.append(existing)
         else:
             new = AssignmentGroup.model_validate(AssignmentGroupCreate.model_validate(data))
@@ -458,9 +435,7 @@ async def commit_canvas_groups_and_assignments(
 
         if existing:
             update = AssignmentUpdate.model_validate(data).model_dump(exclude_unset=True)
-            for k, v in update.items():
-                setattr(existing, k, v)
-            session.add(existing)
+            existing.sqlmodel_update(update)
             modified_assignments.append(existing)
         else:
             new = Assignment.model_validate(AssignmentCreate.model_validate(data))
