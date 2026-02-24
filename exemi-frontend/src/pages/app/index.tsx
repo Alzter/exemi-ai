@@ -29,7 +29,6 @@ export default function LoggedInFlow({session, setSession, setError, logOut} : a
 
     // Call the backend API to retrieve the user's units.
     async function fetchUserUnits() {
-        console.log("Fetching Units");
         setSession(
             (prev : any) => ({...prev, last_sync_date : new Date()})
         );
