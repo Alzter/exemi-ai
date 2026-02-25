@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from ..dependencies import get_session, get_secret_key, get_current_user, get_current_magic
 from ..canvas_api import query_canvas
 from typing import Literal
+import asyncio
 
 router = APIRouter()
 
@@ -180,7 +181,7 @@ async def commit_canvas_units(
     - POST /canvas/terms
     """
 
-    canvas_units: list[CanvasUnit] = await canvas_get_units(user=user, magic=magic)
+    canvas_units: list[CanvasUnit] = await canvas_get_units(exclude_complete_units=False, user=user, magic=magic)
     if not canvas_units: return []
 
     canvas_ids = [t.id for t in canvas_units]
@@ -262,13 +263,15 @@ def enrol_user_in_units(
     user : User
 ):
 
+    session.refresh(user)
+
     for unit in units:
         if unit not in user.units:
             user.units.append(unit)
     
     # Unenrol the user from any units
     # they are no longer taking
-    for existing_unit in user.units:
+    for existing_unit in list(user.units):
         if existing_unit not in units:
             user.units.remove(existing_unit)
     
@@ -315,11 +318,22 @@ async def canvas_get_all_assignments(
     units : list[CanvasUnit] = await canvas_get_units(
         exclude_complete_units=exclude_complete_units,
         exclude_organisation_units=exclude_organisation_units,
-        user=user, magic=magic)
+        user=user, magic=magic
+    )
     
-    assignments = []
-    for unit in units:
-        unit_assignments = await canvas_get_assignments(unit_id=unit.id, user=user, magic=magic)
+    tasks = [
+        canvas_get_assignments(
+            unit_id=unit.id,
+            user=user,
+            magic=magic
+        )
+        for unit in units
+    ]
+
+    result = await asyncio.gather(*tasks)
+
+    canvas_assignments = []
+    for unit_assignments in results:
         assignments.extend(unit_assignments)
     
     return assignments
@@ -372,12 +386,18 @@ async def commit_canvas_groups_and_assignments(
     # --------------------------------------------------
     all_canvas_groups: list[tuple[int, CanvasAssignmentGroup]] = []
 
-    for unit in units:
-        groups = await canvas_get_assignment_groups(
+    tasks = [
+        canvas_get_assignment_groups(
             unit_id=unit.canvas_id,
             user=user,
             magic=magic,
         )
+        for unit in units
+    ]
+
+    result = await asyncio.gather(*tasks)
+
+    for unit, groups in zip(units, result):
         all_canvas_groups.extend((unit.id, g) for g in groups)
 
     if not all_canvas_groups:
@@ -527,6 +547,8 @@ async def enrol_user_in_assignments(
     magic: str,
     user: User
 ):
+    session.refresh(user)
+    
     canvas_assignments: list[CanvasAssignmentWithSubmission] = []
 
     unit_ids = list({
@@ -534,12 +556,19 @@ async def enrol_user_in_assignments(
         for assignment in assignments
     })
 
-    for canvas_unit_id in unit_ids:
-        unit_assignments = await canvas_get_assignments(
+    tasks = [
+        canvas_get_assignments(
             unit_id=canvas_unit_id,
             user=user,
             magic=magic
         )
+        for canvas_unit_id in unit_ids
+    ]
+
+    results = await asyncio.gather(*tasks)
+
+    canvas_assignments = []
+    for unit_assignments in results:
         canvas_assignments.extend(unit_assignments)
 
     canvas_by_id = {a.id: a for a in canvas_assignments}
