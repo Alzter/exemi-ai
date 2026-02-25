@@ -22,10 +22,17 @@ canvas_assignment_adapter = TypeAdapter(list[CanvasAssignmentWithSubmission])
 
 @router.get("/canvas/terms", response_model=list[CanvasTerm])
 async def canvas_get_terms(
+    exclude_complete_units : bool = True,
+    exclude_organisation_units : bool = True,
     user : User = Depends(get_current_user),
     magic : str = Depends(get_current_magic)
 ):
-    units = await canvas_get_units(user=user, magic=magic, exclude_complete_units=False, exclude_organisation_units=False)
+    units = await canvas_get_units(
+        user=user,
+        magic=magic,
+        exclude_complete_units=exclude_complete_units,
+        exclude_organisation_units=exclude_organisation_units
+    )
     
     # Obtain every term object from every unit the user is currently enrolled in.
     raw_terms = [unit.term for unit in units]
