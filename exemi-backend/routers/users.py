@@ -350,11 +350,14 @@ async def update_user(
     if new_data.password is not None:
         extra_data["password_hash"] = PasswordHasher.hash(new_data.password)
 
+    university_name = user.university_name
+
     if new_data.university_name is not None:
         create_university_if_not_exists(new_data.university_name, session=session)
-    
+        university_name = new_data.university_name
+
     if new_data.magic is not None:
-        extra_data["magic_hash"] = await encrypt_magic(new_data.magic, new_data.university_name) 
+        extra_data["magic_hash"] = await encrypt_magic(new_data.magic, university_name) 
     
     user.sqlmodel_update(new_data_dict, update=extra_data)
     session.add(user)
