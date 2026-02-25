@@ -2,7 +2,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 from langchain.tools import tool, BaseTool
 from .routers.reminders import get_reminders, create_reminder
-from .routers.curriculum import get_units, get_assignment_groups, get_assignments
+from .routers.curriculum import get_assignments_list
 # from .routers.canvas import canvas_get_all_assignments
 from sqlmodel import Session
 from .models import Unit, AssignmentGroup, Assignment
@@ -128,23 +128,13 @@ def create_tools(user : User, magic : str, session : Session) -> list[BaseTool]:
     @tool
     async def get_assignments_from_Canvas() -> str:
         """
-        Retrieve a list of the student's incomplete assignments.
+        Retrieve a markdown-formatted list of the student's incomplete assignments.
 
         Returns:
             str: List of the student's incomplete assignments.
         """
 
-        assignments = get_assignments(user=user, session=session)
-        assignments = [AssignmentPublic.model_validate(a) for a in assignments]
-        
-        # assignments : list[CanvasAssignment] = await canvas_get_all_assignments(user=user, magic=magic)
-        
-        return "\n\n".join([
-            "\n".join([
-                f"Assignment name: {assignment.name}",
-                f"Due at: {timestamp_to_string(assignment.due_at)}"
-            ])
-        for assignment in assignments])
+        return get_assignments_list(user=user, session=session)
     
     @tool
     def add_assignment_reminder(assignment_name : str, due_date : str, description : str) -> str:

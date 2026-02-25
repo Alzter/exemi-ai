@@ -8,6 +8,7 @@ from sqlmodel import Session, select
 from fastapi import APIRouter, Depends, HTTPException, Query
 from ..dependencies import get_session, get_current_user
 from datetime import datetime, timezone
+from ..date_utils import parse_timestamp, timestamp_to_string, get_days_remaining_string
 
 router = APIRouter()
 
@@ -311,3 +312,52 @@ def get_assignment(
     assignment = session.get(Assignment, id)
     if not assignment: raise HTTPException(status_code=404, detail="Assignment not found")
     return assignment 
+
+@router.get("/tool/assignments")
+def get_assignments_list(
+    user : User = Depends(get_current_user),
+    session : Session = Depends(get_session)
+) -> str:
+    """
+    Create a markdown-formatted list of
+    the student's incomplete assignments
+    organised by unit, sorted by due date.
+
+    Returns:
+        str: List of the student's incomplete assignments.
+    """
+
+    message : list[str] = ["# Assignments:\n"]
+
+    units = get_units(user=user, session=session, offset=0, limit=100)
+    units = [UnitPublic.model_validate(u) for u in units]
+
+    units_by_id : dict[int, Unit] = {u.id : u for u in units}
+    units_assignments : dict[int, list[AssignmentPublic]] = {}
+
+    for unit in units:
+
+        assignments = get_assignments(user=user, session=session, unit_id=unit.id, offset=0, limit=100)
+        assignments = [AssignmentPublic.model_validate(a) for a in assignments]
+
+        units_assignments[unit.id] = assignments
+
+    for unit_id, assignments in units_assignments.items():
+        if not assignments: continue
+
+        unit = units_by_id.get(unit_id)
+        
+        message.append(f"## {unit.name}\n")
+
+        for assignment in assignments:
+            due_date_string = timestamp_to_string(parse_timestamp(assignment.due_at))
+
+            message.append(f"### {assignment.name}")
+            if assignment.description:
+                message.append(f"Description:\n```html\n{assignment.description}\n```")
+            message.append(f"- **Due date:** {due_date_string}")
+            message.append(f"- **Grade contribution:** {int(assignment.grade_contribution * 100)}%")
+            message.append(f"- **Requires group work:** {"YES" if assignment.is_group else "NO"}")
+            message.append("\n")
+
+    return "\n".join(message).strip()
