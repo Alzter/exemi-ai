@@ -1,14 +1,13 @@
 from pydantic import TypeAdapter
-from ..models import University, User, UserCreate, UserUpdate, UserPublic, UserPublicWithUnits, UsersAssignments
-# from ..models import University, UniversityCreate, UniversityPublic
+from ..models import User, UserPublicWithUnits, UsersAssignments
 from ..models import Term, TermCreate, TermPublic, TermUpdate
-from ..models import Unit, UnitCreate, UnitPublic, UnitPublicWithTerm, UnitUpdate
-from ..models import Assignment, AssignmentCreate, AssignmentPublic, AssignmentPublicWithGroup, AssignmentUpdate
+from ..models import Unit, UnitCreate, UnitPublicWithTerm, UnitUpdate
+from ..models import Assignment, AssignmentCreate, AssignmentPublicWithGroup, AssignmentUpdate
 from ..models import AssignmentGroup, AssignmentGroupCreate, AssignmentGroupPublicWithUnit, AssignmentGroupUpdate
 from ..models_canvas import CanvasTerm, CanvasUnit, CanvasAssignment, CanvasSubmission, CanvasAssignmentWithSubmission, CanvasAssignmentGroup
 from sqlmodel import Session, select
-from fastapi import APIRouter, Depends, HTTPException, Query
-from ..dependencies import get_session, get_secret_key, get_current_user, get_current_magic
+from fastapi import APIRouter, Depends, HTTPException
+from ..dependencies import get_session, get_current_user, get_current_magic
 from ..canvas_api import query_canvas
 from typing import Literal
 import asyncio
@@ -352,10 +351,10 @@ async def canvas_get_all_assignments(
     result = await asyncio.gather(*tasks)
 
     canvas_assignments = []
-    for unit_assignments in results:
-        assignments.extend(unit_assignments)
+    for unit_assignments in result:
+        canvas_assignments.extend(unit_assignments)
     
-    return assignments
+    return canvas_assignments
 
 def parse_canvas_assignment_group(data : CanvasAssignmentGroup) -> dict | None:
     return {

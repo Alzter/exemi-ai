@@ -56,7 +56,6 @@ def get_units(
 ):
     user_with_units = UserPublicWithUnits.model_validate(user)
     return user_with_units.units
-    return units
 
 @router.get("/units/{id}", response_model=UnitPublicWithAssignmentGroups)
 def get_unit(
