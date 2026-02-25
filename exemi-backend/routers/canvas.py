@@ -181,7 +181,7 @@ async def commit_canvas_units(
     - POST /canvas/terms
     """
 
-    canvas_units: list[CanvasUnit] = await canvas_get_units(exclude_complete_units=False, user=user, magic=magic)
+    canvas_units: list[CanvasUnit] = await canvas_get_units(user=user, magic=magic)
     if not canvas_units: return []
 
     canvas_ids = [t.id for t in canvas_units]
