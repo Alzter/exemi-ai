@@ -134,6 +134,7 @@ def get_unit(
 @router.get("/assignment_groups", response_model=list[AssignmentGroupPublicWithUnit])
 def get_assignment_groups(
     date : datetime = datetime.now(timezone.utc),
+    unit_id : int | None = None,
     offset : int = 0,
     limit : int = Query(default=100, le=100),
     user : User = Depends(get_current_user),
@@ -146,6 +147,8 @@ def get_assignment_groups(
     Args:
         date (datetime, optional):
             Only obtain assignment groups for units which are active during this date. Defaults to datetime.now().
+        unit_id (int | None, optional):
+            If given, only includes assignments from a given unit. Defaults to None.
         offset (int, optional):
             Pagination start index. Defaults to 0.
         limit (int, optional):
@@ -160,15 +163,23 @@ def get_assignment_groups(
     """
     user_units = get_units(user=user, session=session)
     user_unit_ids = [u.id for u in user_units]
-    groups = session.exec(
+
+    query = (
         select(AssignmentGroup)
         .join(Unit)
         .join(Term)
         .where(Unit.id.in_(user_unit_ids))
         .where(Term.start_at < date)
         .where(Term.end_at > date)
-        .offset(offset).limit(limit)
-    ).all()
+    )
+
+    if unit_id is not None:
+        query = query.where(Unit.id == unit_id)
+    
+    query = query.offset(offset).limit(limit)
+
+    groups = session.exec(query).all()
+    
     return groups
 
 @router.get("/assignment_groups/{id}", response_model=AssignmentGroupPublicWithAssignments)
@@ -201,6 +212,7 @@ def get_assignments(
     exclude_complete : bool = True,
     exclude_no_due_date : bool = True,
     exclude_ungraded : bool = False,
+    unit_id : int | None = None,
     offset : int = 0,
     limit : int = Query(default=100, le=100),
     user : User = Depends(get_current_user),
@@ -222,6 +234,8 @@ def get_assignments(
         exclude_ungraded (bool, optional):
             Exclude assignments which have zero points, and thus
             may not contribute to the final grade. Defaults to False.
+        unit_id (int | None, optional):
+            If given, only includes assignments from a given unit. Defaults to None.
         offset (int, optional):
             Pagination start index. Defaults to 0.
         limit (int, optional):
@@ -255,6 +269,9 @@ def get_assignments(
 
     if exclude_complete:
         query = query.where(UsersAssignments.submitted == False)
+
+    if unit_id is not None:
+        query = query.where(Unit.id == unit_id)
 
     query = query.offset(offset).limit(limit).order_by(Assignment.due_at)
 
