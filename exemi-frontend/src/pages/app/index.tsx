@@ -55,7 +55,8 @@ export default function LoggedInFlow({session, setSession, setError, logOut} : a
     useEffect(() => {
         if (isMagicValid == null){
             checkIfUserMagicValid();
-        } else{
+        };
+        if (isMagicValid == true){
             if (session.last_sync_date == null){
                 fetchUserUnits();
             };
