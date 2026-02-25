@@ -5,7 +5,7 @@ from ..models import Term, TermCreate, TermPublic, TermUpdate
 from ..models import Unit, UnitCreate, UnitPublic, UnitPublicWithTerm, UnitUpdate
 from ..models import Assignment, AssignmentCreate, AssignmentPublic, AssignmentPublicWithGroup, AssignmentUpdate
 from ..models import AssignmentGroup, AssignmentGroupCreate, AssignmentGroupPublicWithUnit, AssignmentGroupUpdate
-from ..models_canvas import CanvasTerm, CanvasUnit, CanvasAssignment, CanvasAssignmentGroup
+from ..models_canvas import CanvasTerm, CanvasUnit, CanvasAssignment, CanvasSubmission, CanvasAssignmentWithSubmission, CanvasAssignmentGroup
 from sqlmodel import Session, select
 from fastapi import APIRouter, Depends, HTTPException, Query
 from ..dependencies import get_session, get_secret_key, get_current_user, get_current_magic
@@ -17,6 +17,7 @@ router = APIRouter()
 canvas_terms_adapter = TypeAdapter(list[CanvasTerm])
 canvas_units_adapter = TypeAdapter(list[CanvasUnit])
 canvas_assignment_group_adapter = TypeAdapter(list[CanvasAssignmentGroup])
+canvas_assignment_adapter = TypeAdapter(list[CanvasAssignmentWithSubmission])
 
 @router.get("/canvas/terms", response_model=list[CanvasTerm])
 async def canvas_get_terms(
@@ -269,15 +270,14 @@ def enrol_user_in_units(
     session.add(user)
     session.commit()
  
-@router.get("/canvas/units/{unit_id}/assignment_groups", response_model = list[CanvasAssignmentGroup])
+@router.get("/canvas/units/{unit_id}/assignment_groups")#, response_model = list[CanvasAssignmentGroup])
 async def canvas_get_assignment_groups(
     unit_id : int,
-    include_assignments : bool = True,
     user : User = Depends(get_current_user),
     magic : str = Depends(get_current_magic),
 ):
     path = f"courses/{unit_id}/assignment_groups"
-    params = {"include":"assignments"}
+    params = {"include":["submission", "assignments"]}
 
     raw_assignment_groups = await query_canvas(path=path, magic=magic, provider=user.university_name, max_items=50, params=params)
     
@@ -285,21 +285,26 @@ async def canvas_get_assignment_groups(
     return assignment_groups
 
 
-@router.get("/canvas/units/{unit_id}/assignments", response_model=list[CanvasAssignment])
+@router.get("/canvas/units/{unit_id}/assignments", response_model=list[CanvasAssignmentWithSubmission])
 async def canvas_get_assignments(
     unit_id : int,
     user : User = Depends(get_current_user),
     magic : str = Depends(get_current_magic)
 ):
-    assignment_groups = await canvas_get_assignment_groups(unit_id=unit_id, user=user, magic=magic)
+    path = f"courses/{unit_id}/assignments"
+    params = {"include":["submission", "submission"]}
+
+    raw_assignments = await query_canvas(path=path, magic=magic, provider=user.university_name, max_items=50, params=params)
+    # assignment_groups = await canvas_get_assignment_groups(unit_id=unit_id, user=user, magic=magic)
     
-    assignments = []
-    for group in assignment_groups:
-        assignments.extend(group.assignments)
+    # assignments = []
+    # for group in assignment_groups:
+    #     assignments.extend(group.assignments)
+    assignments = canvas_assignment_adapter.validate_json(raw_assignments)
 
     return assignments
 
-@router.get("/canvas/assignments", response_model = list[CanvasAssignment])
+@router.get("/canvas/assignments", response_model = list[CanvasAssignmentWithSubmission])
 async def canvas_get_all_assignments(
     exclude_complete_units : bool = True,
     exclude_organisation_units : bool = True,

@@ -28,6 +28,7 @@ class UsersAssignments(SQLModel, UTCModel, table=True):
     assignment_id : int = Field(primary_key = True, foreign_key="assignment.id")
     user_id : int = Field(primary_key = True, foreign_key="user.id", ondelete="CASCADE")
     submitted : bool = Field(default=False)
+    submitted_at : datetime | None = Field(default=None)
     extension_due_at : datetime | None = Field(default=None)
 
 class UserBase(SQLModel):

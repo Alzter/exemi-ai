@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
+from typing import Literal
 
 class CanvasTerm(BaseModel):
     id : int
@@ -28,6 +29,23 @@ class CanvasAssignment(BaseModel):
     grade_group_students_individually : bool
     # If true, the assignment's points don't count towards final mark
     omit_from_final_grade : bool
+
+class CanvasSubmission(BaseModel):
+    # If multiple submissions have been made, this is the attempt number.
+    attempt : int | None
+    late : bool
+    # If true, this assignment will not count towards the user's grade
+    excused : bool | None
+    # The raw score for the assignment submission.
+    # score : float | None
+    # The timestamp when the assignment was submitted, if an actual submission has been made.
+    submitted_at : datetime | None
+    # The current status of the submission.
+    # Legal values: "submitted", "unsubmitted", "graded", "pending", "pending_review"
+    workflow_state : str # Literal["submitted", "unsubmitted", "graded", "pending", "pending_review"]
+
+class CanvasAssignmentWithSubmission(CanvasAssignment):
+    submission : CanvasSubmission
 
 class CanvasAssignmentGroup(BaseModel):
     id : int
