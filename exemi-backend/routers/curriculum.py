@@ -1,17 +1,18 @@
-from ..models import User
+from ..models import User, UserPublicWithUnits
 from ..models import University
 from ..models import Term, TermPublic, TermPublicWithUnits
 from ..models import Unit,  UnitPublic, UnitPublicWithAssignmentGroups
 from ..models import AssignmentGroup, AssignmentGroupPublicWithUnit, AssignmentGroupPublicWithAssignments
-from ..models import Assignment, AssignmentPublic, AssignmentPublicWithGroup
+from ..models import Assignment, AssignmentPublic, AssignmentPublicWithGroup, UsersAssignments
 from sqlmodel import Session, select
 from fastapi import APIRouter, Depends, HTTPException, Query
 from ..dependencies import get_session, get_current_user
+from datetime import datetime, timezone
 
 router = APIRouter()
 
 @router.get("/university", response_model=list[University])
-async def get_universities(
+def get_universities(
     session : Session = Depends(get_session),
     current_user : User = Depends(get_current_user)
 ):
@@ -25,7 +26,7 @@ async def get_universities(
     return session.exec(select(University)).all()
 
 @router.get("/terms", response_model=list[TermPublic])
-async def get_terms(
+def get_terms(
     offset : int = 0,
     limit : int = Query(default=100, le=100),
     user : User = Depends(get_current_user),
@@ -37,7 +38,7 @@ async def get_terms(
     return terms 
 
 @router.get("/term/{id}", response_model=TermPublicWithUnits)
-async def get_term(
+def get_term(
     id : int,
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session)
@@ -47,19 +48,18 @@ async def get_term(
     return term
 
 @router.get("/units", response_model=list[UnitPublic])
-async def get_units(
+def get_units(
     offset : int = 0,
     limit : int = Query(default=100, le=100),
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session)
 ):
-    units = session.exec(
-        select(Unit).offset(offset).limit(limit)
-    ).all()
+    user_with_units = UserPublicWithUnits.model_validate(user)
+    return user_with_units.units
     return units
 
 @router.get("/units/{id}", response_model=UnitPublicWithAssignmentGroups)
-async def get_unit(
+def get_unit(
     id : int,
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session)
@@ -69,19 +69,28 @@ async def get_unit(
     return unit
 
 @router.get("/assignment_groups", response_model=list[AssignmentGroupPublicWithUnit])
-async def get_assignment_groups(
+def get_assignment_groups(
+    date : datetime = datetime.now(timezone.utc),
     offset : int = 0,
     limit : int = Query(default=100, le=100),
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session)
 ):
+    user_units = get_units(user=user, session=session)
+    user_unit_ids = [u.id for u in user_units]
     groups = session.exec(
-        select(AssignmentGroup).offset(offset).limit(limit)
+        select(AssignmentGroup)
+        .join(Unit)
+        .join(Term)
+        .where(Unit.id.in_(user_unit_ids))
+        .where(Term.start_at < date)
+        .where(Term.end_at > date)
+        .offset(offset).limit(limit)
     ).all()
     return groups
 
 @router.get("/assignment_groups/{id}", response_model=AssignmentGroupPublicWithAssignments)
-async def get_assignment_group(
+def get_assignment_group(
     id : int,
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session)
@@ -91,19 +100,40 @@ async def get_assignment_group(
     return group
 
 @router.get("/assignments", response_model=list[AssignmentPublicWithGroup])
-async def get_assignments(
+def get_assignments(
+    date : datetime = datetime.now(timezone.utc),
+    exclude_complete : bool = True,
     offset : int = 0,
     limit : int = Query(default=100, le=100),
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session)
 ):
-    assignments = session.exec(
-        select(Assignment).offset(offset).limit(limit)
-    ).all()
+
+    query = (
+        select(UsersAssignments)
+        .join(User)
+        .join(Assignment)
+        .join(AssignmentGroup)
+        .join(Unit)
+        .join(Term)
+        .where(User.id == user.id)
+        .where(Term.start_at < date)
+        .where(Term.end_at > date)
+    )
+
+    if exclude_complete:
+        query = query.where(UsersAssignments.submitted == False)
+
+    query = query.offset(offset).limit(limit)
+
+    users_assignments = session.exec(query).all()
+
+    assignments = [ua.assignment for ua in users_assignments]
+
     return assignments
 
 @router.get("/assignments/{id}", response_model=AssignmentPublicWithGroup)
-async def get_assignment(
+def get_assignment(
     id : int,
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session)
