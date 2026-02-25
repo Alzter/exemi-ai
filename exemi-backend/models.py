@@ -89,12 +89,19 @@ class UnitBase(SQLModel):
     name : str = Field(max_length=255)
     term_id : int = Field(foreign_key="term.id")
     canvas_id : int = Field()
+    # Weight final grade based on assignment group percentages
+    apply_assignment_group_weights : bool
 
 class Unit(UnitBase, table=True):
     id : int | None = Field(primary_key=True, default=None)
     assignment_groups : list["AssignmentGroup"] = Relationship(back_populates="unit")
     term : Term = Relationship(back_populates="units")
     users : list[User] = Relationship(back_populates="units", link_model=UsersUnits)
+
+    @property
+    def total_points(self) -> float:
+
+        return sum(g.total_points or 0 for g in self.assignment_groups)
 
 class UnitCreate(UnitBase): pass
 
@@ -125,6 +132,10 @@ class AssignmentGroup(AssignmentGroupBase, table=True):
     unit : Unit = Relationship(back_populates="assignment_groups")
     assignments : list["Assignment"] = Relationship(back_populates="group")
 
+    @property
+    def total_points(self) -> float:
+        return sum(a.points or 0 for a in self.assignments)
+
 class AssignmentGroupCreate(AssignmentGroupBase): pass
 
 class AssignmentGroupPublic(AssignmentGroupBase):
@@ -153,6 +164,12 @@ class Assignment(AssignmentBase, table=True):
     id : int | None = Field(primary_key=True, default=None)
     group : AssignmentGroup | None = Relationship(back_populates="assignments")
     users : list[UsersAssignments] = Relationship(back_populates="assignment")
+
+    @property
+    def grade_contribution(self) -> float:
+        if not self.group or not self.group.total_points:
+            return 0.0
+        return (self.points or 0) / self.group.total_points
 
 class AssignmentCreate(AssignmentBase): pass
 

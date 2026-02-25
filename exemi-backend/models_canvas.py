@@ -14,6 +14,8 @@ class CanvasUnit(BaseModel):
     original_name : str | None = None
     enrollment_term_id : int
     term : CanvasTerm
+    # Weight final grade based on assignment group percentages
+    apply_assignment_group_weights : bool
 
 class CanvasAssignment(BaseModel):
     id : int

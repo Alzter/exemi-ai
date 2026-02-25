@@ -171,10 +171,15 @@ def parse_canvas_unit(data : CanvasUnit) -> dict | None:
     name = data.name
     if data.original_name:
         name = data.original_name
+    
+    # apply_group_weights = True
+    # if data.apply_assignment_group_weights is not None:
+    #     apply_group_weights = data.apply_assignment_group_weights
 
     return {
         "name" : name,
-        "canvas_id" : data.id
+        "canvas_id" : data.id,
+        "apply_assignment_group_weights" : data.apply_assignment_group_weights
     }
 
 @router.post("/canvas/units", response_model=list[UnitPublicWithTerm])
