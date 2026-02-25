@@ -60,7 +60,7 @@ export default function LoggedInFlow({session, setSession, setError, logOut} : a
                 fetchUserUnits();
             };
         };
-    }, []);
+    });
 
     if (isLoading){
         return (<Loading/>);
