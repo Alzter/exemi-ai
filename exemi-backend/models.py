@@ -45,7 +45,7 @@ class User(UserBase, table=True):
     magic_hash : str | None = Field(default=None, max_length=255)
     conversations : list["Conversation"] = Relationship(back_populates="user", cascade_delete=True)
     units : list["Unit"] = Relationship(back_populates="users", link_model=UsersUnits)
-    assignments : list[UsersAssignments] = Relationship(back_populates="user")
+    assignments : list[UsersAssignments] = Relationship(back_populates="user", cascade_delete=True)
     reminders : list["Reminder"] = Relationship(back_populates="user", cascade_delete=True)
 
 class UserPublic(UserBase):
