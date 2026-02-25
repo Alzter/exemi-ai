@@ -2,10 +2,12 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 from langchain.tools import tool, BaseTool
 from .routers.reminders import get_reminders, create_reminder
-from .routers.canvas import canvas_get_all_assignments
+from .routers.curriculum import get_units, get_assignment_groups, get_assignments
+# from .routers.canvas import canvas_get_all_assignments
 from sqlmodel import Session
-from .models import ReminderCreate, ReminderPublic, User, Reminder
-from .models_canvas import CanvasAssignment
+from .models import Unit, AssignmentGroup, Assignment
+from .models import User, Reminder, ReminderCreate, ReminderPublic
+# from .models_canvas import CanvasAssignment
 from .date_utils import parse_timestamp, timestamp_to_string, get_days_remaining_string
 
 def get_reminder_list(user : User, session : Session) -> str:
@@ -30,7 +32,7 @@ def get_reminder_list(user : User, session : Session) -> str:
 
     if not reminders: return ""
     
-    reminders_list = "Remind the user to complete the following assignment tasks:\n"
+    reminders_list = "Remind the student to complete the following assignment tasks:\n"
 
     for reminder in reminders:
         days_remaining_string : str = get_days_remaining_string(reminder.due_at)
@@ -84,19 +86,6 @@ please let the researchers know in the feedback survey 👍
     else:
         return f"## Hello! How can I help you today?"
 
-# ### Frequently Asked Questions:
-# #### Why do you take so long to answer my questions?
-# Currently, I am only being powered by a *single computer*. This limits how fast I can read and answer your questions 🙁
-
-# #### Why do you get confused when answering my questions?
-# The generative AI model that is powering me is *smaller in size than the ones used by commercial AI chatbots like ChatGPT or Copilot*. This can limit my ability to understand complex information. If I get confused in a chat, try starting a new chat to refresh my memory!
-
-# #### What kind of AI are you using?
-# I use **Llama 3.1 8B**, a large language model trained by Meta, to respond to your questions.
-
-# #### Can anyone see my chats?
-# Your chats will not be visible to any other students , but **will be visible to the researchers** conducting this pilot study.
-
 def get_system_prompt(user : User, magic : str, session : Session) -> str:
     return f"""
 You are Exemi, a study assistance chatbot.
@@ -113,7 +102,7 @@ The current date is {timestamp_to_string(datetime.now())}.
 
 General rules:
 - Only attend to ONE TASK at a time. Prioritise completing the most urgent task first.
-- When responding to the user, represent dates in the format: Monday, 8 February 2026.
+- When responding to the student, represent dates in the format: Monday, 8 February 2026.
 - Respond in simple sentences. Break complex information or lists into bullet points.
 - Use markdown formatting for responses, but avoid using many layered headings.
 - Use emojis to convey warmth and concern for the student.
@@ -121,15 +110,15 @@ General rules:
 
 Tool usage rules:
 - When using a tool, represent dates in ISO 8601 format (YYYY-MM-DD).
-- When the user asks what assignments they have, call the tool get_assignments.
-- If the user does NOT have a reminder for a given assignment, and this assignment is important and urgent, use the tool add_assignment_reminder to remind them to complete it before it is due.
+- When the student asks what assignments they have, call the tool get_assignments.
+- If the student does NOT have a reminder for a given assignment, and this assignment is important and urgent, use the tool add_assignment_reminder to remind them to complete it before it is due.
 - You may only call the tool add_assignment_reminder AFTER calling the tool get_assignments.
-- If a tool call fails (returns an error), tell the user: "I'm sorry, I could not complete <name of requested action>.". Do NOT indicate success.
+- If a tool call fails (returns an error), tell the student: "I'm sorry, I could not complete <name of requested action>.". Do NOT indicate success.
 
 Response rules after using a tool:
 - NEVER mention tools, function calls, or that you used an external source.
 - Incorporate tool results naturally, as if you already knew the information.
-- Respond directly to the user in plain language.
+- Respond directly to the student in plain language.
 
 {get_reminder_list(user=user, session=session)}
 """.strip()
@@ -139,13 +128,16 @@ def create_tools(user : User, magic : str, session : Session) -> list[BaseTool]:
     @tool
     async def get_assignments_from_Canvas() -> str:
         """
-        Obtains the user's incomplete assignments.
+        Retrieve a list of the student's incomplete assignments.
 
         Returns:
-            str: Description of the user's incomplete assignments.
+            str: List of the student's incomplete assignments.
         """
-    
-        assignments : list[CanvasAssignment] = await canvas_get_all_assignments(user=user, magic=magic)
+
+        assignments = get_assignments(user=user, session=session)
+        assignments = [AssignmentPublic.model_validate(a) for a in assignments]
+        
+        # assignments : list[CanvasAssignment] = await canvas_get_all_assignments(user=user, magic=magic)
         
         return "\n\n".join([
             "\n".join([
@@ -157,14 +149,14 @@ def create_tools(user : User, magic : str, session : Session) -> list[BaseTool]:
     @tool
     def add_assignment_reminder(assignment_name : str, due_date : str, description : str) -> str:
         """
-        Create a reminder for the user to complete a given assignment.
+        Create a reminder for the student to complete a given assignment.
         The dates should be provided in ISO 8601 format (YYYY-MM-DD).
         Do NOT create a reminder for an assignment if one already exists!
         
         Args:
             assignment_name (str): The assignment name.
-            due_date (str): The date to remind the user in ISO 8601 format (YYYY-MM-DD).
-            description (str): What task the user needs to do. 
+            due_date (str): The date to remind the student in ISO 8601 format (YYYY-MM-DD).
+            description (str): What task the student needs to do. 
         
         Returns:
             str: Reminder creation success or failure message. 
