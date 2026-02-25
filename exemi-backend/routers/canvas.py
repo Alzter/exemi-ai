@@ -319,7 +319,7 @@ async def canvas_get_assignments(
     magic : str = Depends(get_current_magic)
 ):
     path = f"courses/{unit_id}/assignments"
-    params = {"include":["submission", "submission"]}
+    params = {"include":"submission"}
 
     raw_assignments = await query_canvas(path=path, magic=magic, provider=user.university_name, max_items=50, params=params)
 
