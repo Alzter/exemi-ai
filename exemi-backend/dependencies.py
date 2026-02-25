@@ -127,24 +127,20 @@ async def get_current_magic(user : User = Depends(get_current_user)) -> str:
     magic = decrypt_magic_hash(magic_hash)
     return magic
 
-async def create_university_if_not_exists(
-    data : University,
-    current_user : User = Depends(get_current_user),
-    session : Session = Depends(get_session)
+def create_university_if_not_exists(
+    name : str,
+    session : Session
 ):
     """
     Create a new University object or return one if it already exists.
 
     Args:
-        data (University): The name of the university wrapped in a University class.
-    
-    Raises:
-        HTTPException: Raises a 401 if the current user is not an admin.
+        name (str): The name of the university.
 
     Returns:
         University: The new or existing university.
     """
-    name = data.name.lower().strip()
+    name = name.lower().strip()
     existing_university = session.get(University,name)
     if existing_university: return existing_university
     

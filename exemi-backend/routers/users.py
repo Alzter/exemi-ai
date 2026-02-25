@@ -259,6 +259,9 @@ async def create_admin_user(
     if data.magic is not None:
         extra_data["magic_hash"] = await encrypt_magic(data.magic, data.university_name) 
 
+    if data.university_name is not None:
+        create_university_if_not_exists(data.university_name, session=session)
+
     user = User.model_validate(data, update = extra_data)
 
     session.add(user)
@@ -307,13 +310,13 @@ async def create_user(
     extra_data = {
         "password_hash" : PasswordHasher.hash(data.password)
     }
-
-    if data.university_name is not None:
-        await create_university_if_not_exists(university_name)
     
     if data.magic is not None:
         extra_data["magic_hash"] = await encrypt_magic(data.magic, data.university_name) 
 
+    if data.university_name is not None:
+        create_university_if_not_exists(data.university_name, session=session)
+    
     user = User.model_validate(data, update = extra_data)
 
     session.add(user)
@@ -347,8 +350,8 @@ async def update_user(
     if new_data.password is not None:
         extra_data["password_hash"] = PasswordHasher.hash(new_data.password)
 
-    if data.university_name is not None:
-        await create_university_if_not_exists(university_name)
+    if new_data.university_name is not None:
+        create_university_if_not_exists(new_data.university_name, session=session)
     
     if new_data.magic is not None:
         extra_data["magic_hash"] = await encrypt_magic(new_data.magic, new_data.university_name) 
