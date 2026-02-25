@@ -32,6 +32,25 @@ def get_terms(
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session)
 ):
+    """
+    Obtain every teaching period (term)
+    stored in the system. Currently these
+    are limited to biannual university
+    semesters.
+
+    Args:
+        offset (int, optional):
+            Pagination start index. Defaults to 0.
+        limit (int, optional):
+            Pagination length. Defaults to 100. Max of 100.
+        user (User):
+            The currently logged-in user.
+        session (Session, optional):
+            Active connection with the SQLModel database.
+
+    Returns:
+        list[TermPublic]: The teaching period.
+    """
     terms = session.exec(
         select(Term).offset(offset).limit(limit)
     ).all()
@@ -43,6 +62,20 @@ def get_term(
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session)
 ):
+    """
+    Obtain a term (teaching period) with all its units.
+
+    Args:
+        id (int): The term ID.
+        user (User): The currently logged-in user.
+        session (Session, optional): Active connection with the SQLModel database.
+
+    Raises:
+        HTTPException: If the term is not found, raises a 404.
+
+    Returns:
+        TermPublicWithUnits: The term with units included.
+    """
     term = session.get(Term, id)
     if not term: raise HTTPException(status_code=404, detail="Term not found")
     return term
@@ -54,6 +87,23 @@ def get_units(
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session)
 ):
+    """
+    Obtain all the user's units, regardless
+    of enrolment state.
+
+    Args:
+        offset (int, optional):
+            Pagination start index. Defaults to 0.
+        limit (int, optional):
+            Pagination length. Defaults to 100. Max of 100.
+        user (User):
+            The currently logged-in user.
+        session (Session, optional):
+            Active connection with the SQLModel database.
+
+    Returns:
+        list[UnitPublic]: The user's units.
+    """
     user_with_units = UserPublicWithUnits.model_validate(user)
     return user_with_units.units
 
@@ -63,6 +113,20 @@ def get_unit(
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session)
 ):
+    """
+    Obtain a unit with all its assignment groups.
+
+    Args:
+        id (int): The unit ID.
+        user (User): The currently logged-in user.
+        session (Session, optional): Active connection with the SQLModel database.
+
+    Raises:
+        HTTPException: If the unit is not found, raises a 404.
+
+    Returns:
+        UnitPublicWithAssignmentGroups: The unit with assignment groups included.
+    """
     unit = session.get(Unit, id)
     if not unit: raise HTTPException(status_code=404, detail="Unit not found")
     return unit
@@ -75,6 +139,25 @@ def get_assignment_groups(
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session)
 ):
+    """
+    Obtain the user's current assignment groups
+    along with their unit information.
+
+    Args:
+        date (datetime, optional):
+            Only obtain assignment groups for units which are active during this date. Defaults to datetime.now().
+        offset (int, optional):
+            Pagination start index. Defaults to 0.
+        limit (int, optional):
+            Pagination length. Defaults to 100. Max of 100.
+        user (User):
+            The currently logged-in user.
+        session (Session, optional):
+            Active connection with the SQLModel database.
+
+    Returns:
+        list[AssignmentGroupPublicWithUnit]: The assignment groups with unit information included.
+    """
     user_units = get_units(user=user, session=session)
     user_unit_ids = [u.id for u in user_units]
     groups = session.exec(
@@ -94,19 +177,63 @@ def get_assignment_group(
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session)
 ):
+    """
+    Obtain an assignment group with all its assignments.
+
+    Args:
+        id (int): The assignment group ID.
+        user (User): The currently logged-in user.
+        session (Session, optional): Active connection with the SQLModel database.
+
+    Raises:
+        HTTPException: If the assignment group is not found, raises a 404.
+
+    Returns:
+        AssignmentGroupPublicWithAssignments: The assignment group with its assignments included.
+    """
     group = session.get(AssignmentGroup, id)
     if not group: raise HTTPException(status_code=404, detail="Assignment group not found")
     return group
 
-@router.get("/assignments", response_model=list[AssignmentPublicWithGroup])
+@router.get("/assignments", response_model=list[AssignmentPublic])
 def get_assignments(
     date : datetime = datetime.now(timezone.utc),
     exclude_complete : bool = True,
+    exclude_no_due_date : bool = True,
+    exclude_ungraded : bool = False,
     offset : int = 0,
     limit : int = Query(default=100, le=100),
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session)
 ):
+    """
+    Obtains a list of assignments for the user.
+    By default, this obtains only incomplete
+    assignments for the user's current units
+    which have a due date assigned.
+
+    Args:
+        date (datetime, optional):
+            Only obtain assignments for units which are active during this date. Defaults to datetime.now().
+        exclude_complete (bool, optional):
+            Whether to exclude submitted assignments. Defaults to True.
+        exclude_no_due_date (bool, optional):
+            Exclude assignments which do not have a due date assigned. Defaults to True.
+        exclude_ungraded (bool, optional):
+            Exclude assignments which have zero points, and thus
+            may not contribute to the final grade. Defaults to False.
+        offset (int, optional):
+            Pagination start index. Defaults to 0.
+        limit (int, optional):
+            Pagination length. Defaults to 100. Max of 100.
+        user (User):
+            The currently logged-in user.
+        session (Session, optional):
+            Active connection with the SQLModel database.
+
+    Returns:
+        list[AssignmentPublic]: The user's assignments.
+    """
 
     query = (
         select(UsersAssignments)
@@ -120,10 +247,16 @@ def get_assignments(
         .where(Term.end_at > date)
     )
 
+    if exclude_ungraded:
+        query = query.where(Assignment.points > 0)
+    
+    if exclude_no_due_date:
+        query = query.where(Assignment.due_at != None)
+
     if exclude_complete:
         query = query.where(UsersAssignments.submitted == False)
 
-    query = query.offset(offset).limit(limit)
+    query = query.offset(offset).limit(limit).order_by(Assignment.due_at)
 
     users_assignments = session.exec(query).all()
 
@@ -131,7 +264,7 @@ def get_assignments(
 
     return assignments
 
-@router.get("/assignments/{id}", response_model=AssignmentPublicWithGroup)
+@router.get("/assignments/{id}", response_model=AssignmentPublic)
 def get_assignment(
     id : int,
     user : User = Depends(get_current_user),
