@@ -350,6 +350,10 @@ def get_assignments_list(
         message.append(f"## {unit.name}\n")
 
         for assignment in assignments:
+            url = f"https://www.{user.university_name}.instructure.com/"
+            url += f"courses/{unit.canvas_id}/"
+            url += f"assignments/{assignment.canvas_id}"
+
             due_date_string = timestamp_to_string(parse_timestamp(assignment.due_at))
 
             message.append(f"### {assignment.name}")
@@ -358,6 +362,7 @@ def get_assignments_list(
             message.append(f"- **Due date:** {due_date_string}")
             message.append(f"- **Grade contribution:** {int(assignment.grade_contribution * 100)}%")
             message.append(f"- **Requires group work:** {"YES" if assignment.is_group else "NO"}")
+            message.append(f"- **URL**: {url}")
             message.append("\n")
 
     return "\n".join(message).strip()
