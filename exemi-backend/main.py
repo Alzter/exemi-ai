@@ -4,7 +4,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query
 # from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlmodel import Field, Relationship, Session, SQLModel, create_engine, select
 from fastapi.middleware.cors import CORSMiddleware
-from .routers import universities, users, canvas, chats, reminders 
+from .routers import users, canvas, curriculum, chats, reminders
 import sys
 
 # Enable devmode if "fastapi dev main.py" is used
@@ -33,9 +33,9 @@ app = FastAPI(
     redoc_url="/redoc" if DEVMODE else None,
     openapi_url="/openapi.json" if DEVMODE else None,
 )
-app.include_router(universities.router)
 app.include_router(users.router)
 app.include_router(canvas.router)
+app.include_router(curriculum.router)
 app.include_router(chats.router)
 app.include_router(reminders.router)
 

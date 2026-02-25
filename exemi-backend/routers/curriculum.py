@@ -1,27 +1,28 @@
-from pydantic import TypeAdapter
-from ..models import User, UserCreate, UserUpdate, UserPublic
-# from ..models import University, UniversityCreate, UniversityPublic
-from ..models import Term, TermCreate, TermPublic
-from ..models import Unit, UnitCreate, UnitPublic
-from ..models import Assignment, AssignmentCreate, AssignmentPublic
+from ..models import User
+from ..models import University
+from ..models import Term, TermPublic, TermPublicWithUnits
+from ..models import Unit,  UnitPublic, UnitPublicWithAssignmentGroups
+from ..models import AssignmentGroup, AssignmentGroupPublicWithUnit, AssignmentGroupPublicWithAssignments
+from ..models import Assignment, AssignmentPublic, AssignmentPublicWithGroup
 from sqlmodel import Session, select
 from fastapi import APIRouter, Depends, HTTPException, Query
-from ..dependencies import get_session, get_secret_key, get_current_user, get_current_magic
+from ..dependencies import get_session, get_current_user
 
 router = APIRouter()
 
-# @router.get("/universities", response_model=list[UniversityPublic])
-# async def get_universities(session : Session = Depends(get_session)):
-#     universities = session.exec(select(University)).all()
-#     return universities
-# 
-# @router.post("/universities", response_model=UniversityPublicWithUnits)
-# async def create_university(data : UniversityCreate, session : Session = Depends(get_session)):
-#     university = University.model_validate(data)
-#     session.add(university)
-#     session.commit()
-#     session.refresh(university)
-#     return university
+@router.get("/university", response_model=list[University])
+async def get_universities(
+    session : Session = Depends(get_session),
+    current_user : User = Depends(get_current_user)
+):
+    """
+    Obtain all universities (ADMIN ONLY).
+
+    Returns:
+        List[University]: The universities.
+    """
+    if not current_user.admin: raise HTTPException(status_code=401, detail="Unauthorised")
+    return session.exec(select(University)).all()
 
 @router.get("/terms", response_model=list[TermPublic])
 async def get_terms(
@@ -35,29 +36,14 @@ async def get_terms(
     ).all()
     return terms 
 
-@router.get("/term/{name}", response_model=TermPublic)
+@router.get("/term/{id}", response_model=TermPublicWithUnits)
 async def get_term(
-    name : str,
+    id : int,
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session)
 ):
-    term = session.exec(
-        select(Term).where(Term.name == name)
-    ).first()
+    term = session.get(Term, id)
     if not term: raise HTTPException(status_code=404, detail="Term not found")
-    return term
-
-@router.post("/term", response_model=TermPublic)
-async def create_term(
-    data : TermCreate,
-    user : User = Depends(get_current_user),
-    session : Session = Depends(get_session)
-):
-    if not user.admin: raise HTTPException(status_code=401, detail="Unauthorised")
-    term = Term.model_validate(data)
-    session.add(term)
-    session.commit()
-    session.refresh(term)
     return term
 
 @router.get("/units", response_model=list[UnitPublic])
@@ -72,32 +58,39 @@ async def get_units(
     ).all()
     return units
 
-@router.get("/units/{name}", response_model=UnitPublic)
+@router.get("/units/{id}", response_model=UnitPublicWithAssignmentGroups)
 async def get_unit(
-    name : str,
+    id : int,
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session)
 ):
-    unit = session.exec(
-        select(Term).where(Unit.name == name)
-    ).first()
+    unit = session.get(Unit, id)
     if not unit: raise HTTPException(status_code=404, detail="Unit not found")
-    return unit 
-
-@router.post("/unit", response_model=UnitPublic)
-async def create_unit(
-    data : UnitCreate,
-    user : User = Depends(get_current_user),
-    session : Session = Depends(get_session)
-):
-    if not user.admin: raise HTTPException(status_code=401, detail="Unauthorised")
-    unit = Unit.model_validate(data)
-    session.add(unit)
-    session.commit()
-    session.refresh(unit)
     return unit
 
-@router.get("/assignments", response_model=list[AssignmentPublic])
+@router.get("/assignment_groups", response_model=list[AssignmentGroupPublicWithUnit])
+async def get_assignment_groups(
+    offset : int = 0,
+    limit : int = Query(default=100, le=100),
+    user : User = Depends(get_current_user),
+    session : Session = Depends(get_session)
+):
+    groups = session.exec(
+        select(AssignmentGroup).offset(offset).limit(limit)
+    ).all()
+    return groups
+
+@router.get("/assignment_groups/{id}", response_model=AssignmentGroupPublicWithAssignments)
+async def get_assignment_group(
+    id : int,
+    user : User = Depends(get_current_user),
+    session : Session = Depends(get_session)
+):
+    group = session.get(AssignmentGroup, id)
+    if not group: raise HTTPException(status_code=404, detail="Assignment group not found")
+    return group
+
+@router.get("/assignments", response_model=list[AssignmentPublicWithGroup])
 async def get_assignments(
     offset : int = 0,
     limit : int = Query(default=100, le=100),
@@ -109,28 +102,12 @@ async def get_assignments(
     ).all()
     return assignments
 
-@router.get("/units/{name}", response_model=UnitPublic)
+@router.get("/assignments/{id}", response_model=AssignmentPublicWithGroup)
 async def get_assignment(
-    name : str,
+    id : int,
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session)
 ):
-    assignment = session.exec(
-        select(Assignment).where(Assignment.name == name)
-    ).first()
+    assignment = session.get(Assignment, id)
     if not assignment: raise HTTPException(status_code=404, detail="Assignment not found")
     return assignment 
-
-@router.post("/assignment", response_model=AssignmentPublic)
-async def create_assignment(
-    data : AssignmentCreate,
-    user : User = Depends(get_current_user),
-    session : Session = Depends(get_session)
-):
-    if not user.admin: raise HTTPException(status_code=401, detail="Unauthorised")
-    assignment = Assignment.model_validate(data)
-    session.add(assignment)
-    session.commit()
-    session.refresh(assignment)
-    return assignment
-
