@@ -180,12 +180,6 @@ async def commit_canvas_units(
     - POST /canvas/terms
     """
 
-    existing_terms = session.exec(
-        select(Term)
-    ).all()
-
-    # existing_terms : list[Term] = await commit_canvas_terms(session=session,user=user,magic=magic)
-
     canvas_units: list[CanvasUnit] = await canvas_get_units(user=user, magic=magic)
     if not canvas_units: return []
 
@@ -197,6 +191,17 @@ async def commit_canvas_units(
         .join(Term)
         .where(Unit.canvas_id.in_(canvas_ids))
         .where(Term.university_name == user.university_name)
+    ).all()
+
+    # Obtain a list of unique term Canvas IDs
+    # for all of the Canvas unit objects.
+    existing_term_ids = [u.term.id for u in canvas_units]
+    existing_term_ids = list(set(existing_term_ids))
+
+    # Obtain all unique existing terms from the units.
+    existing_terms = session.exec(
+        select(Term)
+        .where(Term.canvas_id.in_(existing_term_ids))
     ).all()
 
     # Map all existing units by their Canvas ID
@@ -295,11 +300,7 @@ async def canvas_get_assignments(
     params = {"include":["submission", "submission"]}
 
     raw_assignments = await query_canvas(path=path, magic=magic, provider=user.university_name, max_items=50, params=params)
-    # assignment_groups = await canvas_get_assignment_groups(unit_id=unit_id, user=user, magic=magic)
-    
-    # assignments = []
-    # for group in assignment_groups:
-    #     assignments.extend(group.assignments)
+
     assignments = canvas_assignment_adapter.validate_json(raw_assignments)
 
     return assignments
@@ -363,11 +364,8 @@ async def commit_canvas_groups_and_assignments(
     - POST /canvas/terms
     """
 
-    units = session.exec(
-        select(Unit)
-    ).all()
-
-    # units = await commit_canvas_units(session=session, user=user, magic=magic)
+    user_with_units = UserPublicWithUnits.model_validate(user)
+    units = user_with_units.units
 
     # --------------------------------------------------
     # 1. Fetch Canvas groups WITH assignments
@@ -578,7 +576,7 @@ async def enrol_user_in_assignments(
             )
             session.add(ua)
         else:
-            ua.sqlmodel_update(update, exclude_unset=True)
+            ua.sqlmodel_update(update)
 
     # ---- Remove stale assignments ----
     for assignment_id, ua in existing_by_assignment.items():
