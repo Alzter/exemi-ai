@@ -52,12 +52,12 @@ export default function LoggedInFlow({session, setSession, setError, logOut} : a
         };
     };
 
-    // 1. Run once on mount
     useEffect(() => {
-        checkIfUserMagicValid();
-    }, []);
+        if (isMagicValid == null){
+            checkIfUserMagicValid();
+        }
+    }, [isMagicValid]);
 
-    // 2. Run when isMagicValid changes
     useEffect(() => {
         if (isMagicValid == true && session.last_sync_date == null) {
             fetchUserUnits();
