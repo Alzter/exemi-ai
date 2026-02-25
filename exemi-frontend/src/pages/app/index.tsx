@@ -10,8 +10,7 @@ const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 
 export default function LoggedInFlow({session, setSession, setError, logOut} : any) {
     const [isMagicValid, setMagicValid] = useState<boolean | null>(null);
-    const [doUserUnitsExist, setUserUnitsExist] = useState<boolean | null>(null);
-    const isLoading = (isMagicValid == null) || (isMagicValid && doUserUnitsExist == null);
+    const isLoading = (isMagicValid == null);
 
     // Call the backend API to determine if the user's current magic is valid.
     async function checkIfUserMagicValid() {
@@ -30,31 +29,40 @@ export default function LoggedInFlow({session, setSession, setError, logOut} : a
 
     // Call the backend API to retrieve the user's units.
     async function fetchUserUnits() {
-        setUserUnitsExist(true);
-        // try{
-        //     const response = await fetch(backendURL + "/canvas/units", {
-        //         headers: {"Authorization" : "Bearer " + session.token},
-        //         method: "POST",
-        //     });
-        //     if (!response.ok){
-        //         logOut();
-        //         setError("System error fetching units! Please contact Alexander Small.");
-        //     } else{
-        //         setUserUnitsExist(true);
-        //     }
-        // } catch {
-        //     logOut();
-        //     setError("System error fetching units! Please contact Alexander Small.");
-        // }
+        setSession(
+            (prev : any) => ({...prev, last_sync_date : new Date()})
+        );
+
+        const response = await fetch(backendURL + "/canvas/all", {
+            headers: {"Authorization" : "Bearer " + session.token},
+            method: "POST",
+        });
+
+        if (!response.ok){
+            let message = "System error obtaining information from Canvas! Contact Alexander Small.";
+            try{
+                let data = await response.json();
+                if (typeof data.detail === "string"){
+                    message = data.detail;
+                }
+            } finally {
+                setError(message);
+                logOut();
+            };
+        };
     };
 
     useEffect(() => {
         if (isMagicValid == null){
             checkIfUserMagicValid();
-        } else if (doUserUnitsExist == null){
+        }
+    }, [isMagicValid]);
+
+    useEffect(() => {
+        if (isMagicValid == true && session.last_sync_date == null) {
             fetchUserUnits();
-        };
-    });
+        }
+    }, [isMagicValid]);
 
     if (isLoading){
         return (<Loading/>);

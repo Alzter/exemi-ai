@@ -9,7 +9,15 @@ from fastapi import HTTPException
 Decodes Canvas API responses into strings for downstream use.
 """
 
-async def query_canvas(path : str, magic : str, provider : str | None, params : dict = {}, max_items : int = 100, timeout : int = 60) -> str:
+async def query_canvas(
+    path : str,
+    magic : str,
+    provider : str | None,
+    params : dict = {},
+    max_items : int = 100,
+    timeout : int = 60,
+    retries : int = 3
+) -> str:
     """
     Obtain data from the Canvas API using a HTTP GET request.
     See https://developerdocs.instructure.com/services/canvas/resources for more information.
@@ -21,6 +29,7 @@ async def query_canvas(path : str, magic : str, provider : str | None, params : 
         params (dict, optional): Additional request parameters for the API to use. Specific to each resource. Defaults to an empty dictionary.
         max_items (int, optional): The maximum number of items to return. Defaults to 100.
         timeout (int, optional): How many seconds to allow the API to respond before timing out. Defaults to 60.
+        retries (int, optional): How many times to attempt the request if it fails. Defaults to 3.
 
     Raises:
         HTTPException: If the request does not return status 200 or times out, a HTTPException is raised.
@@ -36,14 +45,16 @@ async def query_canvas(path : str, magic : str, provider : str | None, params : 
     
     path = f"https://{provider}.instructure.com/api/v1/{path}"
 
+    transport = httpx.AsyncHTTPTransport(retries=retries)
+
     try:
-        async with httpx.AsyncClient(timeout=timeout) as client:
+        async with httpx.AsyncClient(timeout=timeout, transport=transport) as client:
             response = await client.get(path, params=params)
     except httpx.ReadTimeout:
         raise HTTPException(
             status_code = 408,
             detail = f"{provider.capitalize()} Canvas API GET request timed out after {timeout} seconds. Request URL: {path}"
-        ) 
+        )
     
     if not response.status_code == 200:
         raise HTTPException(

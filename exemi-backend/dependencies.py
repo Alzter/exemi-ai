@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 from datetime import timedelta
 from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
-from .models import User
+from .models import User, University
 
 load_dotenv()
 
@@ -87,7 +87,7 @@ async def encrypt_magic(magic : str, university_name : str | None, expiry : time
     if not legit:
         raise HTTPException(
             status_code=401,
-            detail="Canvas API token is invalid",
+            detail="Error: Token is invalid! Please try again.",
             headers={"WWW-Authenticate":"Bearer"}
         )
 
@@ -98,7 +98,7 @@ async def encrypt_magic(magic : str, university_name : str | None, expiry : time
 def decrypt_magic_hash(magic_hash : str) -> str:
     fail = HTTPException(
         status_code = 401,
-        detail = "Error retrieving Canvas API token. Please create a new API token",
+        detail = "Your Canvas token has expired! Please create a new one.",
         headers = {"WWW-Authenticate":"Bearer"}
         )
     try:
@@ -122,8 +122,29 @@ async def get_current_magic(user : User = Depends(get_current_user)) -> str:
         magic (str): The user's magic in plaintext.
     """
     magic_hash, university_name = user.magic_hash, user.university_name
-    if magic_hash is None: raise HTTPException(status_code=404,detail="User does not have a Canvas API token")
-    if university_name is None: raise HTTPException(status_code=404, detail="User does not have a university assigned, which is required to obtain their Canvas API token")
+    if magic_hash is None: raise HTTPException(status_code=404,detail="User does not have a Canvas token")
+    if university_name is None: raise HTTPException(status_code=404, detail="User does not have a university assigned, which is required to obtain their Canvas token")
     magic = decrypt_magic_hash(magic_hash)
     return magic
 
+def create_university_if_not_exists(
+    name : str,
+    session : Session
+):
+    """
+    Create a new University object or return one if it already exists.
+
+    Args:
+        name (str): The name of the university.
+
+    Returns:
+        University: The new or existing university.
+    """
+    name = name.lower().strip()
+    existing_university = session.get(University,name)
+    if existing_university: return existing_university
+    
+    new_university = University(name=name)
+    session.add(new_university)
+    session.commit()
+    return new_university

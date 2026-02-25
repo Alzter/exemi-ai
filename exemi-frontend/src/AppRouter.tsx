@@ -11,7 +11,8 @@ export default function AppRouter() {
     const [session, setSession] = useState<Session>({
         token : localStorage.getItem("token"),
         user_id : Number(localStorage.getItem("user_id")),
-        user : localStorage.getItem("user") != null ? JSON.parse(String(localStorage.getItem("user"))) as User : null
+        user : localStorage.getItem("user") != null ? JSON.parse(String(localStorage.getItem("user"))) as User : null,
+        last_sync_date : localStorage.getItem("last_sync_date") != null ? new Date(String(localStorage.getItem("last_sync_date"))) : null
     });
 
     const [error, setError] = useState<string | null>(null);
@@ -24,7 +25,8 @@ export default function AppRouter() {
         setSession({
             token:null,
             user_id:null,
-            user:null
+            user:null,
+            last_sync_date:null
         })
     };
 
@@ -116,6 +118,12 @@ export default function AppRouter() {
             localStorage.setItem("user", JSON.stringify(session.user));
         } else{
             localStorage.removeItem("user");
+        };
+
+        if (session.last_sync_date){
+            localStorage.setItem("last_sync_date", session.last_sync_date.toISOString());
+        } else {
+            localStorage.removeItem("last_sync_date");
         };
         
         if (isLoggedIn){

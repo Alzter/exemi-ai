@@ -74,8 +74,8 @@ export default function CreateAdminAccount({error, setError, setSession} : any){
                     Please create one now.
                     If you are a participant
                     and are seeing this message,
-                    something has gone terribly wrong!
-                    Please email Alex at <a href="mailto:alexsmall713@gmail.com">alexsmall713@gmail.com</a>!
+                    something has gone terribly wrong.
+                    Please email Alexander Small!
                 </p>
             </div>
             <h1>Create Administrator Account</h1>

@@ -21,7 +21,17 @@ class University(SQLModel, table=True):
 class UsersUnits(SQLModel, table=True):
     __tablename__ = "users_units"
     unit_id : int = Field(primary_key = True, foreign_key="unit.id")
-    user_id : int = Field(primary_key = True, foreign_key="user.id")
+    user_id : int = Field(primary_key = True, foreign_key="user.id", ondelete="CASCADE")
+
+class UsersAssignments(SQLModel, UTCModel, table=True):
+    __tablename__ = "users_assignments"
+    assignment_id : int = Field(primary_key = True, foreign_key="assignment.id")
+    user_id : int = Field(primary_key = True, foreign_key="user.id", ondelete="CASCADE")
+    submitted : bool = Field(default=False)
+    submitted_at : datetime | None = Field(default=None)
+    extension_due_at : datetime | None = Field(default=None)
+    user : "User" = Relationship(back_populates="assignments")
+    assignment : "Assignment" = Relationship(back_populates = "users")
 
 class UserBase(SQLModel):
     username : str = Field(max_length=255, unique=True)
@@ -35,6 +45,7 @@ class User(UserBase, table=True):
     magic_hash : str | None = Field(default=None, max_length=255)
     conversations : list["Conversation"] = Relationship(back_populates="user", cascade_delete=True)
     units : list["Unit"] = Relationship(back_populates="users", link_model=UsersUnits)
+    assignments : list[UsersAssignments] = Relationship(back_populates="user", cascade_delete=True)
     reminders : list["Reminder"] = Relationship(back_populates="user", cascade_delete=True)
 
 class UserPublic(UserBase):
@@ -57,7 +68,7 @@ class TermBase(SQLModel):
     university_name : str = Field(max_length=255, index=True, foreign_key='university.name')
     start_at : datetime
     end_at : datetime
-    name : str = Field(max_length=255, unique=True)
+    name : str = Field(max_length=255)
     canvas_id : int = Field()
 
 class Term(TermBase, table=True):
@@ -66,7 +77,7 @@ class Term(TermBase, table=True):
 
 class TermCreate(TermBase): pass
 
-class TermPublic(TermBase):
+class TermPublic(TermBase, UTCModel):
     id : int
 
 class TermUpdate(SQLModel):
@@ -75,9 +86,11 @@ class TermUpdate(SQLModel):
     name : str | None = None
 
 class UnitBase(SQLModel):
-    name : str = Field(max_length=255, unique=True)
+    name : str = Field(max_length=255)
     term_id : int = Field(foreign_key="term.id")
     canvas_id : int = Field()
+    # Weight final grade based on assignment group percentages
+    apply_assignment_group_weights : bool
 
 class Unit(UnitBase, table=True):
     id : int | None = Field(primary_key=True, default=None)
@@ -94,10 +107,13 @@ class UnitUpdate(SQLModel):
     name : str | None = None
 
 class TermPublicWithUnits(TermPublic):
-    units : list[Unit] = []
+    units : list[UnitPublic] = []
 
 class UnitPublicWithTerm(UnitPublic):
     term : TermPublic | None = None
+
+class UserPublicWithUnits(UserPublic):
+    units : list[UnitPublicWithTerm] = []
 
 class AssignmentGroupBase(SQLModel):
     unit_id : int = Field(foreign_key="unit.id")
@@ -111,20 +127,25 @@ class AssignmentGroup(AssignmentGroupBase, table=True):
     unit : Unit = Relationship(back_populates="assignment_groups")
     assignments : list["Assignment"] = Relationship(back_populates="group")
 
-class AssignmentGroupCreate(AssignmentGroupBase): pass
+    @property
+    def total_points(self) -> float:
+        return sum(a.points or 0 for a in self.assignments)
 
-class AssignmentGroupPublic(AssignmentGroupBase):
-    id : int
+class AssignmentGroupCreate(AssignmentGroupBase): pass
 
 class AssignmentGroupUpdate(SQLModel):
     name : str | None = None
     group_weight : float | None = None
 
+class AssignmentGroupPublic(AssignmentGroupBase):
+    id : int
+    total_points : float
+
 class UnitPublicWithAssignmentGroups(UnitPublic):
     assignment_groups : list[AssignmentGroupPublic] = []
 
 class AssignmentGroupPublicWithUnit(AssignmentGroupPublic):
-    unit : UnitPublic
+    unit : UnitPublicWithTerm
 
 class AssignmentBase(SQLModel):
     group_id : int = Field(foreign_key="assignment_group.id")
@@ -138,17 +159,46 @@ class AssignmentBase(SQLModel):
 class Assignment(AssignmentBase, table=True):
     id : int | None = Field(primary_key=True, default=None)
     group : AssignmentGroup | None = Relationship(back_populates="assignments")
+    users : list[UsersAssignments] = Relationship(back_populates="assignment")
+
+    @property
+    def grade_contribution(self) -> float:
+        """
+        Calculates the assignment's contribution to the unit's final
+        grade as a percentage from 0 to 1.
+
+        If the assignment's unit does not apply assignment group
+        weights, the assignment's grade contribution is given by
+        the simple formula:
+
+        assignment.contribution = (assignment.points / 100)
+
+        Otherwise, the assignment's contribution is given by this formula:
+
+        assignment.contribution = (assignment.points / assignment.group.total_points) * (assignment.group.group_weight / 100)
+
+        Returns:
+            float: Grade contribution.
+        """
+
+        if not self.group.unit.apply_assignment_group_weights:
+            return (self.points / 100)
+
+        if not self.group or not self.group.total_points:
+            return 0.0
+        return ((self.points or 0) / self.group.total_points) * (self.group.group_weight / 100)
 
 class AssignmentCreate(AssignmentBase): pass
-
-class AssignmentPublic(AssignmentBase):
-    id : int
 
 class AssignmentUpdate(SQLModel):
     name : str | None = None
     description : str | None = None
     due_at : datetime | None = None
     points : float | None = None
+
+class AssignmentPublic(AssignmentBase):
+    id : int
+    grade_contribution : float
 
 class AssignmentGroupPublicWithAssignments(AssignmentGroupPublic):
     assignments : list[AssignmentPublic] = []

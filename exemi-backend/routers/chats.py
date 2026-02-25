@@ -340,6 +340,9 @@ async def get_conversation_greeting(
     with the user by sending an assistant message *first*. This function
     obtains the contents of the first assistant message to send the user
     to begin a conversation with them.
+    
+    Returns:
+        str: The greeting message.
     """
 
     existing_conversations : list[Conversation] = await get_conversations_for_self(offset=0, limit=1, user=user, session=session)
@@ -383,6 +386,10 @@ async def conversation_start(
     # DB to determine whether to show the initial
     # greeting message or not.
 
+    existing_conversations : list[Conversation] = await get_conversations_for_self(offset=0, limit=1, user=user, session=session)
+    
+    is_first_conversation = len(existing_conversations) == 0
+    
     greeting_message = await get_conversation_greeting(
         user=user, magic=magic, session=session
     )
@@ -397,17 +404,18 @@ async def conversation_start(
     # Add the chatbot's initial "greeting"
     # message to the conversation.
 
-    greeting_message_data = MessageCreate(
-        conversation_id=conversation.id,
-        role="assistant",
-        content = greeting_message
-    )
+    if is_first_conversation:
+        greeting_message_data = MessageCreate(
+            conversation_id=conversation.id,
+            role="assistant",
+            content = greeting_message
+        )
 
-    await add_message_to_conversation(
-        greeting_message_data,
-        user=user,
-        session=session
-    )
+        await add_message_to_conversation(
+            greeting_message_data,
+            user=user,
+            session=session
+        )
 
     conversation_with_response = await conversation_continue(
         conversation_id = conversation.id,

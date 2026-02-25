@@ -12,4 +12,5 @@ export type Session = {
     token : string | null;
     user_id : number | null;
     user : User | null;
+    last_sync_date : Date | null;
 }

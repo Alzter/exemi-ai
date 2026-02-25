@@ -1,4 +1,4 @@
-from ..models import User, UserCreate, UserUpdate, UserPublic
+from ..models import User, UserCreate, UserUpdate, UserPublic, UserPublicWithUnits
 from typing import Annotated, Literal
 from sqlmodel import Session, select
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -7,6 +7,7 @@ import jwt
 from ..dependencies import get_current_magic, get_session, get_secret_key, encrypt_magic
 from ..dependencies import get_current_user as root_get_current_user
 from ..dependencies import is_magic_valid as root_is_magic_valid
+from ..dependencies import create_university_if_not_exists
 from datetime import datetime, timedelta, timezone
 from pwdlib import PasswordHash
 PasswordHasher = PasswordHash.recommended()
@@ -171,7 +172,7 @@ async def is_magic_valid(
     if not valid: raise HTTPException(status_code=401, detail="The current user's magic is not valid")
     return True
 
-@router.get("/users/{username}", response_model = UserPublic)
+@router.get("/users/{username}", response_model = UserPublicWithUnits)
 async def get_user_safe(
     username : str,
     current_user : User = Depends(root_get_current_user),
@@ -258,6 +259,9 @@ async def create_admin_user(
     if data.magic is not None:
         extra_data["magic_hash"] = await encrypt_magic(data.magic, data.university_name) 
 
+    if data.university_name is not None:
+        create_university_if_not_exists(data.university_name, session=session)
+
     user = User.model_validate(data, update = extra_data)
 
     session.add(user)
@@ -310,6 +314,9 @@ async def create_user(
     if data.magic is not None:
         extra_data["magic_hash"] = await encrypt_magic(data.magic, data.university_name) 
 
+    if data.university_name is not None:
+        create_university_if_not_exists(data.university_name, session=session)
+    
     user = User.model_validate(data, update = extra_data)
 
     session.add(user)
@@ -343,8 +350,14 @@ async def update_user(
     if new_data.password is not None:
         extra_data["password_hash"] = PasswordHasher.hash(new_data.password)
 
+    university_name = user.university_name
+
+    if new_data.university_name is not None:
+        create_university_if_not_exists(new_data.university_name, session=session)
+        university_name = new_data.university_name
+
     if new_data.magic is not None:
-        extra_data["magic_hash"] = await encrypt_magic(new_data.magic, new_data.university_name) 
+        extra_data["magic_hash"] = await encrypt_magic(new_data.magic, university_name) 
     
     user.sqlmodel_update(new_data_dict, update=extra_data)
     session.add(user)
