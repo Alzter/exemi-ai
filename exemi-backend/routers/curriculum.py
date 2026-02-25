@@ -1,9 +1,9 @@
-from ..models import User, UserPublicWithUnits
+from ..models import User, UserPublicWithUnits, UsersAssignments, UsersUnits
 from ..models import University
 from ..models import Term, TermPublic, TermPublicWithUnits
 from ..models import Unit,  UnitPublic, UnitPublicWithAssignmentGroups
 from ..models import AssignmentGroup, AssignmentGroupPublicWithUnit, AssignmentGroupPublicWithAssignments
-from ..models import Assignment, AssignmentPublic, AssignmentPublicWithGroup, UsersAssignments
+from ..models import Assignment, AssignmentPublic, AssignmentPublicWithGroup
 from sqlmodel import Session, select
 from fastapi import APIRouter, Depends, HTTPException, Query
 from ..dependencies import get_session, get_current_user
@@ -82,16 +82,18 @@ def get_term(
 
 @router.get("/units", response_model=list[UnitPublic])
 def get_units(
+    date : datetime = datetime.now(timezone.utc),
     offset : int = 0,
     limit : int = Query(default=100, le=100),
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session)
 ):
     """
-    Obtain all the user's units, regardless
-    of enrolment state.
+    Obtain the user's current units.
 
     Args:
+        date (datetime, optional):
+            Only obtain units which are active during this date. Defaults to datetime.now().
         offset (int, optional):
             Pagination start index. Defaults to 0.
         limit (int, optional):
@@ -104,8 +106,27 @@ def get_units(
     Returns:
         list[UnitPublic]: The user's units.
     """
-    user_with_units = UserPublicWithUnits.model_validate(user)
-    return user_with_units.units
+
+    user_units = session.exec(
+        select(UsersUnits)
+        .join(Unit)
+        .join(Term)
+        .join(User)
+        .where(User.id == user.id)
+        .where(Term.start_at < date)
+        .where(Term.end_at > date)
+    ).all()
+
+    unit_ids = [u.unit_id for u in user_units]
+
+    units = session.exec(
+        select(Unit)
+        .where(Unit.id.in_(unit_ids))
+    )
+
+    return units
+    # user_with_units = UserPublicWithUnits.model_validate(user)
+    # return user_with_units.units
 
 @router.get("/units/{id}", response_model=UnitPublicWithAssignmentGroups)
 def get_unit(
