@@ -30,6 +30,8 @@ class UsersAssignments(SQLModel, UTCModel, table=True):
     submitted : bool = Field(default=False)
     submitted_at : datetime | None = Field(default=None)
     extension_due_at : datetime | None = Field(default=None)
+    user : "User" = Relationship(back_populates="assignments")
+    assignment : "Assignment" = Relationship(back_populates = "users")
 
 class UserBase(SQLModel):
     username : str = Field(max_length=255, unique=True)
@@ -43,7 +45,7 @@ class User(UserBase, table=True):
     magic_hash : str | None = Field(default=None, max_length=255)
     conversations : list["Conversation"] = Relationship(back_populates="user", cascade_delete=True)
     units : list["Unit"] = Relationship(back_populates="users", link_model=UsersUnits)
-    assignments : list["Assignment"] = Relationship(back_populates="users", link_model=UsersAssignments)
+    assignments : list[UsersAssignments] = Relationship(back_populates="user")
     reminders : list["Reminder"] = Relationship(back_populates="user", cascade_delete=True)
 
 class UserPublic(UserBase):
@@ -150,7 +152,7 @@ class AssignmentBase(SQLModel):
 class Assignment(AssignmentBase, table=True):
     id : int | None = Field(primary_key=True, default=None)
     group : AssignmentGroup | None = Relationship(back_populates="assignments")
-    users : list[User] = Relationship(back_populates="assignments", link_model=UsersAssignments)
+    users : list[UsersAssignments] = Relationship(back_populates="assignment")
 
 class AssignmentCreate(AssignmentBase): pass
 

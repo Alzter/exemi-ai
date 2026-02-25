@@ -1,5 +1,5 @@
 from pydantic import TypeAdapter
-from ..models import University, User, UserCreate, UserUpdate, UserPublic, UserPublicWithUnits
+from ..models import University, User, UserCreate, UserUpdate, UserPublic, UserPublicWithUnits, UsersAssignments
 # from ..models import University, UniversityCreate, UniversityPublic
 from ..models import Term, TermCreate, TermPublic, TermUpdate
 from ..models import Unit, UnitCreate, UnitPublic, UnitPublicWithTerm, UnitUpdate
@@ -499,44 +499,92 @@ async def commit_canvas_groups_and_assignments(
 
     canvas_assignments = [a[1] for a in all_canvas_assignments]
 
-    enrol_user_in_assignments(
+    await enrol_user_in_assignments(
         assignments=modified_assignments,
-        canvas_assignments = canvas_assignments,
         session=session,
+        magic=magic,
         user=user
     )
 
     return modified_assignments
 
-def enrol_user_in_assignments(
-    assignments : list[Assignment],
-    canvas_assignments : list[CanvasAssignment],
-    session : Session,
-    user : User
-):  
-    canvas_assignments_by_id : dict[int, CanvasAssignment] = {a.id: a for a in canvas_assignments}
+def parse_canvas_submission(
+    data : CanvasSubmission
+) -> dict:
+    
+    is_submitted = False
+    if data.workflow_state != "unsubmitted":
+        is_submitted = True
+    if data.excused:
+        is_submitted = True
+    
+    return {
+        "submitted" : is_submitted,
+        "submitted_at" : data.submitted_at
+    }
 
+async def enrol_user_in_assignments(
+    assignments: list[Assignment],
+    session: Session,
+    magic: str,
+    user: User
+):
+    canvas_assignments: list[CanvasAssignmentWithSubmission] = []
+
+    unit_ids = list({
+        assignment.group.unit.canvas_id
+        for assignment in assignments
+    })
+
+    for canvas_unit_id in unit_ids:
+        unit_assignments = await canvas_get_assignments(
+            unit_id=canvas_unit_id,
+            user=user,
+            magic=magic
+        )
+        canvas_assignments.extend(unit_assignments)
+
+    canvas_by_id = {a.id: a for a in canvas_assignments}
+
+    # ---- Track which assignments user SHOULD have ----
+    valid_assignment_ids = {a.id for a in assignments}
+
+    # ---- Existing junction rows ----
+    stmt = select(UsersAssignments).where(
+        UsersAssignments.user_id == user.id
+    )
+    existing_rows = session.exec(stmt).all()
+    existing_by_assignment = {
+        ua.assignment_id: ua for ua in existing_rows
+    }
+
+    # ---- Create / Update ----
     for assignment in assignments:
+        canvas_assignment = canvas_by_id.get(assignment.canvas_id)
+        if not canvas_assignment:
+            continue
 
-        canvas_assignment = canvas_assignments_by_id.get(assignment.canvas_id)
-        if not canvas_assignment: raise HTTPException(status_code=404, detail=f"Error retrieving Canvas assignment with ID {assignment.canvas_id}")
+        update = parse_canvas_submission(
+            canvas_assignment.submission
+        )
 
-        # TODO: Check if the assignment was
-        # submitted or not, and if it has
-        # an extension due date or not,
-        # and update relevant fields in the
-        # UsersAssignments junction table
+        ua = existing_by_assignment.get(assignment.id)
 
-        if assignment not in user.assignments:
-           user.assignments.append(assignment)
-    
-    # Unenrol the user from any assignments
-    # they are no longer taking
-    for existing_assignment in user.assignments:
-        if existing_assignment not in assignments:
-            user.assignments.remove(existing_assignment)
-    
-    session.add(user)
+        if not ua:
+            ua = UsersAssignments(
+                user_id=user.id,
+                assignment_id=assignment.id,
+                **update
+            )
+            session.add(ua)
+        else:
+            ua.sqlmodel_update(update, exclude_unset=True)
+
+    # ---- Remove stale assignments ----
+    for assignment_id, ua in existing_by_assignment.items():
+        if assignment_id not in valid_assignment_ids:
+            session.delete(ua)
+
     session.commit()
 
 @router.post("/canvas/all", response_model = Literal[True])
