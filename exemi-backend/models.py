@@ -98,11 +98,6 @@ class Unit(UnitBase, table=True):
     term : Term = Relationship(back_populates="units")
     users : list[User] = Relationship(back_populates="units", link_model=UsersUnits)
 
-    @property
-    def total_points(self) -> float:
-
-        return sum(g.total_points or 0 for g in self.assignment_groups)
-
 class UnitCreate(UnitBase): pass
 
 class UnitPublic(UnitBase):
@@ -138,12 +133,13 @@ class AssignmentGroup(AssignmentGroupBase, table=True):
 
 class AssignmentGroupCreate(AssignmentGroupBase): pass
 
-class AssignmentGroupPublic(AssignmentGroupBase):
-    id : int
-
 class AssignmentGroupUpdate(SQLModel):
     name : str | None = None
     group_weight : float | None = None
+
+class AssignmentGroupPublic(AssignmentGroupBase):
+    id : int
+    total_points : float
 
 class UnitPublicWithAssignmentGroups(UnitPublic):
     assignment_groups : list[AssignmentGroupPublic] = []
@@ -167,20 +163,42 @@ class Assignment(AssignmentBase, table=True):
 
     @property
     def grade_contribution(self) -> float:
+        """
+        Calculates the assignment's contribution to the unit's final
+        grade as a percentage from 0 to 1.
+
+        If the assignment's unit does not apply assignment group
+        weights, the assignment's grade contribution is given by
+        the simple formula:
+
+        assignment.contribution = (assignment.points / 100)
+
+        Otherwise, the assignment's contribution is given by this formula:
+
+        assignment.contribution = (assignment.points / assignment.group.total_points) * (assignment.group.group_weight / 100)
+
+        Returns:
+            float: Grade contribution.
+        """
+
+        if not self.group.unit.apply_assignment_group_weights:
+            return (self.points / 100)
+
         if not self.group or not self.group.total_points:
             return 0.0
-        return (self.points or 0) / self.group.total_points
+        return ((self.points or 0) / self.group.total_points) * (self.group.group_weight / 100)
 
 class AssignmentCreate(AssignmentBase): pass
-
-class AssignmentPublic(AssignmentBase):
-    id : int
 
 class AssignmentUpdate(SQLModel):
     name : str | None = None
     description : str | None = None
     due_at : datetime | None = None
     points : float | None = None
+
+class AssignmentPublic(AssignmentBase):
+    id : int
+    grade_contribution : float
 
 class AssignmentGroupPublicWithAssignments(AssignmentGroupPublic):
     assignments : list[AssignmentPublic] = []
