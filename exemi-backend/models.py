@@ -21,7 +21,14 @@ class University(SQLModel, table=True):
 class UsersUnits(SQLModel, table=True):
     __tablename__ = "users_units"
     unit_id : int = Field(primary_key = True, foreign_key="unit.id")
-    user_id : int = Field(primary_key = True, foreign_key="user.id")
+    user_id : int = Field(primary_key = True, foreign_key="user.id", ondelete="CASCADE")
+
+class UsersAssignments(SQLModel, UTCModel, table=True):
+    __tablename__ = "users_assignments"
+    assignment_id : int = Field(primary_key = True, foreign_key="assignment.id")
+    user_id : int = Field(primary_key = True, foreign_key="user.id", ondelete="CASCADE")
+    submitted : bool = Field(default=False)
+    extension_due_at : datetime | None = Field(default=None)
 
 class UserBase(SQLModel):
     username : str = Field(max_length=255, unique=True)
@@ -35,6 +42,7 @@ class User(UserBase, table=True):
     magic_hash : str | None = Field(default=None, max_length=255)
     conversations : list["Conversation"] = Relationship(back_populates="user", cascade_delete=True)
     units : list["Unit"] = Relationship(back_populates="users", link_model=UsersUnits)
+    assignments : list["Assignment"] = Relationship(back_populates="users", link_model=UsersAssignments)
     reminders : list["Reminder"] = Relationship(back_populates="user", cascade_delete=True)
 
 class UserPublic(UserBase):
@@ -66,7 +74,7 @@ class Term(TermBase, table=True):
 
 class TermCreate(TermBase): pass
 
-class TermPublic(TermBase):
+class TermPublic(TermBase, UTCModel):
     id : int
 
 class TermUpdate(SQLModel):
@@ -141,6 +149,7 @@ class AssignmentBase(SQLModel):
 class Assignment(AssignmentBase, table=True):
     id : int | None = Field(primary_key=True, default=None)
     group : AssignmentGroup | None = Relationship(back_populates="assignments")
+    users : list[User] = Relationship(back_populates="assignments", link_model=UsersAssignments)
 
 class AssignmentCreate(AssignmentBase): pass
 

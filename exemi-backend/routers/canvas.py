@@ -1,5 +1,5 @@
 from pydantic import TypeAdapter
-from ..models import University, User, UserCreate, UserUpdate, UserPublic
+from ..models import University, User, UserCreate, UserUpdate, UserPublic, UserPublicWithUnits
 # from ..models import University, UniversityCreate, UniversityPublic
 from ..models import Term, TermCreate, TermPublic, TermUpdate
 from ..models import Unit, UnitCreate, UnitPublic, UnitPublicWithTerm, UnitUpdate
@@ -185,7 +185,7 @@ async def commit_canvas_units(
 
     # existing_terms : list[Term] = await commit_canvas_terms(session=session,user=user,magic=magic)
 
-    canvas_units: list[CanvasUnit] = await canvas_get_units(exclude_complete_units=False, user=user, magic=magic)
+    canvas_units: list[CanvasUnit] = await canvas_get_units(user=user, magic=magic)
     if not canvas_units: return []
 
     canvas_ids = [t.id for t in canvas_units]
@@ -255,9 +255,16 @@ def enrol_user_in_units(
     session : Session,
     user : User
 ):
+
     for unit in units:
         if unit not in user.units:
             user.units.append(unit)
+    
+    # Unenrol the user from any units
+    # they are no longer taking
+    for existing_unit in user.units:
+        if existing_unit not in units:
+            user.units.remove(existing_unit)
     
     session.add(user)
     session.commit()
@@ -482,7 +489,50 @@ async def commit_canvas_groups_and_assignments(
     # --------------------------------------------------
     session.commit()
 
+    for assignment in modified_assignments:
+        session.refresh(assignment)
+
+    canvas_assignments = [a[1] for a in all_canvas_assignments]
+
+    enrol_user_in_assignments(
+        assignments=modified_assignments,
+        canvas_assignments = canvas_assignments,
+        session=session,
+        user=user
+    )
+
     return modified_assignments
+
+def enrol_user_in_assignments(
+    assignments : list[Assignment],
+    canvas_assignments : list[CanvasAssignment],
+    session : Session,
+    user : User
+):  
+    canvas_assignments_by_id : dict[int, CanvasAssignment] = {a.id: a for a in canvas_assignments}
+
+    for assignment in assignments:
+
+        canvas_assignment = canvas_assignments_by_id.get(assignment.canvas_id)
+        if not canvas_assignment: raise HTTPException(status_code=404, detail=f"Error retrieving Canvas assignment with ID {assignment.canvas_id}")
+
+        # TODO: Check if the assignment was
+        # submitted or not, and if it has
+        # an extension due date or not,
+        # and update relevant fields in the
+        # UsersAssignments junction table
+
+        if assignment not in user.assignments:
+           user.assignments.append(assignment)
+    
+    # Unenrol the user from any assignments
+    # they are no longer taking
+    for existing_assignment in user.assignments:
+        if existing_assignment not in assignments:
+            user.assignments.remove(existing_assignment)
+    
+    session.add(user)
+    session.commit()
 
 @router.post("/canvas/all", response_model = Literal[True])
 async def sync_canvas_to_db(
