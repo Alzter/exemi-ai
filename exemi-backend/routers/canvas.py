@@ -83,7 +83,12 @@ async def commit_canvas_terms(
     - Update if existing
     """
 
-    canvas_terms: list[CanvasTerm] = await canvas_get_terms(user=user, magic=magic)
+    canvas_terms: list[CanvasTerm] = await canvas_get_terms(
+        exclude_organisation_units=True,
+        exclude_complete_units=True,
+        user=user,
+        magic=magic
+    )
     if not canvas_terms: return []
     
     canvas_ids = [t.id for t in canvas_terms]
@@ -188,7 +193,12 @@ async def commit_canvas_units(
     - POST /canvas/terms
     """
 
-    canvas_units: list[CanvasUnit] = await canvas_get_units(user=user, magic=magic)
+    canvas_units: list[CanvasUnit] = await canvas_get_units(
+        exclude_organisation_units=True,
+        exclude_complete_units=True,
+        user=user,
+        magic=magic
+    )
     if not canvas_units: return []
 
     canvas_ids = [t.id for t in canvas_units]
@@ -228,7 +238,9 @@ async def commit_canvas_units(
         )
 
         if not existing_term:
-            raise HTTPException(status_code=404, detail=f"Term not found for unit {canvas_unit.name}")
+            print("Term not found for unit {canvas_unit.name}")
+            continue
+            #raise HTTPException(status_code=404, detail=f"Term not found for unit {canvas_unit.name}")
 
         data["term_id"] = existing_term.id
 
