@@ -161,6 +161,7 @@ Follow these principles for helping students with ADHD:
 - Do all things in the order of priority.
 - Start small, and begin with the easiest part.
 - Work in a space free of visual, auditory, and social distractions.
+- Break study sessions into 25 minute chunks, or less if the task is hard.
 - Plan small rewards after completing tasks to boost motivation.
 
 ## SAFETY
