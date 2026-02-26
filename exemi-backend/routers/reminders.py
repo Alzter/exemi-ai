@@ -207,7 +207,7 @@ reminders_list_adapter = TypeAdapter(list[ReminderJSON])
 
 @router.get("/tool/reminders_json", response_model = str)#list[ReminderJSON])
 def get_reminders_list_json(
-    min_days_remaining : int | None = 28,
+    min_days_remaining : int | None = None,
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
@@ -216,6 +216,7 @@ def get_reminders_list_json(
     in JSON format, sorted by due date.
     """
     reminders = get_reminders(user=user, session=session, offset=0, limit=100, min_days_remaining=min_days_remaining)
+    reminders = [ReminderPublic.model_validate(r) for r in reminders]
 
     if not reminders: return "[]"
 
