@@ -48,6 +48,25 @@ def parse_timestamp(dt: datetime | None, australia_tz: str = "Australia/Sydney")
 
     return dt_aus
 
+def get_days_remaining(dt: datetime | None, australia_tz: str = "Australia/Sydney") -> int | None:
+    """
+    Calculate the number of calendar days between
+    now and a given date and return the result.
+
+    Args:
+        dt (datetime | None): Input datetime, can be naive (assumed UTC) or tz-aware.
+        australia_tz (str, optional): Target Australian timezone. Defaults to "Australia/Sydney".
+
+    Returns:
+        int | None: Number of calendar days left.
+    """
+
+    dt_aus = parse_timestamp(dt, australia_tz=australia_tz)
+    if not dt_aus: return None
+    current_time = datetime.now(ZoneInfo(australia_tz))
+    days_difference = cal_days_diff(dt_aus, current_time)
+    return days_difference
+
 def get_days_remaining_string(dt: datetime | None, australia_tz: str = "Australia/Sydney") -> str:
     """
     Calculate the number of calendar days between
@@ -63,12 +82,8 @@ def get_days_remaining_string(dt: datetime | None, australia_tz: str = "Australi
         str: A string representing the number of days left in the format "X days left".
     """
 
-    dt_aus = parse_timestamp(dt, australia_tz=australia_tz)
-
-    if not dt_aus: return "Unknown days left"
-
-    current_time = datetime.now(ZoneInfo(australia_tz))
-    days_difference = cal_days_diff(dt_aus, current_time)
+    days_difference = get_days_remaining(dt=dt, australia_tz=australia_tz)
+    if not days_difference: return "Unknown days left"
     return str(days_difference) + " days left"
 
 def timestamp_to_string(dt: datetime | None, australia_tz: str = "Australia/Sydney", include_time : bool = True, include_days_remaining : bool = True) -> str:

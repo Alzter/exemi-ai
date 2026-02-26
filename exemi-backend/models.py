@@ -1,7 +1,8 @@
 from pydantic import BaseModel, field_validator
 from sqlmodel import SQLModel, Field, Relationship, Column
 from datetime import datetime, timezone
-from sqlalchemy.dialects.mysql import TEXT, LONGTEXT
+from sqlalchemy.dialects.mysql import TEXT
+import re
 
 # Force timestamps to be UTC formatted
 class UTCModel(BaseModel):
@@ -85,12 +86,33 @@ class TermUpdate(SQLModel):
     end_at : datetime | None = None
     name : str | None = None
 
+unit_name_parser = re.compile(r"(?:[A-Z0-9]+[- ][A-Z0-9]+[- ])(?:[A-Z]*\d+\/?)*[- ]?([^\(\n]*)")
+
 class UnitBase(SQLModel):
     name : str = Field(max_length=255)
     term_id : int = Field(foreign_key="term.id")
     canvas_id : int = Field()
     # Weight final grade based on assignment group percentages
     apply_assignment_group_weights : bool
+    
+    @property
+    def readable_name(self) -> str:
+        """
+            Translates SUT unit names with the format
+            <YEAR>-<TERM>-<CODE(s)>-<NAME> into <NAME>.
+
+            E.g., "2022-HS1-TNE10006/TNE60006-Networks and Switching (Semester 1)" -> "Networks and Switching"
+
+            If regex parsing fails, just returns the original name.
+        """
+        if not isinstance(self.name, str):
+            return str(self.name) if self.name is not None else ""
+
+        match = unit_name_parser.search(self.name)
+        if match:
+            return match.group(1).strip()
+        else:
+            return self.name
 
 class Unit(UnitBase, table=True):
     id : int | None = Field(primary_key=True, default=None)
