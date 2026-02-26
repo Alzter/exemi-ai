@@ -1,8 +1,8 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from langchain.tools import tool, BaseTool
-from .routers.reminders import get_reminders, create_reminder
-from .routers.curriculum import get_assignments_list, get_assignments_list_json
+from .routers.reminders import get_reminders_list_json, create_reminder
+from .routers.curriculum import get_assignments_list_json
 # from .routers.canvas import canvas_get_all_assignments
 from sqlmodel import Session
 from .models import Unit, AssignmentGroup, Assignment
@@ -12,9 +12,9 @@ from .date_utils import parse_timestamp, timestamp_to_string, get_days_remaining
 
 def get_reminder_list(user : User, session : Session) -> str:
     """
-    Obtain a markdown-formatted list of the user's current
-    assignment reminders which are due in less than two weeks
-    time. If the user has no reminders, returns an empty string.
+    Obtain a JSON list of the user's current
+    assignment reminders which are due in less
+    than two weeks time.
     
     Args:
         user (User): The currently logged-in user.
@@ -22,13 +22,6 @@ def get_reminder_list(user : User, session : Session) -> str:
 
     Returns: Reminders list in a markdown format.
     """
-    reminders = get_reminders(
-        offset=0,
-        limit=100,
-        min_days_remaining=14,
-        user=user,
-        session=session
-    )
 
     reminders_list = "## REMINDERS\n\n"
 
@@ -37,13 +30,10 @@ def get_reminder_list(user : User, session : Session) -> str:
     else:
         reminders_list += "Remind the student to complete the following assignment tasks:\n\n"
 
-    for reminder in reminders:
-        days_remaining_string : str = get_days_remaining_string(reminder.due_at)
-
-        reminders_list += "\n".join([
-            f"\n- **{reminder.assignment_name}** ({days_remaining_string}):",
-            f"{reminder.description}"
-        ])
+    reminders += str(get_reminders_list_json(
+        user=user,
+        session=session
+    ))
 
     return reminders_list.strip()
 

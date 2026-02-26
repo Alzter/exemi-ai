@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.security import OAuth2PasswordRequestForm
 from ..dependencies import get_session
 from ..dependencies import get_current_user
-from ..date_utils import cal_days_diff, parse_timestamp
+from ..date_utils import cal_days_diff, parse_timestamp, get_days_remaining
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 router = APIRouter()
@@ -19,15 +19,17 @@ def get_reminders(
     session : Session = Depends(get_session)
 ):
     """
-    Obtain a list of the current user's reminders.
+    Obtain a list of the current user's
+    incomplete assignment reminders
+    sorted by due date.
  
-     Args:
-         offset (int): Pagination start index.
-         min_days_remaining (int): Only include reminders which are due in no greater than this number of days.
-         limit (int): Page length. Maximum of 100.
- 
-     Returns:
-         List[ReminderPublic]: The reminders.
+    Args:
+        offset (int): Pagination start index.
+        min_days_remaining (int): Only include reminders which are due in no greater than this number of days.
+        limit (int): Page length. Maximum of 100.
+
+    Returns:
+        List[ReminderPublic]: The reminders.
     """
 
     reminders = session.exec(
@@ -189,3 +191,41 @@ def update_reminder(
     session.commit()
     session.refresh(reminder)
     return reminder
+
+class ReminderJSON(BaseModel):
+    assignment_name : str,
+    # unit_name : str
+    # ...
+    description : str,
+    created_at : datetime
+    due_at : datetime,
+    days_remaining : int
+
+@router.get("tool/reminders_json/", response_model = list[ReminderJSON])
+def get_reminders_list_json(
+    min_days_remaining : int | None = 14
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """
+    Return the student's incomplete assignment reminders
+    in JSON format, sorted by due date.
+    """
+    reminders = get_reminders(user=user, session=session, offset=0, limit=0, min_days_remaining=min_days_remaining)
+
+    if not reminders: return []
+
+    reminders_list : list[ReminderJSON] = []
+
+    for reminder in reminders:
+        due_at = parse_timestamp(reminder.due_at)
+        days_remaining = get_days_remaining(due_at)
+        reminder_list.append(ReminderJSON(
+            assignment_name = reminder.assignment_name,
+            description = reminder.description,
+            created_at=reminder.created_at
+            due_at = due_date,
+            days_remaining=days_remaining
+        ))
+    
+    return reminders_list
