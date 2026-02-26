@@ -8,7 +8,7 @@ from sqlmodel import Session, select
 from fastapi import APIRouter, Depends, HTTPException, Query
 from ..dependencies import get_session, get_current_user
 from datetime import datetime, timezone
-from ..date_utils import parse_timestamp, timestamp_to_string, get_days_remaining_string
+from ..date_utils import parse_timestamp, timestamp_to_string, get_days_remaining
 
 router = APIRouter()
 
@@ -367,3 +367,68 @@ def get_assignments_list(
             message.append("\n")
 
     return "\n".join(message).strip()
+
+class AssignmentJSON(BaseModel):
+    name: str
+    description: str | None
+    due_date: datetime | None
+    days_remaining : int | None
+    grade_contribution: int
+    is_group: bool
+    url: str
+
+class UnitAssignmentsJSON(BaseModel):
+    unit_name: str
+    assignments: List[AssignmentJSON]
+
+@router.get("/tool/assignments", response_model=List[UnitAssignmentsJSON])
+def get_assignments_list_json(
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    """
+    Return the student's incomplete assignments in JSON format,
+    organized by unit and sorted by due date.
+    """
+
+    # Fetch units
+    units = get_units(user=user, session=session, offset=0, limit=100)
+    units = [UnitPublic.model_validate(u) for u in units]
+
+    units_by_id: dict[int, Unit] = {u.id: u for u in units}
+    units_assignments_json: List[UnitAssignmentsJSON] = []
+
+    for unit in units:
+        assignments = get_assignments(user=user, session=session, unit_id=unit.id, offset=0, limit=100)
+        assignments = [AssignmentPublic.model_validate(a) for a in assignments]
+
+        assignment_list: List[AssignmentJSON] = []
+        for assignment in assignments:
+            url = f"https://www.{user.university_name}.instructure.com/"
+            url += f"courses/{unit.canvas_id}/assignments/{assignment.canvas_id}"
+
+            # due_date_string = timestamp_to_string(parse_timestamp(assignment.due_at))
+            days_remaining = get_days_remaining(assignment.due_at)
+
+            assignment_list.append(
+                AssignmentJSON(
+                    name=assignment.name,
+                    description=assignment.description,
+                    due_date=assignment.due_at,
+                    days_remaining=days_remaining
+                    #due_date=due_date_string,
+                    grade_contribution=int(assignment.grade_contribution * 100),
+                    is_group=assignment.is_group,
+                    url=url
+                )
+            )
+
+        if assignment_list:
+            units_assignments_json.append(
+                UnitAssignmentsJSON(
+                    unit_name=unit.readable_name,
+                    assignments=assignment_list
+                )
+            )
+
+    return units_assignments_json
