@@ -380,9 +380,9 @@ class AssignmentJSON(BaseModel):
 
 class UnitAssignmentsJSON(BaseModel):
     unit_name: str
-    assignments: List[AssignmentJSON]
+    assignments: list[AssignmentJSON]
 
-@router.get("/tool/assignments_json", response_model=List[UnitAssignmentsJSON])
+@router.get("/tool/assignments_json", response_model=list[UnitAssignmentsJSON])
 def get_assignments_list_json(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session)
@@ -397,13 +397,13 @@ def get_assignments_list_json(
     units = [UnitPublic.model_validate(u) for u in units]
 
     units_by_id: dict[int, Unit] = {u.id: u for u in units}
-    units_assignments_json: List[UnitAssignmentsJSON] = []
+    units_assignments_json: list[UnitAssignmentsJSON] = []
 
     for unit in units:
         assignments = get_assignments(user=user, session=session, unit_id=unit.id, offset=0, limit=100)
         assignments = [AssignmentPublic.model_validate(a) for a in assignments]
 
-        assignment_list: List[AssignmentJSON] = []
+        assignment_list: list[AssignmentJSON] = []
         for assignment in assignments:
             url = f"https://www.{user.university_name}.instructure.com/"
             url += f"courses/{unit.canvas_id}/assignments/{assignment.canvas_id}"
