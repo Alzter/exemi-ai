@@ -30,7 +30,7 @@ def get_reminder_list(user : User, session : Session) -> str:
         session=session
     )
 
-    reminders_list = "# Reminders\n\n"
+    reminders_list = "## REMINDERS\n\n"
 
     if not reminders:
         reminders_list += "You have not set the student any assignment reminders yet."
@@ -152,7 +152,7 @@ To provide the student with study assistance, follow these guidelines:
 - Suggest study blocks under 25 minutes.
 - Suggest body-doubling or environment changes.
 - Avoid shaming language.
-- DO NOT recommend other apps.
+- DO NOT recommend other apps (e.g., Forest, Todoist, Notion).
 
 ## URGENCY RULES
 When deciding what assignment to prioritise,
