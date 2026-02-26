@@ -20,7 +20,7 @@ model = ChatOllama(
     model=LLM_MODEL,
     validate_model_on_init=True,
     streaming=True,
-    max_completion_tokens=1500
+    max_completion_tokens=800
 )
 
 async def chat(
