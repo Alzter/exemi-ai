@@ -133,8 +133,8 @@ def get_units(
 
 @router.get("/tool/units", response_model=str)
 def get_units_json(
-    user=user,
-    session=session
+    user : User = Depends(get_current_user),
+    session : Session = Depends(get_session)
 ) -> str:
     units = get_units(offset=0, limit=100, user=user, session=session)
 
