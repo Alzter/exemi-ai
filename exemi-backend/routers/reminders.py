@@ -194,6 +194,7 @@ def update_reminder(
     return reminder
 
 class ReminderJSON(BaseModel):
+    id : int
     assignment_name : str
     # unit_name : str
     # ...
@@ -206,7 +207,7 @@ reminders_list_adapter = TypeAdapter(list[ReminderJSON])
 
 @router.get("/tool/reminders_json", response_model = str)#list[ReminderJSON])
 def get_reminders_list_json(
-    min_days_remaining : int | None = 28,
+    min_days_remaining : int | None = None,
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
@@ -215,6 +216,7 @@ def get_reminders_list_json(
     in JSON format, sorted by due date.
     """
     reminders = get_reminders(user=user, session=session, offset=0, limit=100, min_days_remaining=min_days_remaining)
+    reminders = [ReminderPublic.model_validate(r) for r in reminders]
 
     if not reminders: return "[]"
 
@@ -224,6 +226,7 @@ def get_reminders_list_json(
         due_at = parse_timestamp(reminder.due_at)
         days_remaining = get_days_remaining(due_at)
         reminders_list.append(ReminderJSON(
+            id = reminder.id,
             assignment_name = reminder.assignment_name,
             description = reminder.description,
             created_at=reminder.created_at,

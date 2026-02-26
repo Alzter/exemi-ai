@@ -1,8 +1,8 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from langchain.tools import tool, BaseTool
-from .routers.reminders import get_reminders_list_json, create_reminder
-from .routers.curriculum import get_assignments_list_json
+from .routers.reminders import get_reminders_list_json, create_reminder, delete_reminder
+from .routers.curriculum import get_assignments_list_json, get_units_list_json
 # from .routers.canvas import canvas_get_all_assignments
 from sqlmodel import Session
 from .models import Unit, AssignmentGroup, Assignment
@@ -12,7 +12,7 @@ from .date_utils import parse_timestamp, timestamp_to_string, get_days_remaining
 
 def get_reminder_list(user : User, session : Session) -> str:
     """
-    Obtain a JSON list of the user's current
+    Obtain a JSON list of the student's current
     assignment reminders which are due in less
     than two weeks time.
     
@@ -28,10 +28,11 @@ def get_reminder_list(user : User, session : Session) -> str:
         session=session
     )
 
-    if not reminders_list: return
+    if not reminders_list: return "##REMINDERS\n\nYou have not assigned the student any reminders yet."
 
-    reminders = "## REMINDERS\n\nRemind the student to complete the following assignment tasks:\n\n"
+    reminders = "## REMINDERS\n\nYou have assigned the student the following assignment reminders:\n\n"
     reminders += str(reminders_list)
+    reminders += "\n\nNOTE: DO NOT mention the reminder IDs to the student."
 
     return reminders.strip()
 
@@ -43,15 +44,15 @@ def get_greeting(
 ) -> str:
     """
     Unlike general-purpose chatbots, the Exemi chatbot initiates conversations
-    with the user by sending an assistant message *first*. This function
-    obtains the contents of the first assistant message to send the user
+    with the student by sending an assistant message *first*. This function
+    obtains the contents of the first assistant message to send the student
     to begin a conversation with them.
 
     Args:
         user (User): The currently logged-in user.
-        magic (str): The user's magic.
+        magic (str): The student's magic.
         session (Session): A SQLModel connection with the backend database.
-        is_first_conversation (bool): Whether this is the user's first conversation with the chatbot.
+        is_first_conversation (bool): Whether this is the student's first conversation with the chatbot.
 
     Returns:
         str: Greeting message to begin user conversation.
@@ -99,7 +100,7 @@ Your goal is to help the student plan, manage their time, and improve executive 
 You can achieve this goal by:
 - identifying upcoming assignment deadlines from Canvas LMS,
 - breaking assignments down into smaller tasks,
-- setting reminders for assignment tasks, and
+- setting reminders for upcoming tasks, and
 - using CBT techniques to reduce stress.
 
 The current date is {timestamp_to_string(datetime.now(ZoneInfo("Australia/Sydney")))}.
@@ -114,33 +115,35 @@ The current date is {timestamp_to_string(datetime.now(ZoneInfo("Australia/Sydney
 - Be concise.
 
 ## STUDY HELP RULES
-Follow these principles for helping students with ADHD:
+Remember these principles for helping students with ADHD:
 - If you're having trouble getting started, the first step is too big!
 - Do all things in the order of priority.
 - Start small, and begin with the easiest part.
 - Work in a space free of distractions.
 - Break study sessions into 25 minute chunks, or less if the task is hard.
-- Use cognitive behavioural therapy to challenge depressive / anxious beliefs.
+- Replace depressive / anxious beliefs with more realistic ones.
+
+{get_reminder_list(user=user, session=session)}
 
 ## TOOL USAGE RULES
-- ALWAYS call `get_assignments_from_Canvas` before:
-	- answering about assignments
-	- adding reminders
-- ALWAYS call `add_assignment_reminder` if:
-	- assignment due in <= 7 days
-	- no reminder exists
 - Tool dates must be in ISO 8601 format (YYYY-MM-DD).
 - If a tool fails, say: "I'm sorry, I could not complete <action>."
 - DO NOT indicate success or provide closure if a tool fails.
 - Incorporate tool results naturally, as if you already knew the information.
 
 ## TASK PRIORITY RULES
-When calling the tool `get_assignments_from_Canvas`:
 1. Rank each assignment by urgency (LOWEST number of days remaining).
 2. Rank each assignment by importance (HIGHEST grade contribution %).
 3. Mention assignments which have less time left and greater grade contributions FIRST.
+4. Ask the student which assignment they would like to prioritise first.
 
-{get_reminder_list(user=user, session=session)}
+## UNITS
+The student is enrolled in the following units:
+{get_units_list_json(user=user, session=session)}
+
+## ASSIGNMENTS
+The student has the following assignments:
+{get_assignments_list_json(user=user, session=session)}
 
 ## SAFETY
 - DO NOT engage the student in conversations about suicide, self-harm, or harming others.
@@ -157,42 +160,29 @@ Do NOT use this safety message if the student is simply overwhelmed or stressed.
 - DO NOT attempt to provide support for students in crisis. Refer to the aforementioned services.
 - DO NOT ask the student to self-disclose if they express suicidality.
 - DO NOT take responsibility for the student's safety or wellbeing in crisis. DEFER to the aforementioned services.
-
-WRONG:
-    - Would you like to talk about what's making you feel this way?
-    - I'm here to listen and support you.
-    - I'm here to make you feel less alone.
-    - We can work together.
-
-RIGHT:
-    - I'm sorry to hear you're feeling this way, but I can't help you.
-    - Please call Lifeline on 13 11 14.
-    - Please call Beyond Blue on 1300 22 4636.
-    - If you are in danger, please **stop talking now** and call 000.
 """.strip()
 
 def create_tools(user : User, magic : str, session : Session) -> list[BaseTool]:
 
-    @tool
-    async def get_assignments_from_Canvas() -> str:
-        """
-        Retrieve a markdown-formatted list of the student's incomplete assignments.
+    # @tool
+    # async def get_assignments_from_Canvas() -> str:
+    #     """
+    #     Retrieve a markdown-formatted list of the student's incomplete assignments.
 
-        Returns:
-            str: List of the student's incomplete assignments.
-        """
+    #     Returns:
+    #         str: List of the student's incomplete assignments.
+    #     """
 
-        return str(get_assignments_list_json(user=user, session=session))
+    #     return str(get_assignments_list_json(user=user, session=session))
     
     @tool
-    def add_assignment_reminder(assignment_name : str, due_date : str, description : str) -> str:
+    def set_reminder(task_name : str, due_date : str, description : str) -> str:
         """
-        Create a reminder for the student to complete a given assignment.
+        Create a reminder for the student to complete a task.
         The dates should be provided in ISO 8601 format (YYYY-MM-DD).
-        Do NOT create a reminder for an assignment if one already exists!
         
         Args:
-            assignment_name (str): The assignment name.
+            task_name (str): The name of the task to complete.
             due_date (str): The date to remind the student in ISO 8601 format (YYYY-MM-DD).
             description (str): What task the student needs to do. 
         
@@ -204,23 +194,27 @@ def create_tools(user : User, magic : str, session : Session) -> list[BaseTool]:
         due_at = datetime.fromisoformat(due_date)
         due_at = parse_timestamp(due_at)
 
-        data = ReminderCreate(assignment_name=assignment_name, due_at=due_at, description=description)
+        if not due_at: return "Error creating reminder, please do NOT try again"
+
+        data = ReminderCreate(assignment_name=task_name, due_at=due_at, description=description)
 
         create_reminder(data, user=user, session=session)
         return "Reminder created successfully!"
-        
-    return [get_assignments_from_Canvas, add_assignment_reminder]
+    
+    @tool
+    def remove_reminder(id : int) -> str:
+        """
+        Remove one of the student's active reminders.
+        Use this tool when the student has completed
+        the task you reminded them to do.
 
-# @tool
-# async def get_weather(city : str) -> str:
-#     """
-#     Get the weather for a particular city.
-# 
-#     Args:
-#         city (str): Which city to obtain the weather for.
-# 
-#     Returns:
-#         The weather in degrees Celsius.
-#     """
-#     return "22 degrees Celsius"
+        Args:
+            id (int): The ID of the reminder to remove.
 
+        Returns:
+            str: Reminder deletion success or failure message.
+        """
+        delete_reminder(id=id, user=user, session=session)
+        return "Reminder deleted successfully!"
+
+    return [set_reminder, remove_reminder]
