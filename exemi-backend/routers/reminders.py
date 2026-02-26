@@ -1,3 +1,4 @@
+from pydantic import BaseModel
 from ..models import User, UserPublic, Reminder, ReminderPublic, ReminderCreate, ReminderUpdate
 from typing import Annotated, Literal
 from sqlmodel import Session, select, desc
@@ -193,17 +194,17 @@ def update_reminder(
     return reminder
 
 class ReminderJSON(BaseModel):
-    assignment_name : str,
+    assignment_name : str
     # unit_name : str
     # ...
-    description : str,
+    description : str
     created_at : datetime
-    due_at : datetime,
-    days_remaining : int
+    due_at : datetime | None
+    days_remaining : int | None
 
 @router.get("tool/reminders_json/", response_model = list[ReminderJSON])
 def get_reminders_list_json(
-    min_days_remaining : int | None = 14
+    min_days_remaining : int | None = 14,
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
@@ -220,11 +221,11 @@ def get_reminders_list_json(
     for reminder in reminders:
         due_at = parse_timestamp(reminder.due_at)
         days_remaining = get_days_remaining(due_at)
-        reminder_list.append(ReminderJSON(
+        reminders_list.append(ReminderJSON(
             assignment_name = reminder.assignment_name,
             description = reminder.description,
-            created_at=reminder.created_at
-            due_at = due_date,
+            created_at=reminder.created_at,
+            due_at = due_at,
             days_remaining=days_remaining
         ))
     

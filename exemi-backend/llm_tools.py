@@ -23,19 +23,19 @@ def get_reminder_list(user : User, session : Session) -> str:
     Returns: Reminders list in a markdown format.
     """
 
-    reminders_list = "## REMINDERS\n\n"
+    reminders = "## REMINDERS\n\n"
 
     if not reminders:
-        reminders_list += "You have not set the student any assignment reminders yet."
+        reminders += "You have not set the student any assignment reminders yet."
     else:
-        reminders_list += "Remind the student to complete the following assignment tasks:\n\n"
+        reminders += "Remind the student to complete the following assignment tasks:\n\n"
 
     reminders += str(get_reminders_list_json(
         user=user,
         session=session
     ))
 
-    return reminders_list.strip()
+    return reminders.strip()
 
 def get_greeting(
     user : User,
