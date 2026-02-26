@@ -126,10 +126,6 @@ Remember these principles for helping students with ADHD:
 {get_reminder_list(user=user, session=session)}
 
 ## TOOL USAGE RULES
-- Call `add_reminder` after:
-    - you have broken down ONE of the student's assignments into manageable tasks.
-- Call `remove_reminder` after:
-    - the student has completed a task in their list of reminders.
 - Tool dates must be in ISO 8601 format (YYYY-MM-DD).
 - If a tool fails, say: "I'm sorry, I could not complete <action>."
 - DO NOT indicate success or provide closure if a tool fails.
@@ -180,13 +176,13 @@ def create_tools(user : User, magic : str, session : Session) -> list[BaseTool]:
     #     return str(get_assignments_list_json(user=user, session=session))
     
     @tool
-    def add_reminder(name : str, due_date : str, description : str) -> str:
+    def set_reminder(task_name : str, due_date : str, description : str) -> str:
         """
         Create a reminder for the student to complete a task.
         The dates should be provided in ISO 8601 format (YYYY-MM-DD).
         
         Args:
-            assignment_name (str): The name of the task to complete.
+            task_name (str): The name of the task to complete.
             due_date (str): The date to remind the student in ISO 8601 format (YYYY-MM-DD).
             description (str): What task the student needs to do. 
         
@@ -198,7 +194,7 @@ def create_tools(user : User, magic : str, session : Session) -> list[BaseTool]:
         due_at = datetime.fromisoformat(due_date)
         due_at = parse_timestamp(due_at)
 
-        data = ReminderCreate(assignment_name=name, due_at=due_at, description=description)
+        data = ReminderCreate(assignment_name=task_name, due_at=due_at, description=description)
 
         create_reminder(data, user=user, session=session)
         return "Reminder created successfully!"
@@ -219,4 +215,4 @@ def create_tools(user : User, magic : str, session : Session) -> list[BaseTool]:
         delete_reminder()
         return "Reminder deleted successfully!"
 
-    return [add_reminder, remove_reminder]
+    return [set_reminder, remove_reminder]
