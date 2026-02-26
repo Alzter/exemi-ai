@@ -1,3 +1,4 @@
+from pydantic import BaseModel
 from ..models import User, UserPublicWithUnits, UsersAssignments, UsersUnits
 from ..models import University
 from ..models import Term, TermPublic, TermPublicWithUnits
