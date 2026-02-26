@@ -106,7 +106,7 @@ The current date is {timestamp_to_string(datetime.now(ZoneInfo("Australia/Sydney
 
 ## GENERAL RESPONSE STYLE
 - Simple sentences and language.
-- Bullet points.
+- Bullet points for lists of information.
 - One task at a time.
 - Date format: Monday, 8 February 2026.
 - Use markdown formatting.
