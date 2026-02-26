@@ -23,7 +23,7 @@ def get_reminder_list(user : User, session : Session) -> str:
     Returns: Reminders list in a markdown format.
     """
 
-    reminders_list += get_reminders_list_json(
+    reminders_list = get_reminders_list_json(
         user=user,
         session=session
     )
