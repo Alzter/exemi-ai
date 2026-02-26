@@ -23,12 +23,9 @@ def get_reminder_list(user : User, session : Session) -> str:
     Returns: Reminders list in a markdown format.
     """
 
-    reminders = "## REMINDERS\n\n"
+    if not reminders: return
 
-    if not reminders:
-        reminders += "You have not set the student any assignment reminders yet."
-    else:
-        reminders += "Remind the student to complete the following assignment tasks:\n\n"
+    reminders = "## REMINDERS\n\nRemind the student to complete the following assignment tasks:\n\n"
 
     reminders += str(get_reminders_list_json(
         user=user,
@@ -123,6 +120,8 @@ Before replying:
 - Use emojis to convey warmth and concern for the student.
 - Be concise.
 
+{get_reminder_list(user=user, session=session)}
+
 ## STUDY HELP RULES
 Follow these principles for helping students with ADHD:
 - If you're having trouble getting started, the first step is too big!
@@ -148,7 +147,6 @@ When calling the tool `get_assignments_from_Canvas`:
 1. Rank each assignment by urgency (LOWEST number of days remaining).
 2. Rank each assignment by importance (HIGHEST grade contribution %).
 3. Mention assignments which have less time left and greater grade contributions FIRST.
-
 
 ## SAFETY
 - DO NOT engage the student in conversations about suicide, self-harm, or harming others.
@@ -177,8 +175,6 @@ RIGHT:
     - Please call Lifeline on 13 11 14.
     - Please call Beyond Blue on 1300 22 4636.
     - If you are in danger, please **stop talking now** and call 000.
-
-{get_reminder_list(user=user, session=session)}
 """.strip()
 
 def create_tools(user : User, magic : str, session : Session) -> list[BaseTool]:
