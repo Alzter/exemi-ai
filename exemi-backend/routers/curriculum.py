@@ -357,13 +357,13 @@ def get_assignments_list(
 
             due_date_string = timestamp_to_string(parse_timestamp(assignment.due_at))
 
-            message.append(f"### {assignment.name}")
+            message.append(f"### [{assignment.name}]({URL})")
             if assignment.description:
                 message.append(f"Description:\n```html\n{assignment.description}\n```")
             message.append(f"- **Due date:** {due_date_string}")
             message.append(f"- **Grade contribution:** {int(assignment.grade_contribution * 100)}%")
             message.append(f"- **Requires group work:** {"YES" if assignment.is_group else "NO"}")
-            message.append(f"- **URL**: {url}")
+            # message.append(f"- **URL**: {url}")
             message.append("\n")
 
     return "\n".join(message).strip()
