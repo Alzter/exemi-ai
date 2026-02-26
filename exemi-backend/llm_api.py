@@ -5,7 +5,7 @@ from typing import AsyncGenerator, Callable, Any
 from sqlmodel import Session
 from fastapi import HTTPException, Depends, BackgroundTasks
 from langchain.agents import create_agent
-from langchain_core.messages import BaseMessage
+from langchain_core.messages import BaseMessage, convert_to_openai_messages
 from langchain.tools import BaseTool
 from langchain_ollama import ChatOllama
 from .llm_tools import create_tools, get_system_prompt 
@@ -27,7 +27,7 @@ async def chat(
     user : User,
     magic : str,
     session : Session
-) -> list[BaseMessage]:
+) -> list[dict[str, Any]]:
     """
     Call the LLM to respond to the user's message(s).
     Supports tool calling in a loop (so-called agentic AI).
@@ -36,7 +36,7 @@ async def chat(
         messages (list[dict]): List of messages in OpenAI format.
     
     Returns:
-        list[BaseMessage]: The LLM response messages.
+        list[dict[str, Any]]: The LLM response messages in OpenAI format.
     """
     
     tools : list[BaseTool] = create_tools(user=user, magic=magic, session=session)
@@ -55,11 +55,12 @@ async def chat(
     
     try:
         response_messages : list[BaseMessage] = response["messages"]
-        response_text = str(response_messages[-1].content)
+        response_messages_openai : list[dict[str, Any]] = convert_to_openai_messages(response_messages)
+        #response_text = str(response_messages[-1].content)
     except:
         raise HTTPException(status_code=500, detail=f"LLM message not found in response.\nLLM response: {response}")
     
-    return response_messages
+    return response_messages_openai
 
 async def chat_stream(
     messages : list[dict],
@@ -96,102 +97,129 @@ async def chat_stream(
     Yields:
         str: The next chunk of the LLM response.
     """
-    
-    tools : list[BaseTool] = create_tools(user=user, magic=magic, session=session)
+    tools = create_tools(user=user, magic=magic, session=session)
 
     agent = create_agent(
         model=model,
         system_prompt=get_system_prompt(user=user, magic=magic, session=session),
-        tools=tools
+        tools=tools,
     )
-    
-    # We will store the tool and LLM responses in
-    # a separate list using OpenAI format.
-    response_messages : list[dict[str,str]] = []
 
-    # We will store the LLM's streamed response
-    # chunks in a list. Once generation is complete,
-    # we will concatenate all the chunks to get the
-    # completed message.
-    chunks : list[str] = []
-    
-    last_tool_name : str | None = None
+    if end_function_kwargs is None:
+        end_function_kwargs = {}
 
-    if end_function_kwargs is None: end_function_kwargs = {}
+    response_messages: list[dict] = []
+    assistant_chunks: list[str] = []
+
+    # Track current tool calls
+    tool_calls: dict[str, dict] = {}
+    tool_results: list[dict] = []
+    last_tool_id: str | None = None
+    last_tool_name: str | None = None
 
     try:
-
         async for token, metadata in agent.astream(
-            {"messages":messages},
-            stream_mode="messages"
+            {"messages": messages},
+            stream_mode="messages",
         ):
             node = metadata["langgraph_node"]
-            content : list[dict] = token.content_blocks
+            blocks = token.content_blocks
+            if not blocks:
+                continue
 
-            if not content: continue # Ignore empty chunks
+            content = blocks[-1]
+            t = content.get("type")
+            if not t:
+                continue
 
-            # No idea why LangChain wraps LLM tokens in a list.
-            content : dict = content[-1]
-            
-            chunk : str | None = None
-            
-            if not content.get("type"): continue
+            chunk: str | None = None
 
-            match content["type"]:
+            # ----------------------------------
+            # TOOL CALL START / ARGUMENTS
+            # ----------------------------------
+            if t == "tool_call_chunk":
+                tool_id = content.get("id")
+                tool_name = content.get("name")
 
-                # When the LLM executes a tool call,
-                # yield the text "I am calling the function: <tool name>"
-                case "tool_call_chunk":
+                if tool_id and tool_name:
+                    last_tool_id = tool_id
+                    last_tool_name = tool_name
 
-                    # Obtain the function name of the LLM's tool call
-                    # (e.g., "get_assignments")
-                    tool_name : str | None = content.get("name")
+                    if tool_id not in tool_calls:
+                        tool_calls[tool_id] = {
+                            "id": tool_id,
+                            "type": "function",
+                            "function": {
+                                "name": tool_name,
+                                "arguments": "{}",
+                            },
+                        }
 
-                    if tool_name:
-                        last_tool_name = tool_name
-                        # Make the tool name human readable
-                        # "get_assignments_from_Canvas" -> "get assignments from Canvas"
-                        tool_name = tool_name.replace("_", " ")
+                    readable = tool_name.replace("_", " ")
+                    chunk = f"\n\nI am calling the function **{readable}**. Please wait...\n\n"
 
-                        # Add the chunk: "I am calling the function: <tool name>"
-                        chunk = f"\n\nI am calling the function: **{tool_name}**. Please wait...\n\n"
+            elif t == "tool_call_arguments":
+                tool_id = content.get("id")
+                args = content.get("arguments", "")
+                if tool_id in tool_calls:
+                    tool_calls[tool_id]["function"]["arguments"] += args
 
-                        # Consider the LLM calling a tool as its own message.
-                        response_messages.append({"role":"assistant", "content":chunk.strip()})
+            # ----------------------------------
+            # TEXT OUTPUT
+            # ----------------------------------
+            elif t == "text":
+                text = content.get("text")
+                if not text:
+                    continue
 
-                case "text":
-                    chunk = content.get("text")
-                    if not chunk: continue
+                if node == "tools":
+                    # TOOL RESULT
+                    if last_tool_id:
+                        tool_results.append({
+                            "role": "tool",
+                            "tool_call_id": last_tool_id,
+                            "name": last_tool_name,
+                            "content": text,
+                        })
 
-                    if node == "tools":
-                        system_prompt_amendment = ""
-                        if last_tool_name: system_prompt_amendment += f"Obtained result from tool call: {last_tool_name}\n\n"
-                        system_prompt_amendment += f"Use the following information to inform your response:\n\n{chunk}"
+                    if include_tool_responses:
+                        chunk = (
+                            "\n\n--- Tool Result ---\n"
+                            f"{text}\n"
+                            "-------------------\n\n"
+                        )
 
-                        # Add the tool call into the list of messages.
-                        response_messages.append({"role":"system", "content":system_prompt_amendment})
+                elif node == "model":
+                    assistant_chunks.append(text)
+                    chunk = text
 
-                        if include_tool_responses:
-                            chunk = f"\n\nI have obtained the following information:\n\n---\n\n{chunk}\n\n---\n\n**Please wait while I reason with this information...**\n\n"
-                        else:
-                            chunk = None
-
-                    elif node == "model":
-                        # Only include LLM text in the final message.
-                        chunks.append(chunk)
-
-            if chunk is not None:
+            if chunk:
                 yield chunk
-    
+
+        # ----------------------------------
+        # FINALIZE OPENAI MESSAGE HISTORY
+        # ----------------------------------
+
+        # 1. Assistant tool calls
+        if tool_calls:
+            response_messages.append({
+                "role": "assistant",
+                "content": "",
+                "tool_calls": list(tool_calls.values()),
+            })
+
+        # 2. Tool results
+        response_messages.extend(tool_results)
+
+        # 3. Final assistant text
+        assistant_text = "".join(assistant_chunks).strip()
+        if assistant_text:
+            response_messages.append({
+                "role": "assistant",
+                "content": assistant_text,
+            })
+
     finally:
-        # Add the LLM response to the DB even if an exception is encountered
-
-        if end_function is not None:
-            response_text = "".join(chunks).strip()
-
-            if response_text:
-                response_messages.append({"role":"assistant", "content":response_text})
-
+        if end_function:
             end_function_kwargs["messages"] = response_messages
-
             background_tasks.add_task(end_function, **end_function_kwargs)

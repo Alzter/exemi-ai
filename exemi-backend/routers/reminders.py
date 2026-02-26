@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, TypeAdapter
 from ..models import User, UserPublic, Reminder, ReminderPublic, ReminderCreate, ReminderUpdate
 from typing import Annotated, Literal
 from sqlmodel import Session, select, desc
@@ -202,7 +202,9 @@ class ReminderJSON(BaseModel):
     due_at : datetime | None
     days_remaining : int | None
 
-@router.get("/tool/reminders_json", response_model = list[ReminderJSON])
+reminders_list_adapter = TypeAdapter(list[ReminderJSON])
+
+@router.get("/tool/reminders_json", response_model = str)#list[ReminderJSON])
 def get_reminders_list_json(
     min_days_remaining : int | None = 28,
     user: User = Depends(get_current_user),
@@ -214,7 +216,7 @@ def get_reminders_list_json(
     """
     reminders = get_reminders(user=user, session=session, offset=0, limit=100, min_days_remaining=min_days_remaining)
 
-    if not reminders: return []
+    if not reminders: return "[]"
 
     reminders_list : list[ReminderJSON] = []
 
@@ -229,4 +231,4 @@ def get_reminders_list_json(
             days_remaining=days_remaining
         ))
     
-    return reminders_list
+    return reminders_list_adapter.dump_json(reminders_list)

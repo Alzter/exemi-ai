@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, TypeAdapter
 from ..models import User, UserPublicWithUnits, UsersAssignments, UsersUnits
 from ..models import University
 from ..models import Term, TermPublic, TermPublicWithUnits
@@ -382,7 +382,9 @@ class UnitAssignmentsJSON(BaseModel):
     unit_name: str
     assignments: list[AssignmentJSON]
 
-@router.get("/tool/assignments_json", response_model=list[UnitAssignmentsJSON])
+assignments_list_adapter = TypeAdapter(list[UnitAssignmentsJSON])
+
+@router.get("/tool/assignments_json", response_model=str)#list[UnitAssignmentsJSON])
 def get_assignments_list_json(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session)
@@ -396,7 +398,7 @@ def get_assignments_list_json(
     units = get_units(user=user, session=session, offset=0, limit=100)
     units = [UnitPublic.model_validate(u) for u in units]
 
-    units_by_id: dict[int, Unit] = {u.id: u for u in units}
+    #units_by_id: dict[int, Unit] = {u.id: u for u in units}
     units_assignments_json: list[UnitAssignmentsJSON] = []
 
     for unit in units:
@@ -413,7 +415,7 @@ def get_assignments_list_json(
 
             assignment_list.append(
                 AssignmentJSON(
-                    name=assignment.name,
+                    name=assignment.name or "",
                     description=assignment.description,
                     due_date=parse_timestamp(assignment.due_at),
                     days_remaining=days_remaining,
@@ -432,4 +434,4 @@ def get_assignments_list_json(
                 )
             )
 
-    return units_assignments_json
+    return assignments_list_adapter.dump_json(units_assignments_json)

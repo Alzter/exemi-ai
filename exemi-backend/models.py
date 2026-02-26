@@ -251,11 +251,13 @@ class MessageBase(SQLModel):
     conversation_id : int = Field(foreign_key='conversation.id', ondelete="CASCADE")
     role : str = Field(max_length=30)
     content : str = Field(sa_column=Column(TEXT))
+    tool_call_id : str | None = Field(max_length=255, default=None)
 
 class Message(MessageBase, table=True):
     id : int | None = Field(primary_key=True, default=None)
     conversation : Conversation = Relationship(back_populates="messages")
     created_at : datetime
+    tool_calls : list["ToolCall"] = Relationship(back_populates="message")
 
 class MessageCreate(MessageBase): pass
 
@@ -266,8 +268,28 @@ class MessagePublic(MessageBase, UTCModel):
 class MessageUpdate(SQLModel):
     content : str = Field(sa_column=Column(TEXT))
 
+class ToolCallBase(SQLModel):
+    message_id : int = Field(foreign_key='message.id', ondelete="CASCADE")
+    function_name : str = Field(max_length=255, index=True)
+    tool_call_id : str = Field(max_length=255)
+    arguments : str = Field(sa_column=Column(TEXT))
+
+class ToolCall(ToolCallBase, table=True):
+    __tablename__ = "tool_call"
+    id : int | None = Field(primary_key=True, default=None)
+    message : Message = Relationship(back_populates="tool_calls")
+
+class ToolCallPublic(ToolCallBase):
+    id : int
+
+class ToolCallCreate(ToolCallBase):
+    pass
+
+class MessagePublicWithToolCalls(MessagePublic):
+    tool_calls : list[ToolCallPublic] = []
+
 class ConversationPublicWithMessages(ConversationPublic):
-    messages : list[Message] = []
+    messages : list[MessagePublicWithToolCalls] = []
 
 class ReminderBase(SQLModel):
     # canvas_assignment_id : int

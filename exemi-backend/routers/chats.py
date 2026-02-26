@@ -1,4 +1,7 @@
-from ..models import User, Conversation, NewMessage, ConversationPublic, ConversationPublicWithMessages, Message, MessageCreate, MessagePublic, MessageUpdate
+from pydantic import BaseModel, TypeAdapter
+from ..models import MessagePublic, MessagePublicWithToolCalls, User, Conversation, ConversationPublic, ConversationPublicWithMessages
+from ..models import Message, MessageCreate, NewMessage
+from ..models import ToolCall, ToolCallCreate
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from sqlmodel import Session, select, desc
@@ -7,10 +10,27 @@ from ..llm_api import chat, chat_stream
 from ..llm_tools import get_greeting
 from langchain_core.messages import BaseMessage
 from datetime import datetime, timezone
-from typing import Literal, AsyncGenerator
-import time
+from typing import Literal, Any
+import json
 
 router = APIRouter()
+
+class OpenAIToolCallFunction(BaseModel):
+    name : str
+    arguments : str
+
+class OpenAIToolCall(BaseModel):
+    id : str
+    type : str
+    function : OpenAIToolCallFunction
+
+class OpenAIChatMessage(BaseModel):
+    role : str
+    content : str | None = None
+    tool_calls : list[OpenAIToolCall] | None = None
+    tool_call_id : str | None = None
+
+openai_message_adapter = TypeAdapter(list[OpenAIChatMessage])
 
 @router.get("/test_chat/{message}")
 async def test_chat(
@@ -18,7 +38,7 @@ async def test_chat(
     user : User = Depends(get_current_user),
     magic : str = Depends(get_current_magic),
     session : Session = Depends(get_session)
-) -> list[BaseMessage]:
+) -> list[dict[str, Any]]:
     """
     Test the chat functionality of the LLM (ADMIN ONLY).
 
@@ -33,7 +53,7 @@ async def test_chat(
     """
     if not user.admin: raise HTTPException(status_code=401, detail="Unauthorised")
     messages = [{"role":"user","content":message}]
-    response_messages : list[BaseMessage] = await chat(
+    response_messages : list[dict[str, Any]] = await chat(
         user=user,
         magic=magic,
         session=session,
@@ -183,7 +203,7 @@ async def add_message_to_conversation(
     data : MessageCreate,
     user : User,
     session : Session
-):
+) -> tuple[Message, Conversation]:
     existing_conversation = session.get(Conversation, data.conversation_id)
     if not existing_conversation:
         raise HTTPException(status_code=404, detail="Conversation not found")
@@ -199,10 +219,10 @@ async def add_message_to_conversation(
     session.commit()
     session.refresh(message)
 
-    return existing_conversation
+    return (message, existing_conversation)
 
 async def add_messages_to_conversation(
-    messages : list[dict[str,str]],
+    messages : list[dict[str,Any]],
     conversation_id : int,
     user : User,
     session : Session
@@ -223,29 +243,47 @@ async def add_messages_to_conversation(
     Returns:
         Conversation: The conversation with the LLM response added to the list of messages.
     """
+    
+    message_list : list[OpenAIChatMessage] = openai_message_adapter.validate_python(messages)
 
     existing_conversation = session.get(Conversation, conversation_id)
     if not existing_conversation: raise HTTPException(status_code=404, detail="Conversation not found")
     
     if existing_conversation.user_id != user.id and not user.admin:
         raise HTTPException(status_code=401, detail="You are not authorised to add messages to another user's conversation")
+    
+    new_conversation = existing_conversation
 
-    for message in messages:
-
-        if not message.get("role") or not message.get("content"):
-            raise HTTPException(status_code=400, detail="Chat messages must contain a 'role' and 'content' field!")
-        
+    for message in message_list:
         message_data = MessageCreate(
             conversation_id = conversation_id,
-            role=message.get("role"),
-            content=message.get("content")
+            role=message.role,
+            content=message.content or "",
+            tool_call_id=message.tool_call_id
         )
 
-        new_conversation = await add_message_to_conversation(
+        db_message, new_conversation = await add_message_to_conversation(
             message_data,
             user=user,
             session=session
         )
+
+        db_message = MessagePublic.model_validate(db_message)
+
+        if message.tool_calls:
+            for tool_call in message.tool_calls:
+                
+                tool_call_data = ToolCallCreate(
+                    message_id = db_message.id,
+                    function_name = tool_call.function.name,
+                    tool_call_id = tool_call.id,
+                    arguments = tool_call.function.arguments
+                )
+
+                tool_call = ToolCall.model_validate(tool_call_data.model_dump())
+                session.add(tool_call)
+
+            session.commit()
 
     return new_conversation
 
@@ -458,7 +496,7 @@ async def conversation_continue(
         content=new_message.message_text
     )
     
-    new_conversation = await add_message_to_conversation(
+    _, new_conversation = await add_message_to_conversation(
         message_data,
         user=user,
         session=session
@@ -466,11 +504,12 @@ async def conversation_continue(
 
     return new_conversation
 
-def get_message_list(
-    conversation_id : int,
-    user : User,
-    session : Session
-) -> list[dict[str, str]]:
+@router.get("/conversation/{id}/openai")
+def conversation_to_openai(
+    id : int,
+    user : User = Depends(get_current_user),
+    session : Session = Depends(get_session)
+) -> list[dict[str, Any]]:
     """
     Obtains a list of mesasges from an
     existing conversation in the OpenAI
@@ -480,24 +519,39 @@ def get_message_list(
         conversation_id (int): Conversation ID to retrieve.
 
     Returns:
-        list[dict[str, str]]: The messages with "role" and "content" fields.
+        list[dict[str, str]]: The messages in OpenAI chat template format.
     """
-    existing_conversation = session.get(Conversation, conversation_id)
+    existing_conversation = session.get(Conversation, id)
     if not existing_conversation: raise HTTPException(status_code=404, detail="Conversation not found")
     
     if existing_conversation.user_id != user.id and not user.admin:
-        raise HTTPException(status_code=401, detail="You are not authorised to add messages to another user's conversation")
+        raise HTTPException(status_code=401, detail="You are not authorised to view messages from another user's conversation")
 
-    existing_messages = session.exec(
+    existing_messages_raw = session.exec(
         select(Message).where(Message.conversation_id == existing_conversation.id)
     ).all()
 
-    message_dict = [{
-        "role": message.role, "content": message.content
-    } for message in existing_messages]
+    existing_messages : list[MessagePublicWithToolCalls] = [MessagePublicWithToolCalls.model_validate(m) for m in existing_messages_raw]
+    
+    messages : list[OpenAIChatMessage] = [
+        OpenAIChatMessage(
+            role=message.role,
+            content=message.content,
+            tool_call_id=message.tool_call_id,
+            tool_calls = [
+                OpenAIToolCall(
+                    id = tool_call.tool_call_id,
+                    type = "function",
+                    function = OpenAIToolCallFunction(
+                        name = tool_call.function_name,
+                        arguments = tool_call.arguments
+                    )
+                )
+            for tool_call in message.tool_calls]
+        )
+    for message in existing_messages]
 
-    return message_dict
-
+    return [message.model_dump() for message in messages]
 
 @router.get("/conversation_reply/{conversation_id}", response_model=str)
 async def call_llm_response_to_conversation(
@@ -526,27 +580,28 @@ async def call_llm_response_to_conversation(
     Returns:
         str: The LLM's response text.
     """
-    messages = get_message_list(conversation_id=conversation_id, user=user, session=session)
+    messages = conversation_to_openai(id=conversation_id, user=user, session=session)
     if not messages:
         raise HTTPException(status_code=400, detail="Error responding to conversation: conversation is empty!")
     if messages[-1]["role"] != "user":
         raise HTTPException(status_code=400, detail="Error responding to conversation: last message must be created by the user!")
-
-    response_messages : list[BaseMessage] = await chat(
+    
+    response_messages : list[dict[str, Any]] = await chat(
         user=user,
         magic=magic,
         session=session,
         messages=messages
     )
-
-    response_text = str(response_messages[-1].content)
-
-    response_messages = [{"role":"assistant","content":response_text}]
     
+    response_text = str(response_messages[-1].get("content"))
+    
+    # Obtain only the output messages
+    new_messages = response_messages[len(messages):]
+
     background_tasks.add_task(
         add_messages_to_conversation,
-        messages=response_messages,
-        conversation_id = conversation_id,
+        messages=new_messages,
+        conversation_id=conversation_id,
         user=user,
         session=session
     )
@@ -580,7 +635,7 @@ async def stream_llm_response_to_conversation(
     Returns:
         StreamingResponse: The LLM's response text in chunks.
     """
-    messages = get_message_list(conversation_id=conversation_id, user=user, session=session)
+    messages = conversation_to_openai(id=conversation_id, user=user, session=session)
     if not messages:
         raise HTTPException(status_code=400, detail="Error responding to conversation: conversation is empty!")
     if messages[-1]["role"] != "user":
