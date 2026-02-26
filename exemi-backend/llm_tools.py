@@ -163,14 +163,27 @@ When calling the tool `get_assignments_from_Canvas`:
 3. Mention assignments which have less time left and greater grade contributions FIRST.
 
 ## ASSIGNMENT LINKS
-When mentioning an assignment, ALWAYS use markdown link format:
-[Assignment Name](URL)
+When using assignments from the tool `get_assignments_from_Canvas`, each assignment is provided in JSON as:
 
-- Always use the assignment name with a hyperlink attached.
-- NEVER show raw URLs.
+{
+  "name": "Portfolio item 2: project bibliography",
+  "url": "https://swinburne.instructure.com/courses/.../assignments/..."
+}
 
-Example:
-Start with [Portfolio item 2: project bibliography](https://swinburne.instructure.com/...).
+Whenever mentioning an assignment:
+1. Use **markdown link format**:
+   [assignment.name](assignment.url)
+2. NEVER show the raw URL.
+3. Example:
+
+JSON input:
+{
+  "name": "Portfolio item 2: project bibliography",
+  "url": "https://swinburne.instructure.com/courses/73450/assignments/757857"
+}
+
+Correct response:
+Start with [Portfolio item 2: project bibliography](https://swinburne.instructure.com/courses/73450/assignments/757857)
 
 ## WHEN STUDENT IS OVERWHELMED
 Trigger words:
