@@ -381,7 +381,7 @@ class UnitAssignmentsJSON(BaseModel):
     unit_name: str
     assignments: List[AssignmentJSON]
 
-@router.get("/tool/assignments", response_model=List[UnitAssignmentsJSON])
+@router.get("/tool/assignments_json", response_model=List[UnitAssignmentsJSON])
 def get_assignments_list_json(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session)
