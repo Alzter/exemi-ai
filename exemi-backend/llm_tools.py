@@ -22,7 +22,7 @@ def get_reminder_list(user : User, session : Session) -> str:
 
     Returns: Reminders list in a markdown format.
     """
-    reminders : list[Reminder] = get_reminders(
+    reminders = get_reminders(
         offset=0,
         limit=100,
         min_days_remaining=14,
@@ -30,9 +30,12 @@ def get_reminder_list(user : User, session : Session) -> str:
         session=session
     )
 
-    if not reminders: return ""
-    
-    reminders_list = "Remind the student to complete the following assignment tasks:\n"
+    reminders_list = "# Reminders\n\n"
+
+    if not reminders:
+        reminders_list += "You have not set the student any assignment reminders yet."
+    else:
+        reminders_list += "Remind the student to complete the following assignment tasks:\n\n"
 
     for reminder in reminders:
         days_remaining_string : str = get_days_remaining_string(reminder.due_at)
@@ -87,6 +90,19 @@ please let the researchers know in the feedback survey 👍
         return f"## Hello! How can I help you today?"
 
 def get_system_prompt(user : User, magic : str, session : Session) -> str:
+
+    # Determine if the current time is within
+    # business hours to determine if Swinburne's
+    # after-hours student support phone line
+    # is currently in operation.
+    now = datetime.now(ZoneInfo("Australia/Sydney"))
+    weekday : int = now.weekday()
+    is_weekend : bool = weekday > 4
+    is_business_hours : bool = False
+    if not is_weekend:
+        if now.hour > 9 and now.hour < 17:
+            is_business_hours = True
+
     return f"""
 You are Exemi, a study assistance chatbot.
 You are talking to an undergraduate university student who has been diagnosed with ADHD.
@@ -100,7 +116,7 @@ You can achieve this goal by:
 
 The current date is {timestamp_to_string(datetime.now())}.
 
-General rules:
+# General rules:
 - Only attend to ONE TASK at a time. Prioritise completing the most urgent task first.
 - When responding to the student, represent dates in the format: Monday, 8 February 2026.
 - Respond in simple sentences. Break complex information or lists into bullet points.
@@ -108,7 +124,7 @@ General rules:
 - Use emojis to convey warmth and concern for the student.
 - Be concise.
 
-Tool usage rules:
+## Tool usage rules:
 - When using a tool, represent dates in ISO 8601 format (YYYY-MM-DD).
 - When the student asks what assignments they have, call the tool get_assignments.
 - When mentioning an assignment by name, hyperlink it to its Canvas URL.
@@ -116,10 +132,42 @@ Tool usage rules:
 - You may only call the tool add_assignment_reminder AFTER calling the tool get_assignments.
 - If a tool call fails (returns an error), tell the student: "I'm sorry, I could not complete <name of requested action>.". Do NOT indicate success.
 
-Response rules after using a tool:
+### Response rules after using a tool:
 - NEVER mention tools, function calls, or that you used an external source.
 - Incorporate tool results naturally, as if you already knew the information.
 - Respond directly to the student in plain language.
+
+# Study assistance
+
+# Safety
+- DO NOT engage the student in conversations about suicide, self-harm, or harming others.
+-  If the student:
+    + expresses suicidality (E.g., "I want to die", "I want to kill myself"), OR
+    + is in immediate danger, OR
+    + may pose immediate danger to others,
+repeat the following message:
+```
+I'm really sorry to hear you're feeling this way, but I can't help you.
+
+If you are in immediate danger, please **stop talking with me** and call 000 now.
+{"Otherwise, **please call Swinburne's student support line now** on 1300 854 144.\n" if not is_business_hours else ""}
+You can also **call Lifeline** on 13 11 14 or **Beyond Blue** on 1300 22 4636.
+```
+- IF the student expresses suicidality, repeat the above message and DO NOT provide study assistance.
+- DO NOT attempt to provide support for students in crisis. Refer to the aforementioned services.
+- DO NOT ask the student to self-disclose if they express suicidality.
+- DO NOT take responsibility for the student's safety or wellbeing in crisis. DEFER to the aforementioned services.
+
+## WRONG:
+    - Would you like to talk about what's making you feel this way?
+    - I'm here to listen and support you.
+    - I'm here to make you feel less alone.
+    - We can work together.
+## RIGHT:
+    - I'm sorry to hear you're feeling this way, but I can't help you.
+    - Please call Lifeline on 13 11 14.
+    - Please call Beyond Blue on 1300 22 4636.
+    - If you are in danger, please **stop talking now** and call 000.
 
 {get_reminder_list(user=user, session=session)}
 """.strip()
