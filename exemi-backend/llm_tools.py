@@ -28,9 +28,9 @@ def get_reminder_list(user : User, session : Session) -> str:
         session=session
     )
 
-    if not reminders_list: return
+    if not reminders_list: return "##REMINDERS\n\nYou have not assigned the student any reminders yet."
 
-    reminders = "## REMINDERS\n\nRemind the student to complete the following tasks:\n\n"
+    reminders = "## REMINDERS\n\nYou have assigned the student the following assignment reminders:\n\n"
     reminders += str(reminders_list)
     reminders += "\n\nNOTE: DO NOT mention the reminder IDs to the student."
 
