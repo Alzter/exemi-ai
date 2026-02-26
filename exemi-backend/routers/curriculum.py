@@ -415,7 +415,7 @@ def get_assignments_list_json(
                     name=assignment.name,
                     description=assignment.description,
                     due_date=assignment.due_at,
-                    days_remaining=days_remaining
+                    days_remaining=days_remaining,
                     #due_date=due_date_string,
                     grade_contribution=int(assignment.grade_contribution * 100),
                     is_group=assignment.is_group,
