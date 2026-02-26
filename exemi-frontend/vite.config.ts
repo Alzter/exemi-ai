@@ -10,9 +10,9 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 5173,
     hmr: {
-      protocol: 'ws', // or 'wss' if you have HTTPS locally
-      host: 'localhost', 
-      port: 5173,
-    },
+      protocol: 'wss',       // because https page
+      host: 'www.exemi.au',
+      port: 443,
+    }
   },
 })
