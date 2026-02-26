@@ -2,7 +2,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 from langchain.tools import tool, BaseTool
 from .routers.reminders import get_reminders_list_json, create_reminder, delete_reminder
-from .routers.curriculum import get_assignments_list_json
+from .routers.curriculum import get_assignments_list_json, get_units_list_json
 # from .routers.canvas import canvas_get_all_assignments
 from sqlmodel import Session
 from .models import Unit, AssignmentGroup, Assignment
@@ -144,6 +144,10 @@ When calling the tool `get_assignments_from_Canvas`:
 2. Rank each assignment by importance (HIGHEST grade contribution %).
 3. Mention assignments which have less time left and greater grade contributions FIRST.
 4. Ask the user which assignment they would like to prioritise first.
+
+## UNITS
+The user is enrolled in the following units:
+{get_units_list_json(user=user, session=session)}
 
 ## SAFETY
 - DO NOT engage the student in conversations about suicide, self-harm, or harming others.

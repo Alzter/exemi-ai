@@ -132,10 +132,13 @@ def get_units(
     # return user_with_units.units
 
 @router.get("/tool/units_json", response_model=str)
-def get_units_json(
+def get_units_list_json(
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session)
 ) -> str:
+    """
+    Returns a list of human-readable unit names as a JSON string.
+    """
     units = get_units(offset=0, limit=100, user=user, session=session)
     units = [UnitPublic.model_validate(u) for u in units]
 
