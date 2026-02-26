@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from ..dependencies import get_session, get_current_user
 from datetime import datetime, timezone
 from ..date_utils import parse_timestamp, timestamp_to_string, get_days_remaining
+import json
 
 router = APIRouter()
 
@@ -129,6 +130,17 @@ def get_units(
     return units
     # user_with_units = UserPublicWithUnits.model_validate(user)
     # return user_with_units.units
+
+@router.get("/tool/units", response_model=str)
+def get_units_json(
+    user=user,
+    session=session
+) -> str:
+    units = get_units(offset=0, limit=100, user=user, session=session)
+
+    units_list = [unit.name for unit in units]
+
+    return json.dumps(units_list)
 
 @router.get("/units/{id}", response_model=UnitPublicWithAssignmentGroups)
 def get_unit(
