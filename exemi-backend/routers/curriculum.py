@@ -357,7 +357,7 @@ def get_assignments_list(
 
             due_date_string = timestamp_to_string(parse_timestamp(assignment.due_at))
 
-            message.append(f"### [{assignment.name}]({URL})")
+            message.append(f"### [{assignment.name}]({url})")
             if assignment.description:
                 message.append(f"Description:\n```html\n{assignment.description}\n```")
             message.append(f"- **Due date:** {due_date_string}")
