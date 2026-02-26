@@ -154,7 +154,7 @@ async def chat_stream(
                         tool_name = tool_name.replace("_", " ")
 
                         # Add the chunk: "I am calling the function: <tool name>"
-                        chunk = f"\n\nI am calling the function: **{tool_name}**. Please wait...\n\n\n"
+                        chunk = f"\n\nI am calling the function: **{tool_name}**. Please wait...\n<br/>\n"
 
                         # Consider the LLM calling a tool as its own message.
                         response_messages.append({"role":"assistant", "content":chunk.strip()})
