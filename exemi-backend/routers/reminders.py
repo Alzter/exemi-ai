@@ -204,7 +204,7 @@ class ReminderJSON(BaseModel):
 
 @router.get("/tool/reminders_json", response_model = list[ReminderJSON])
 def get_reminders_list_json(
-    min_days_remaining : int | None = 14,
+    min_days_remaining : int | None = 28,
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
