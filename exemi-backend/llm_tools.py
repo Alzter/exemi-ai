@@ -194,6 +194,8 @@ def create_tools(user : User, magic : str, session : Session) -> list[BaseTool]:
         due_at = datetime.fromisoformat(due_date)
         due_at = parse_timestamp(due_at)
 
+        if not due_at: return "Error creating reminder, please do NOT try again"
+
         data = ReminderCreate(assignment_name=task_name, due_at=due_at, description=description)
 
         create_reminder(data, user=user, session=session)
@@ -212,7 +214,7 @@ def create_tools(user : User, magic : str, session : Session) -> list[BaseTool]:
         Returns:
             str: Reminder deletion success or failure message.
         """
-        delete_reminder()
+        delete_reminder(id=id, user=user, session=session)
         return "Reminder deleted successfully!"
 
     return [set_reminder, remove_reminder]
