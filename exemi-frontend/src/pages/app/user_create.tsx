@@ -71,7 +71,7 @@ export default function UserCreate({session} : any){
     }
 
     function generatePassword(){
-        const password = randomHex(12);
+        const password = randomHex(6);
 
         setForm(prev => ({...prev, password:password}));
     };
