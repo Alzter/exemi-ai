@@ -11,7 +11,7 @@ from ..dependencies import create_university_if_not_exists
 from datetime import datetime, timedelta, timezone
 from pwdlib import PasswordHash
 PasswordHasher = PasswordHash.recommended()
-LOGIN_SESSION_EXPIRY = timedelta(minutes=60)
+LOGIN_SESSION_EXPIRY = timedelta(weeks=4)
 router = APIRouter()
 
 @router.get("/users", response_model = list[UserPublic])

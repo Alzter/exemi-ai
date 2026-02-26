@@ -40,7 +40,7 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
         if (!chatbox) return;
 
         const updateHeight = () => {
-            console.log("Size updated");
+            // console.log("Size updated");
             chatbox.style.height = "auto";
             chatbox.style.height = `${chatbox.scrollHeight + 4}px`;
         };

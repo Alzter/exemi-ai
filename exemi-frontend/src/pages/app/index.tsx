@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import Loading from "../loading";
 import Onboarding from '../../pages/onboarding';
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
+const canvasSyncIntervalHours = import.meta.env.VITE_CANVAS_SYNC_INTERVAL_HOURS;
 
 export default function LoggedInFlow({session, setSession, setError, logOut} : any) {
     const [isMagicValid, setMagicValid] = useState<boolean | null>(null);
@@ -58,11 +59,16 @@ export default function LoggedInFlow({session, setSession, setError, logOut} : a
         }
     }, [isMagicValid]);
 
+    const last_sync_date = session.last_sync_date ? session.last_sync_date as Date : new Date();
+    const now = new Date();
+    const sync_hours_ago : number = Math.abs(now.getTime() - last_sync_date.getTime()) / (60*60*1000);
+    const syncRequired : boolean = (session.last_sync_date == null || sync_hours_ago >= canvasSyncIntervalHours)
+
     useEffect(() => {
-        if (isMagicValid == true && session.last_sync_date == null) {
+        if (isMagicValid == true && syncRequired) {
             fetchUserUnits();
         }
-    }, [isMagicValid]);
+    }, [isMagicValid, syncRequired]);
 
     if (isLoading){
         return (<Loading/>);
