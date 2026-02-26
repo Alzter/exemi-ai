@@ -23,14 +23,15 @@ def get_reminder_list(user : User, session : Session) -> str:
     Returns: Reminders list in a markdown format.
     """
 
-    if not reminders: return
-
-    reminders = "## REMINDERS\n\nRemind the student to complete the following assignment tasks:\n\n"
-
-    reminders += str(get_reminders_list_json(
+    reminders_list += get_reminders_list_json(
         user=user,
         session=session
-    ))
+    )
+
+    if not reminders_list: return
+
+    reminders = "## REMINDERS\n\nRemind the student to complete the following assignment tasks:\n\n"
+    reminders += str(reminders_list)
 
     return reminders.strip()
 
