@@ -212,7 +212,7 @@ def get_reminders_list_json(
     Return the student's incomplete assignment reminders
     in JSON format, sorted by due date.
     """
-    reminders = get_reminders(user=user, session=session, offset=0, limit=0, min_days_remaining=min_days_remaining)
+    reminders = get_reminders(user=user, session=session, offset=0, limit=100, min_days_remaining=min_days_remaining)
 
     if not reminders: return []
 
