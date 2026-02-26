@@ -132,7 +132,6 @@ Before replying:
 - Use markdown formatting but do not use tables.
 - Use emojis to convey warmth and concern for the student.
 - Hyperlink assignment names when you have the URL.
-- Limit your response to 3 headings maximum.
 - Be concise.
 
 ## STUDY HELP RULES
