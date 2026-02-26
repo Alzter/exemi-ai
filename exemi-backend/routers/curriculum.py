@@ -360,8 +360,8 @@ def get_assignments_list(
             message.append(f"### {assignment.name}")
             if assignment.description:
                 message.append(f"Description:\n```html\n{assignment.description}\n```")
-            message.append(f"- **Due date (urgency):** {due_date_string}")
-            message.append(f"- **Grade contribution (importance):** {int(assignment.grade_contribution * 100)}%")
+            message.append(f"- **Due date:** {due_date_string}")
+            message.append(f"- **Grade contribution:** {int(assignment.grade_contribution * 100)}%")
             message.append(f"- **Requires group work:** {"YES" if assignment.is_group else "NO"}")
             message.append(f"- **URL**: {url}")
             message.append("\n")
