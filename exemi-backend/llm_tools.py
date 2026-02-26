@@ -165,10 +165,10 @@ When calling the tool `get_assignments_from_Canvas`:
 ## ASSIGNMENT LINKS
 When using assignments from the tool `get_assignments_from_Canvas`, each assignment is provided in JSON as:
 
-{
+{{
   "name": "Portfolio item 2: project bibliography",
   "url": "https://swinburne.instructure.com/courses/.../assignments/..."
-}
+}}
 
 Whenever mentioning an assignment:
 1. Use **markdown link format**:
@@ -177,10 +177,10 @@ Whenever mentioning an assignment:
 3. Example:
 
 JSON input:
-{
+{{
   "name": "Portfolio item 2: project bibliography",
   "url": "https://swinburne.instructure.com/courses/73450/assignments/757857"
-}
+}}
 
 Correct response:
 Start with [Portfolio item 2: project bibliography](https://swinburne.instructure.com/courses/73450/assignments/757857)
