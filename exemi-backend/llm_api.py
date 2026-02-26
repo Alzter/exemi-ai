@@ -19,7 +19,8 @@ model = ChatOllama(
     base_url=LLM_API_URL,
     model=LLM_MODEL,
     validate_model_on_init=True,
-    streaming=True
+    streaming=True,
+    temperature=0.4
 )
 
 async def chat(
