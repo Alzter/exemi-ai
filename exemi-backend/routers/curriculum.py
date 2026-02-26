@@ -346,8 +346,9 @@ def get_assignments_list(
         if not assignments: continue
 
         unit = units_by_id.get(unit_id)
+        if not unit: raise HTTPException(status_code=404, detail=f"Unit not found: {unit_id}")
         
-        message.append(f"## {unit.name}\n")
+        message.append(f"## Unit: {unit.readable_name}\n")
 
         for assignment in assignments:
             url = f"https://www.{user.university_name}.instructure.com/"
