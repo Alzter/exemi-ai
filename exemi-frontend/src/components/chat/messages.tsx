@@ -203,8 +203,8 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
         let body = {"message_text" : userText};
 
         let URL = backendURL + "/conversation" + (conversationID ? "/" + conversationID : "")
-        console.log(body);
-        console.log(URL);
+        // console.log(body);
+        // console.log(URL);
         
         const response = await fetch(URL, {
             headers:{
