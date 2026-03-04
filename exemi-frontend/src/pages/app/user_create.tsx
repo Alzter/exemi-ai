@@ -9,7 +9,7 @@ export default function UserCreate({session} : any){
 
     type UserCreateForm = {
         user_id : number;
-        university : string;
+        university_name : string;
         password : string;
     };
 
@@ -21,7 +21,7 @@ export default function UserCreate({session} : any){
     const [loading, setLoading] = useState<boolean>(false);
     const [form, setForm] = useState<UserCreateForm>({
         user_id:1,
-        university:"swinburne",
+        university_name:"swinburne",
         password:"",
     });
     const [highestLegalUserID, setHighestLegalUserID] = useState<number>(0);
@@ -96,7 +96,8 @@ export default function UserCreate({session} : any){
 
         let body = {
             "username" : String(form.user_id),
-            "password" : form.password
+            "password" : form.password,
+            "university_name" : form.university_name
         }
 
         const response = await fetch(backendURL + "/users", {
@@ -147,14 +148,14 @@ export default function UserCreate({session} : any){
                 />
                 </div>
                 <div className="input-row">
-                    <label htmlFor="university">
+                    <label htmlFor="university_name">
                         University:
                     </label>
                     <input
-                        name="university"
-                        id="university"
+                        name="university_name"
+                        id="university_name"
                         type="text"
-                        value={form.university}
+                        value={form.university_name}
                         onChange={handleChange}
                     />
                 </div>
@@ -174,6 +175,7 @@ export default function UserCreate({session} : any){
                             type="button"
                             onClick={generatePassword}
                             style={{maxWidth:"fit-content", padding:"0.5rem 1rem"}}
+                            tabIndex={-1}
                         >Random</button>
                     </div>
                 </div>
