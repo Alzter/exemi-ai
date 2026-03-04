@@ -1,6 +1,6 @@
 from pydantic import BaseModel, TypeAdapter
 from ..models import User, UserPublicWithUnits, UsersAssignments, UsersUnits
-from ..models import University
+from ..models import University, UniversityPublic, UniversityPublicWithAliases, UniversityAlias, UniversityAliasPublic, UniversityAliasCreate, UniversityAliasUpdate
 from ..models import Term, TermPublic, TermPublicWithUnits
 from ..models import Unit,  UnitPublic, UnitPublicWithAssignmentGroups
 from ..models import AssignmentGroup, AssignmentGroupPublicWithUnit, AssignmentGroupPublicWithAssignments
@@ -10,11 +10,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from ..dependencies import get_session, get_current_user
 from datetime import datetime, timezone
 from ..date_utils import parse_timestamp, timestamp_to_string, get_days_remaining
+from typing import Literal
 import json
 
 router = APIRouter()
 
-@router.get("/university", response_model=list[University])
+@router.get("/university", response_model=list[UniversityPublic])
 def get_universities(
     session : Session = Depends(get_session),
     current_user : User = Depends(get_current_user)
@@ -27,6 +28,135 @@ def get_universities(
     """
     if not current_user.admin: raise HTTPException(status_code=401, detail="Unauthorised")
     return session.exec(select(University)).all()
+
+@router.get("/university/{name}", response_model=UniversityPublicWithAliases)
+def get_university(
+    name : str,
+    session : Session = Depends(get_session),
+    current_user : User = Depends(get_current_user)
+):
+    """
+    Obtain a given university and its alias list (ADMIN ONLY).
+    
+    Args:
+        name (str): The name of the university to obtain.
+
+    Returns:
+        UniversityPublicWithAliases: The university and its aliases.
+    """
+    if not current_user.admin: raise HTTPException(status_code=401, detail="Unauthorised")
+    existing_university = session.get(University, name)
+    if not existing_university: raise HTTPException(status_code=404, detail="University not found")
+    return existing_university
+
+@router.post("/university_alias", response_model=UniversityAliasPublic)
+def create_university_alias(
+    data : UniversityAliasCreate,
+    session : Session = Depends(get_session),
+    current_user : User = Depends(get_current_user)
+):
+    """
+    Create an alias for a given university (ADMIN ONLY).
+
+    Each university name correlates to a Canvas provider URL,
+    (e.g., "swinburne" -> "swinburne.instructure.com")
+    but certain universities may use multiple Canvas
+    provider URLs depending on context.
+    
+    For example, Swinburne University use "swinburne" for
+    on-campus students and "swinburneonline" for remote
+    students. Using aliases allows users registered
+    under the "swinburne" university to still be able
+    to access their Canvas information if their Canvas URL
+    is actually "swinburneonline".
+
+    Args:
+        data (UniversityAliasCreate): The university name and the alias name.
+
+    Raises:
+        HTTPException:
+            Raises a 401 if the user is not an administrator.
+            Raises a 404 if the original university does not exist.
+
+    Returns:
+        UniversityAliasPublic: The university alias.
+    """
+    if not current_user.admin: raise HTTPException(status_code=401, detail="Unauthorised")
+
+    existing_university = session.get(University, data.university_name)
+    if not existing_university: raise HTTPException(status_code=404, detail=f"University not found: {data.university_name}")
+
+    alias = UniversityAlias.model_validate(data)
+    
+    session.add(alias)
+    session.commit()
+    session.refresh(alias)
+    return alias
+
+@router.delete("/university_alias/{id}", response_model=Literal[True])
+def delete_university_alias(
+    id : int,
+    session : Session = Depends(get_session),
+    current_user : User = Depends(get_current_user)
+):
+    """
+    Remove an alias for a given university (ADMIN ONLY).
+
+    Args:
+        id (int): The ID for the existing university alias.
+
+    Raises:
+        HTTPException:
+            Raises a 401 if the user is not an administrator.
+            Raises a 404 if the alias does not exist.
+
+    Returns:
+        Literal[True]: Returns True if the deletion was successful.
+    """
+    if not current_user.admin: raise HTTPException(status_code=401, detail="Unauthorised")
+
+    existing_alias = session.get(UniversityAlias, id)
+    if not existing_alias: raise HTTPException(status_code=404, detail="University alias not found")
+    session.delete(existing_alias)
+    session.commit()
+    return True
+
+@router.patch("/university_alias/{id}", response_model=UniversityAliasPublic)
+def update_university_alias(
+    id : int,
+    data : UniversityAliasUpdate,
+    session : Session = Depends(get_session),
+    current_user : User = Depends(get_current_user)
+):
+    """
+    For a given university, replace an alias
+    name with another alias name (ADMIN ONLY).
+
+    Args:
+        id (int): The ID for the existing university alias.
+        data (UniversityAliasUpdate): The new name to use.
+
+    Raises:
+        HTTPException:
+            Raises a 401 if the user is not an administrator.
+            Raises a 404 if the alias does not exist.
+
+    Returns:
+        UniversityAliasPublic: The updated university alias.
+    """
+    if not current_user.admin: raise HTTPException(status_code=401, detail="Unauthorised")
+    
+    existing_alias = session.get(UniversityAlias, id)
+    if not existing_alias: raise HTTPException(status_code=404, detail="University alias not found")
+    
+    update = data.model_dump(exclude_unset=True)
+
+    existing_alias.sqlmodel_update(update) 
+    
+    session.add(existing_alias)
+    session.commit()
+    session.refresh(existing_alias)
+    return existing_alias
 
 @router.get("/terms", response_model=list[TermPublic])
 def get_terms(

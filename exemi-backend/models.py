@@ -15,8 +15,34 @@ class UTCModel(BaseModel):
             return v.astimezone(timezone.utc)
         return v
 
-class University(SQLModel, table=True):
+class UniversityBase(SQLModel):
     name : str = Field(primary_key=True, index=True, max_length=255)
+
+class University(UniversityBase, table=True):
+    aliases : list["UniversityAlias"] = Relationship(back_populates="university", cascade_delete=True)
+
+class UniversityAliasBase(SQLModel):
+    name : str = Field(max_length=255)
+    university_name : str | None = Field(default=None, max_length=255, index=True, foreign_key='university.name')
+
+class UniversityAlias(UniversityAliasBase, table=True):
+    __tablename__="university_alias"
+    id : int | None = Field(primary_key=True, default=None)
+    university : University = Relationship(back_populates="aliases")
+
+class UniversityAliasPublic(UniversityAliasBase):
+    id : int
+
+class UniversityAliasCreate(UniversityAliasBase): pass
+
+class UniversityAliasUpdate(SQLModel):
+    name : str | None = None
+
+class UniversityPublic(UniversityBase):
+    pass
+
+class UniversityPublicWithAliases(UniversityPublic):
+    aliases : list[UniversityAliasPublic] = []
 
 # Users to Units junction table (many to many)
 class UsersUnits(SQLModel, table=True):
