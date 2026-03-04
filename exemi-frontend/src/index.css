@@ -58,12 +58,8 @@ div.form {
   min-width:20em;
   margin-left : calc((100% - max(50%, 20em)) / 2);
   text-align: center;
-  gap:0.5em;
+  gap:1em;
   padding-bottom:3em;
-}
-
-div.form h1{
-  margin-bottom:0;
 }
 
 div.slideshow{
@@ -386,6 +382,29 @@ input, button, textarea {
 input, textarea {
   padding:0.4em 0.5em;
   transition:box-shadow 0.1s ease, border-color 0.1s ease;
+}
+
+div.double-column {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap:1em;
+  width:100%;
+}
+
+div.double-column button{
+  width: calc(50% - 0.5em);
+  height:6em;
+  padding: 1em 0.5em;
+  /* text-align: left; */
+}
+
+button svg {
+  vertical-align: middle;
+  font-size:2em;
+  margin-right: 5px;
+  padding-bottom: 0.15em;
+  margin-left:-0.4em;
 }
 
 button {
