@@ -20,6 +20,7 @@ class UniversityBase(SQLModel):
 
 class University(UniversityBase, table=True):
     aliases : list["UniversityAlias"] = Relationship(back_populates="university", cascade_delete=True)
+    users : list["User"] = Relationship(back_populates="university")
 
 class UniversityAliasBase(SQLModel):
     name : str = Field(max_length=255)
@@ -74,6 +75,7 @@ class User(UserBase, table=True):
     units : list["Unit"] = Relationship(back_populates="users", link_model=UsersUnits)
     assignments : list[UsersAssignments] = Relationship(back_populates="user", cascade_delete=True)
     reminders : list["Reminder"] = Relationship(back_populates="user", cascade_delete=True)
+    university : University = Relationship(back_populates="users")
 
 class UserPublic(UserBase):
     id : int
@@ -81,6 +83,7 @@ class UserPublic(UserBase):
     disabled : bool = False
     password_hash : str
     magic_hash : str | None = None
+    university : UniversityPublicWithAliases
 
 class UserCreate(UserBase):
     password : str

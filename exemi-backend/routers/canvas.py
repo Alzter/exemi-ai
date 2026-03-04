@@ -1,5 +1,5 @@
 from pydantic import TypeAdapter
-from ..models import User, UserPublicWithUnits, UsersAssignments
+from ..models import User, UserPublic, UserPublicWithUnits, UsersAssignments, UniversityAliasPublic
 from ..models import Term, TermCreate, TermPublic, TermUpdate
 from ..models import Unit, UnitCreate, UnitPublicWithTerm, UnitUpdate
 from ..models import Assignment, AssignmentCreate, AssignmentPublicWithGroup, AssignmentUpdate
@@ -7,7 +7,7 @@ from ..models import AssignmentGroup, AssignmentGroupCreate, AssignmentGroupPubl
 from ..models_canvas import CanvasTerm, CanvasUnit, CanvasAssignment, CanvasSubmission, CanvasAssignmentWithSubmission, CanvasAssignmentGroup
 from sqlmodel import Session, select
 from fastapi import APIRouter, Depends, HTTPException
-from ..dependencies import get_session, get_current_user, get_current_magic
+from ..dependencies import get_session, get_current_user, get_current_magic, get_fallback_providers_from_user
 from ..canvas_api import query_canvas
 from typing import Literal
 import asyncio
@@ -142,9 +142,18 @@ async def canvas_get_units(
     user : User = Depends(get_current_user),
     magic : str = Depends(get_current_magic)
 ):
+
+
     params = {"include":"term"}
     if exclude_complete_units: params["enrollment_state"] = "active"
-    raw_units = await query_canvas(path="courses", magic=magic, provider=user.university_name, max_items=50, params=params)
+    raw_units = await query_canvas(
+        path="courses",
+        magic=magic,
+        provider=user.university_name,
+        fallback_providers=get_fallback_providers_from_user(user),
+        max_items=50,
+        params=params
+    )
     
     # return raw_units
     units = canvas_units_adapter.validate_json(raw_units)
@@ -306,7 +315,14 @@ async def canvas_get_assignment_groups(
     path = f"courses/{unit_id}/assignment_groups"
     params = {"include":["submission", "assignments"]}
 
-    raw_assignment_groups = await query_canvas(path=path, magic=magic, provider=user.university_name, max_items=50, params=params)
+    raw_assignment_groups = await query_canvas(
+        path=path,
+        magic=magic,
+        provider=user.university_name,
+        fallback_providers=get_fallback_providers_from_user(user),
+        max_items=50,
+        params=params
+    )
     
     assignment_groups = canvas_assignment_group_adapter.validate_json(raw_assignment_groups)
     return assignment_groups
@@ -321,7 +337,14 @@ async def canvas_get_assignments(
     path = f"courses/{unit_id}/assignments"
     params = {"include":"submission"}
 
-    raw_assignments = await query_canvas(path=path, magic=magic, provider=user.university_name, max_items=50, params=params)
+    raw_assignments = await query_canvas(
+        path=path,
+        magic=magic,
+        provider=user.university_name,
+        fallback_providers=get_fallback_providers_from_user(user),
+        max_items=50,
+        params=params
+    )
 
     assignments = canvas_assignment_adapter.validate_json(raw_assignments)
 
