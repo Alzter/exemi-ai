@@ -3,6 +3,7 @@ import { useNavigate } from "react-router"
 import {type User} from '../../models';
 import UniversitySelector from "../../components/admin/university_selector";
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
+import { MdAdd, MdDelete } from "react-icons/md";
 
 export default function EditUniAliases({session} : any){
 
@@ -19,7 +20,7 @@ export default function EditUniAliases({session} : any){
                 <button
                     onClick={() => {deleteAlias(alias)}}
                     disabled={loading}
-                >Delete</button>
+                ><MdDelete/></button>
             </div>
         );
     };
@@ -181,7 +182,7 @@ export default function EditUniAliases({session} : any){
                             value={form.alias_name}
                             // disabled={loading}
                         />
-                        <button disabled={loading}>+ Add</button>
+                        <button disabled={loading}><MdAdd/></button>
                     </div>
                 </form>
                 {universityAliases.map(
