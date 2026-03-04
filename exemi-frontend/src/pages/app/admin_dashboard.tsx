@@ -15,7 +15,7 @@ export default function AdminDashboard({session, setSession, logOut} : any) {
       </button>
 
       <div style={{display:"flex", flexDirection:"column", width:"100%", gap:"1em", margin:"1em 0em"}}>
-        <div className="double-column">
+        <div className="double-column-buttons">
         <button onClick={() => navigate("/user_create")}>
           <MdAdd/>
           Add User

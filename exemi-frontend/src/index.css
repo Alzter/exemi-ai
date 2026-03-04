@@ -55,11 +55,18 @@ div.form {
   flex-direction: column;
   height:100dvh;
   width: 50%;
+  max-width: 400px;
   min-width:20em;
-  margin-left : calc((100% - max(50%, 20em)) / 2);
+  margin-left : calc((100% - max(min(50%, 400px), 20em)) / 2);
   text-align: center;
   gap:1em;
   padding-bottom:3em;
+}
+
+div.form.wide{
+  width:80%;
+  margin-left : calc((100% - max(min(80%, 40em), 20em)) / 2);
+  max-width: 40em;
 }
 
 div.slideshow{
@@ -310,14 +317,10 @@ div.user-message{
 
 form.login{
   width: 100%;
-  max-width: 400px;
-  padding: 2em;
+  padding: 0em 2em;
   display: flex;
   flex-direction: column;
   gap: 1em;
-  /* background: #ffffff; */
-  /* border-radius: 8px; */
-  /* box-shadow: 0 3px 3px rgba(0, 0, 0, 0.08); */
   text-align: center;
 }
 
@@ -384,7 +387,7 @@ input, textarea {
   transition:box-shadow 0.1s ease, border-color 0.1s ease;
 }
 
-div.double-column {
+div.double-column-buttons {
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;
@@ -392,11 +395,40 @@ div.double-column {
   width:100%;
 }
 
-div.double-column button{
+div.double-column-buttons button{
   width: calc(50% - 0.5em);
-  height:6em;
+  height:96px;
   padding: 1em 0.5em;
   /* text-align: left; */
+}
+
+div.input-row {
+  display: flex;
+  flex-direction: row;
+  gap:1em;
+  width:100%;
+  text-align: left;
+  /* padding:0.4em 0em; */
+  height:2.5em;
+}
+
+div.input-row *{
+  display:flex;
+  height:100%;
+  align-items: center;
+  text-align: left;
+}
+
+div.input-row label{
+  width:10em;
+  overflow-x:hidden;
+  white-space: nowrap;
+}
+
+div.input-row input{
+  margin: 0;
+  padding: 0em 0.5em;
+  height:100%;
 }
 
 button svg {
@@ -404,7 +436,7 @@ button svg {
   font-size:2em;
   margin-right: 5px;
   padding-bottom: 0.15em;
-  margin-left:-0.4em;
+  margin-left:-7%;
 }
 
 button {
