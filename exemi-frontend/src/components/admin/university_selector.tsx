@@ -7,7 +7,8 @@ export type UniversitySelectorParams = {
   setError : any,
   universityName : string,
   setUniversityName : any,
-  refreshTrigger : any
+  refreshTrigger : any,
+  disabled : boolean
 }
 
 export default function UniversitySelector({
@@ -15,7 +16,8 @@ export default function UniversitySelector({
     setError,
     universityName,
     setUniversityName,
-    refreshTrigger
+    refreshTrigger,
+    disabled
 } : UniversitySelectorParams){
 
     const [universityNames, setUniversityNames] = useState<string[]>([]);
@@ -63,7 +65,9 @@ export default function UniversitySelector({
     return (
         <select
             name="university_name"
+            id="university_name"
             value={universityName ?? ""}
+            disabled={disabled}
             onChange={(event) => setUniversityName(event.target.value)}
         >
             {universityNames.map(university => (

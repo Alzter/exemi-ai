@@ -174,7 +174,6 @@ export default function UserCreate({session} : any){
                         <button
                             type="button"
                             onClick={generatePassword}
-                            style={{maxWidth:"fit-content", padding:"0.5rem 1rem"}}
                             tabIndex={-1}
                         >Random</button>
                     </div>

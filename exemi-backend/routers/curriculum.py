@@ -49,7 +49,7 @@ def get_university(
     if not existing_university: raise HTTPException(status_code=404, detail="University not found")
     return existing_university
 
-@router.post("/university_alias", response_model=UniversityAliasPublic)
+@router.post("/university_alias", response_model=UniversityPublicWithAliases)
 def create_university_alias(
     data : UniversityAliasCreate,
     session : Session = Depends(get_session),
@@ -90,8 +90,8 @@ def create_university_alias(
     
     session.add(alias)
     session.commit()
-    session.refresh(alias)
-    return alias
+    session.refresh(existing_university)
+    return existing_university
 
 @router.delete("/university_alias/{id}", response_model=Literal[True])
 def delete_university_alias(
