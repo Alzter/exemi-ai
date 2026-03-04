@@ -3,6 +3,7 @@ import AdminDashboard from "./admin_dashboard";
 import ChatUI from "./chat";
 import UserCreate from "./user_create";
 import UserDelete from "./user_delete";
+import EditUniAliases from "./uni_aliases";
 import { useEffect, useState } from "react";
 import Loading from "../loading";
 import Onboarding from '../../pages/onboarding';
@@ -91,6 +92,8 @@ export default function LoggedInFlow({session, setSession, setError, logOut} : a
                   <Route path="chat_viewer/" element={<ChatUI session={session} isViewing={true} logOut={logOut}/>}/>
                   <Route path="user_create/" element={<UserCreate session={session}/>}/>
                   <Route path="user_delete/" element={<UserDelete session={session}/>}/>
+                  <Route path="uni_aliases/" element={<EditUniAliases session={session}/>}/>
+
                 </Routes>
               </div>
         );

@@ -78,7 +78,7 @@ export default function Onboarding({session, setSession, setMagicValid, logOut} 
 
   const progress_bar_width : string = ((progress / (slides.length - 1)) * 100).toString() + "%";
 
-  useEffect(() => {console.log(progress_bar_width)});
+  // useEffect(() => {console.log(progress_bar_width)});
 
   return (
     <div className="slideshow">

@@ -33,7 +33,7 @@ export default function AdminDashboard({session, setSession, logOut} : any) {
           Delete User
         </button>
         </div>
-        <button disabled style={{paddingTop:"0.5em", paddingBottom:"0.3em"}}>
+        <button onClick={() => navigate("/uni_aliases")} style={{paddingTop:"0.5em", paddingBottom:"0.3em"}}>
           <MdEdit/>
           Manage University Aliases
         </button>

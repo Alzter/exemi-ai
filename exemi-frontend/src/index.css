@@ -324,6 +324,10 @@ form.login{
   text-align: center;
 }
 
+div.form.wide form.login{
+  padding:0;
+}
+
 form.login *, form.magic *{
   text-align: center;
 }
@@ -376,7 +380,7 @@ form.chatbox button{
   height:auto;
 }
 
-input, button, textarea {
+input, button, textarea, select {
   width: 100%;
   font-size: 1em;
   border-radius: 4px;
@@ -425,7 +429,7 @@ div.input-row label{
   white-space: nowrap;
 }
 
-div.input-row input{
+div.input-row input, div.input-row select{
   margin: 0;
   padding: 0em 0.5em;
   height:100%;
@@ -442,6 +446,10 @@ button svg {
 button {
   padding: 1em 1em;
   transition: transform 0.15s ease, box-shadow 0.1s ease, background-color 0.1s ease;
+}
+
+select{
+  padding: 0.5em 0.5em;
 }
 
 input, textarea {
