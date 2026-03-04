@@ -20,22 +20,22 @@ export default function AdminDashboard({session, setSession, logOut} : any) {
           <MdAdd/>
           Add User
         </button>
-        <button disabled>
-          <MdSettings/>
-          Edit User
-        </button>
-        <button onClick={() => navigate("/chat_viewer")}>
-          <MdSearch/>
-          Read Chats
-        </button>
         <button onClick={() => navigate("/user_delete")}>
           <MdDelete/>
           Delete User
         </button>
+        {/* <button disabled>
+          <MdSettings/>
+          Edit User
+        </button> */}
         </div>
+        <button onClick={() => navigate("/chat_viewer")}>
+          <MdSearch/>
+          Read Chats
+        </button>
         <button onClick={() => navigate("/uni_aliases")}>
           <MdEdit/>
-          Manage University Aliases
+          Configure University Aliases
         </button>
       </div>
 
