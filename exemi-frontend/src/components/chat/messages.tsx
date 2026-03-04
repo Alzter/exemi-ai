@@ -15,7 +15,8 @@ type ChatUIProps = {
 
 type Message = {
     role : string,
-    content : string
+    content : string,
+    id : number
 }
 
 type Conversation = {
@@ -71,9 +72,9 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
 
     // If we're waiting for the LLM to respond, add a message with the text "Thinking..." to the end of the list
     const messageBoxes = [...messages.map(
-        message => <MessageBox role={message.role} content={message.content}/>
+        message => <MessageBox role={message.role} content={message.content} key={message.id}/>
     ), ...(
-        awaitingLLMResponse ? [<MessageBox role="assistant" content="Thinking..."/>] : []
+        awaitingLLMResponse ? [<MessageBox role="assistant" content="Thinking..." key={-2}/>] : []
     )]
 
     function handleTextUpdate(event : React.ChangeEvent<HTMLTextAreaElement>){
@@ -121,7 +122,7 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
         let initial_message = await response.json();
         setMessages(prev => [
             ...prev,
-            {"role":"assistant","content":initial_message}
+            {"role":"assistant","content":initial_message,"id":0}
         ]);
     }
 
@@ -142,7 +143,7 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
         // Add an empty message before the LLM responds
         setMessages(prev => [
             ...prev,
-            {"role":"assistant","content":""}
+            {"role":"assistant","content":"",id:-3}
         ]);
 
         const reader = llm_response.body.getReader();
@@ -167,7 +168,7 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
             // current streamed content.
             setMessages(prev => [
                 ...prev.slice(0, -1), // Drop the previous LLM message
-                {"role":"assistant","content":responseText}
+                {"role":"assistant","content":responseText,id:-3}
             ]);
             
         };
@@ -193,7 +194,7 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
         // to contain the new message.
         setMessages(prev => [
             ...prev,
-            {"role":"user","content":userText}
+            {"role":"user","content":userText,"id":1}
         ]);
 
         // Show a placeholder "Thinking..." message before the LLM responds properly
@@ -251,7 +252,8 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
     async function parseMessages(data : Array<any>){
         const messages : Message[] = data.map(item => ({
             role : item.role,
-            content : item.content
+            content : item.content,
+            id : item.id
         }));
 
         setMessages(messages);
