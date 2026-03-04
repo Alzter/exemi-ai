@@ -31,7 +31,7 @@ export default function AdminDashboard({session, setSession, logOut} : any) {
         </div>
         <button onClick={() => navigate("/chat_viewer")}>
           <MdSearch/>
-          Read Chats
+          Read User Chats
         </button>
         <button onClick={() => navigate("/uni_aliases")}>
           <MdEdit/>

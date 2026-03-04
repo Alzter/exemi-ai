@@ -420,7 +420,7 @@ div.double-column-buttons {
 div.double-column-buttons button{
   display:flex;
   width: calc(50% - 0.5em);
-  height:96px;
+  /* height:96px; */
   padding: 1em 0.5em;
   align-items: center;
   justify-content: center;
@@ -477,6 +477,7 @@ button svg {
 }
 
 button {
+  height:60px;
   padding: 1em 1em;
   transition: transform 0.15s ease, box-shadow 0.1s ease, background-color 0.1s ease;
   display:flex;
