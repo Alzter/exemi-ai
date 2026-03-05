@@ -1,4 +1,5 @@
 from ..models import User, UserCreate, UserUpdate, UserPublic, UserPublicWithUnits
+from ..models import University, UniversityPublic
 from typing import Annotated, Literal
 from sqlmodel import Session, select
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -7,7 +8,7 @@ import jwt
 from ..dependencies import get_current_magic, get_session, get_secret_key, encrypt_magic
 from ..dependencies import get_current_user as root_get_current_user
 from ..dependencies import is_magic_valid as root_is_magic_valid
-from ..dependencies import create_university_if_not_exists
+from ..dependencies import create_university_if_not_exists, get_fallback_providers, get_fallback_providers_from_user
 from datetime import datetime, timedelta, timezone
 from pwdlib import PasswordHash
 PasswordHasher = PasswordHash.recommended()
@@ -167,8 +168,11 @@ async def is_magic_valid(
         Literal[True]: If magic is valid, returns True.
     """
     university = current_user.university_name
+
+    fallback_universities = get_fallback_providers_from_user(current_user)
+
     if not university: raise HTTPException(status_code=401, detail="The current user must have a university assigned")
-    valid = await root_is_magic_valid(magic=current_magic, provider=university)
+    valid = await root_is_magic_valid(magic=current_magic, provider=university, fallback_providers=fallback_universities)
     if not valid: raise HTTPException(status_code=401, detail="The current user's magic is not valid")
     return True
 
@@ -255,12 +259,19 @@ async def create_admin_user(
         "password_hash" : PasswordHasher.hash(data.password),
         "admin" : True
     }
-
-    if data.magic is not None:
-        extra_data["magic_hash"] = await encrypt_magic(data.magic, data.university_name) 
+    
+    fallback_providers = []
 
     if data.university_name is not None:
         create_university_if_not_exists(data.university_name, session=session)
+        fallback_providers = get_fallback_providers(data.university_name, session=session)
+
+    if data.magic is not None:
+        extra_data["magic_hash"] = await encrypt_magic(
+            data.magic,
+            data.university_name,
+            fallback_providers=fallback_providers
+        ) 
 
     user = User.model_validate(data, update = extra_data)
 
@@ -310,12 +321,18 @@ async def create_user(
     extra_data = {
         "password_hash" : PasswordHasher.hash(data.password)
     }
-    
-    if data.magic is not None:
-        extra_data["magic_hash"] = await encrypt_magic(data.magic, data.university_name) 
 
     if data.university_name is not None:
         create_university_if_not_exists(data.university_name, session=session)
+    
+    fallback_providers = get_fallback_providers(data.university_name, session=session)
+
+    if data.magic is not None:
+        extra_data["magic_hash"] = await encrypt_magic(
+            data.magic,
+            data.university_name,
+            fallback_providers=fallback_providers
+        )
     
     user = User.model_validate(data, update = extra_data)
 
@@ -356,8 +373,14 @@ async def update_user(
         create_university_if_not_exists(new_data.university_name, session=session)
         university_name = new_data.university_name
 
+    fallback_providers = get_fallback_providers(university_name, session=session)
+
     if new_data.magic is not None:
-        extra_data["magic_hash"] = await encrypt_magic(new_data.magic, university_name) 
+        extra_data["magic_hash"] = await encrypt_magic(
+            new_data.magic,
+            university_name,
+            fallback_providers=fallback_providers
+        ) 
     
     user.sqlmodel_update(new_data_dict, update=extra_data)
     session.add(user)
@@ -389,3 +412,16 @@ def delete_user(
     session.commit()
     return True 
 
+# @router.get("/test_get_fallback_providers_from_user")
+# def test_get_fallback_providers_from_user(
+#     user : User = Depends(get_current_user),
+#     session : Session = Depends(get_session)
+# ):
+#     return get_fallback_providers_from_user(user=user)
+
+# @router.get("/test_get_fallback_providers/{university_name}")
+# def test_get_fallback_providers(
+#     university_name : str,
+#     session : Session = Depends(get_session)
+# ):
+#     return get_fallback_providers(university_name=university_name, session=session)

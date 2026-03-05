@@ -1,7 +1,15 @@
 import {useState, useEffect} from 'react';
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
+import {type Session} from '../../models'
 
-export default function MagicForm({session, setSession, setMagicValid} : any){
+type MagicFormParams = {
+    session : Session,
+    setSession : any,
+    universityName : string | null,
+    setMagicValid : any
+}
+
+export default function MagicForm({session, setSession, universityName, setMagicValid} : MagicFormParams){
     type MagicForm = {
         university_name : string;
         magic : string;
@@ -11,7 +19,7 @@ export default function MagicForm({session, setSession, setMagicValid} : any){
     const [error, setError] = useState<string | null>(null);
 
     const [form, setForm] = useState<MagicForm>({
-        university_name:"swinburne",
+        university_name:universityName || "",
         magic:"",
     });
 
@@ -72,8 +80,10 @@ export default function MagicForm({session, setSession, setMagicValid} : any){
     return (
         <form className='magic' onSubmit={updateUserMagic}>
             {/* NOTE: The university_name text entry form is INVISIBLE for now. */}
-            <label style={{display:"none"}}>Enter your University name:
+            <label style={universityName ? {display:"none"} : {}}>
+                Enter your University name:
                 <input
+                    placeholder="swinburne"
                     name="university_name"
                     type="text"
                     value={form.university_name}
@@ -81,6 +91,7 @@ export default function MagicForm({session, setSession, setMagicValid} : any){
                 />
             </label>
             <label>
+                {universityName ? null : "Enter your token here:"}
                 <input
                     name="magic"
                     type="password"

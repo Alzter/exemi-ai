@@ -9,6 +9,7 @@ export default function UserCreate({session} : any){
 
     type UserCreateForm = {
         user_id : number;
+        university_name : string;
         password : string;
     };
 
@@ -20,6 +21,7 @@ export default function UserCreate({session} : any){
     const [loading, setLoading] = useState<boolean>(false);
     const [form, setForm] = useState<UserCreateForm>({
         user_id:1,
+        university_name:"swinburne",
         password:"",
     });
     const [highestLegalUserID, setHighestLegalUserID] = useState<number>(0);
@@ -79,11 +81,11 @@ export default function UserCreate({session} : any){
     function handleChange(event : React.ChangeEvent<HTMLInputElement>){
         const {name, value} = event.target;
 
-        if (name === "user_id") {
-            const num = Math.max(Number(value), highestLegalUserID);
-            setForm(prev => ({ ...prev, user_id: num }));
-            return;
-        }
+        // if (name === "user_id") {
+        //     const num = Math.max(Number(value), highestLegalUserID);
+        //     setForm(prev => ({ ...prev, user_id: num }));
+        //     return;
+        // }
 
         setForm(prev => ({...prev,[name]:value}));
     }
@@ -94,11 +96,11 @@ export default function UserCreate({session} : any){
 
         let body = {
             "username" : String(form.user_id),
-            "password" : form.password
+            "password" : form.password,
+            "university_name" : form.university_name
         }
 
         const response = await fetch(backendURL + "/users", {
-
             headers:{
                 "Authorization" : "Bearer " + session.token,
                 "Content-Type":"application/json",
@@ -131,23 +133,40 @@ export default function UserCreate({session} : any){
     }
 
     return (
-        <div className="form">
+        <div className="form wide">
             <h1>Create User Account</h1>
             <form className="login" onSubmit={handleSubmit}>
-                <label>Enter participant ID:
+                <div className="input-row">
+                <label htmlFor="user_id">ID Number:</label>
+                <input
+                    name="user_id"
+                    id="user_id"
+                    type="number"
+                    value={form.user_id}
+                    // min={highestLegalUserID}
+                    onChange={handleChange}
+                />
+                </div>
+                <div className="input-row">
+                    <label htmlFor="university_name">
+                        University:
+                    </label>
                     <input
-                        name="user_id"
-                        type="number"
-                        value={form.user_id}
-                        min={highestLegalUserID}
+                        name="university_name"
+                        id="university_name"
+                        type="text"
+                        value={form.university_name}
                         onChange={handleChange}
-                        disabled
                     />
-                </label>
-                <label>Enter password:
-                    <div style={{display:"flex", flexDirection:"row", alignItems:"flex-end"}}>
+                </div>
+                <div className="input-row">
+                    <label htmlFor="password">
+                        Password:
+                    </label>
+                    <div className="input-row">
                         <input
                             name="password"
+                            id="password"
                             type="text"
                             value={form.password}
                             onChange={handleChange}
@@ -155,14 +174,15 @@ export default function UserCreate({session} : any){
                         <button
                             type="button"
                             onClick={generatePassword}
-                            style={{maxWidth:"fit-content", padding:"0.5rem 1rem"}}
+                            tabIndex={-1}
                         >Random</button>
                     </div>
-                </label>
+                </div>
+                <br/>
                 <button type="submit" disabled={loading}>Create Account</button>
-                <button type="button" onClick={() => navigate("/")}>Back</button>
                 {error ? (<div className='error'><p>{error}</p></div>) : null}
             </form>
+            <button className="back" onClick={() => navigate("/")}>{"<"} Back</button>
         </div>
     )
 }

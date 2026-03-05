@@ -107,7 +107,7 @@ export default function ChatSidebar({session, enabled, setEnabled, isViewing, lo
     };
 
     const conversationSelectors = conversations.map(
-        conversation => <ConversationSelector conversation={conversation}/>
+        conversation => <ConversationSelector conversation={conversation} key={conversation ? conversation.id : -1}/>
     );
 
     return (

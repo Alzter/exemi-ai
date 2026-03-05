@@ -37,27 +37,32 @@ export default function CreateAdminAccount({error, setError, setSession} : any){
 
         let body = {"username":form.username, "password":form.password};
 
-        const response = await fetch(backendURL + "/users/admin", {
-            headers:{
-                "Content-Type":"application/json",
-                accept:"application/json"
-            },
-            method:"POST",
-            body: JSON.stringify(body),
-        });
+        try{
+            const response = await fetch(backendURL + "/users/admin", {
+                headers:{
+                    "Content-Type":"application/json",
+                    accept:"application/json"
+                },
+                method:"POST",
+                body: JSON.stringify(body),
+            });
 
-        if (!response.ok){
-            let message = "Error creating administrator account.";
-            try{
+            if (!response.ok){
+                let message = "Error creating administrator account.";
                 let data = await response.json();
                 if (typeof data.detail === "string"){
                     message = data.detail;
                 }
-            } finally {
+                setLoading(false);
                 setError(message);
+                return;
             };
+
+        } catch {
+            setLoading(false);
+            setError("Error creating administrator account.");
             return;
-        };
+        }
 
         // If the response was successful,
         // assume the admin account was created
@@ -66,8 +71,10 @@ export default function CreateAdminAccount({error, setError, setSession} : any){
     }
 
     return (
-        <div className='form' style={{gap:0, paddingBottom:0}}>
-            <div className="error" style={{padding:"1em"}}>
+        <div className='form wide' style={{gap:0, paddingBottom:0}}>
+            <h1>Create Administrator Account</h1>
+
+            <div className="error">
                 <p>
                     <strong>No administrator
                     accounts currently exist</strong> in the database!
@@ -78,35 +85,45 @@ export default function CreateAdminAccount({error, setError, setSession} : any){
                     Please email Alexander Small!
                 </p>
             </div>
-            <h1>Create Administrator Account</h1>
 
-            <form className='login' onSubmit={handleSubmit}>
-                <label>Username:
+            <form className='login' style={{marginTop:"2em"}} onSubmit={handleSubmit}>
+                <div className="input-row">
+                    <label htmlFor='username'>
+                        Username:
+                    </label>
                     <input
                         name="username"
+                        id="username"
                         type="text"
                         value={form.username}
                         onChange={handleChange}
                     />
-                </label>
-                <label>Password:
+                </div>
+                <div className="input-row">
+                    <label htmlFor='password'>
+                        Password:
+                    </label>
                     <input
                         name="password"
+                        id="password"
                         type="password"
                         value={form.password}
                         onChange={handleChange}
                     />
-                </label>
-                <label>Confirm Password:
+                </div>
+                <div className="input-row">
+                    <label htmlFor='confirmPassword'>
+                        Confirm Pass:
+                    </label>
                     <input
                         name="confirmPassword"
+                        id="confirmPassword"
                         type="password"
-                        placeholder=""
                         value={form.confirmPassword}
                         onChange={handleChange}
                     />
-                </label>
-                <button type="submit" disabled={loading}>Log In</button>
+                </div>
+                <button type="submit" disabled={loading}>Create Account</button>
                 {error ? (<div className='error'><p>{error}</p></div>) : null}
             </form>
         </div>

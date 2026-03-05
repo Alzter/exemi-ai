@@ -65,7 +65,7 @@ export default function UserSelector({session, setError, username, setUsername, 
             onChange={(event) => setUsername(event.target.value)}
         >
             {nonAdminUsers.map(user => (
-                <option value={user.username}>
+                <option key={user.username} value={user.username}>
                     {user.username}
                 </option>
             ))}
