@@ -2,6 +2,7 @@ from pydantic import BaseModel, field_validator
 from sqlmodel import SQLModel, Field, Relationship, Column
 from datetime import datetime, timezone
 from sqlalchemy.dialects.mysql import TEXT
+from bs4 import BeautifulSoup
 import re
 
 # Force timestamps to be UTC formatted
@@ -215,6 +216,21 @@ class Assignment(AssignmentBase, table=True):
     users : list[UsersAssignments] = Relationship(back_populates="assignment")
 
     @property
+    def readable_description(self) -> str:
+        """
+        By default, Canvas assignment descriptions
+        consist of HTML elements. This property
+        strips the HTML tags from the assignment
+        description to obtain a more legible result.
+
+        Returns:
+            str: The readable assignment description.
+        """
+        return BeautifulSoup(
+            self.description or "", "html.parser"
+        ).get_text()
+
+    @property
     def grade_contribution(self) -> float:
         """
         Calculates the assignment's contribution to the unit's final
@@ -251,6 +267,7 @@ class AssignmentUpdate(SQLModel):
 
 class AssignmentPublic(AssignmentBase):
     id : int
+    readable_description : str
     grade_contribution : float
 
 class AssignmentGroupPublicWithAssignments(AssignmentGroupPublic):

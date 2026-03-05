@@ -8,7 +8,8 @@ from langchain.agents import create_agent
 from langchain_core.messages import BaseMessage
 from langchain.tools import BaseTool
 from langchain_ollama import ChatOllama
-from .llm_tools import create_tools, get_system_prompt 
+from .llm_tools import create_tools
+from .routers.llm_prompt import get_system_prompt
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -43,7 +44,7 @@ async def chat(
 
     agent = create_agent(
         model=model,
-        system_prompt=get_system_prompt(user=user, magic=magic, session=session),
+        system_prompt=get_system_prompt(user=user, session=session),
         tools=tools
     )
 
@@ -101,7 +102,7 @@ async def chat_stream(
 
     agent = create_agent(
         model=model,
-        system_prompt=get_system_prompt(user=user, magic=magic, session=session),
+        system_prompt=get_system_prompt(user=user, session=session),
         tools=tools
     )
     

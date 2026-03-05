@@ -4,7 +4,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query
 # from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlmodel import Field, Relationship, Session, SQLModel, create_engine, select
 from fastapi.middleware.cors import CORSMiddleware
-from .routers import users, canvas, curriculum, chats, reminders
+from .routers import users, canvas, curriculum, chats, reminders, llm_prompt
 import sys
 
 # Enable devmode if "fastapi dev main.py" is used
@@ -38,6 +38,7 @@ app.include_router(canvas.router)
 app.include_router(curriculum.router)
 app.include_router(chats.router)
 app.include_router(reminders.router)
+app.include_router(llm_prompt.router)
 
 origins = [
     "https://www.exemi.au",

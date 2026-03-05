@@ -562,7 +562,7 @@ def get_assignments_list_json(
             assignment_list.append(
                 AssignmentJSON(
                     name=assignment.name or "",
-                    description=assignment.description,
+                    description=assignment.readable_description,
                     due_date=parse_timestamp(assignment.due_at),
                     days_remaining=days_remaining,
                     #due_date=due_date_string,
@@ -580,4 +580,4 @@ def get_assignments_list_json(
                 )
             )
 
-    return assignments_list_adapter.dump_json(units_assignments_json)
+    return assignments_list_adapter.dump_json(units_assignments_json).decode("utf-8")

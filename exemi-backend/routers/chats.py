@@ -1,14 +1,12 @@
-from ..models import User, Conversation, NewMessage, ConversationPublic, ConversationPublicWithMessages, Message, MessageCreate, MessagePublic, MessageUpdate
+from ..models import User, Conversation, NewMessage, ConversationPublic, ConversationPublicWithMessages, Message, MessageCreate
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from sqlmodel import Session, select, desc
 from ..dependencies import get_current_magic, get_current_user, get_session
 from ..llm_api import chat, chat_stream
-from ..llm_tools import get_greeting
 from langchain_core.messages import BaseMessage
 from datetime import datetime, timezone
-from typing import Literal, AsyncGenerator
-import time
+from typing import Literal
 
 router = APIRouter()
 
@@ -332,7 +330,6 @@ async def delete_message_in_conversation(
 @router.get("/conversation_greeting", response_model=str)
 async def get_conversation_greeting(
     user : User = Depends(get_current_user),
-    magic : str = Depends(get_current_magic),
     session : Session = Depends(get_session)
 ):
     """
@@ -345,11 +342,29 @@ async def get_conversation_greeting(
         str: The greeting message.
     """
 
-    existing_conversations : list[Conversation] = await get_conversations_for_self(offset=0, limit=1, user=user, session=session)
+    existing_conversations = await get_conversations_for_self(offset=0, limit=1, user=user, session=session)
     
     is_first_conversation = len(existing_conversations) == 0
 
-    return get_greeting(is_first_conversation=is_first_conversation, user=user, magic=magic, session=session)
+    if is_first_conversation:
+        return """
+Hi, I'm **Exemi**! I'm an AI chatbot designed to
+help you plan and manage your time for your university course 😊
+
+I can help you with:
+- identifying upcoming assignment deadlines,
+- breaking assignments down into smaller tasks,
+- setting reminders for assignment tasks, and
+- using practical strategies to reduce stress.
+
+I am an **early prototype** of what could become a fully-featured AI
+study assistant for students like you! Since I'm still in development,
+**you may find issues or bugs** when using me. If this happens to you,
+please let the researchers know in the feedback survey 👍
+        """.strip()
+    
+    else:
+        return f"## Hello! How can I help you today?"
 
 @router.post("/conversation", response_model=ConversationPublicWithMessages)
 async def conversation_start(
@@ -391,7 +406,7 @@ async def conversation_start(
     # is_first_conversation = len(existing_conversations) == 0
     
     greeting_message = await get_conversation_greeting(
-        user=user, magic=magic, session=session
+        user=user, session=session
     )
 
     session.add(conversation)
@@ -615,4 +630,3 @@ async def stream_llm_response_to_conversation(
     )
 
     return response
-
