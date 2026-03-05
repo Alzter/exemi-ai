@@ -26,27 +26,33 @@ export default function ChatSidebar({session, enabled, setEnabled, isViewing, lo
     let navigate = useNavigate();
 
     const [conversations, setConversations] = useState<Conversation[]>([]);
-    const [username, setUsername] = useState<string>(session.user.username);
+    const [username, setUsername] = useState<string>(
+        isViewing ? "1" : session.user.username
+    );
 
     function toggleChatSidebar(){
         if (enabled){ setEnabled(false); } else { setEnabled(true); }
         // setEnabled(prev => !prev);
     };
 
-    useEffect(() => {
-        setConversationID(null)
-    }, [username]);
-
-    async function parseConversations(data : Array<any>){
+    async function parseConversations(data : Array<any>, auto_select_first_conversation : boolean){
         const conversations: Conversation[] = data.map(item => ({
             id: item.id,
             created_at: new Date(item.created_at),
         }));
 
         setConversations(conversations);
-    }
 
-    async function loadConversations(){
+        if (auto_select_first_conversation) {
+            if (conversations.length > 0){
+                setConversationID(conversations[0].id);
+            } else {
+                setConversationID(null);
+            };
+        };
+    };
+
+    async function loadConversations(auto_select_first_conversation : boolean){
         let URL = backendURL + "/conversations/" + username 
         const response = await fetch(URL, {
             headers:{
@@ -55,7 +61,7 @@ export default function ChatSidebar({session, enabled, setEnabled, isViewing, lo
                 accept:"application/json"
             },
             method:"GET"
-        })
+        });
 
         if (!response.ok){
             let message = "System error! Please contact Alexander Small.";
@@ -65,16 +71,23 @@ export default function ChatSidebar({session, enabled, setEnabled, isViewing, lo
             }
             setError(message);
             return;
-        }
+        };
 
         const data = await response.json();
-        parseConversations(data);
+        parseConversations(data, auto_select_first_conversation);
     }
 
     // When component loads, fetch conversations.
     useEffect(() => {
-        loadConversations();
-    }, [conversationID, username]);
+        loadConversations(false);
+    }, [conversationID]);
+
+    // When username changes (viewing conversations)
+    // fetch new conversations and select the latest
+    // conversation if it exists
+    useEffect(() => {
+        loadConversations(isViewing);
+    }, [username]);
 
     function ConversationSelector({conversation} : any){
         let ID = conversation ? conversation.id : null;
@@ -119,7 +132,15 @@ export default function ChatSidebar({session, enabled, setEnabled, isViewing, lo
                 </div>
 
                 {isViewing ? (
-                    <UserSelector session={session} setError={setError} username={username} setUsername={setUsername} refreshTrigger={null}/>
+                    <input
+                        autoFocus
+                        name="username"
+                        value={username}
+                        onChange={(event)=>{setUsername(event.target.value)}}
+                        type="number"
+                        autoComplete='off'
+                    />
+                    // <UserSelector session={session} setError={setError} username={username} setUsername={setUsername} refreshTrigger={null}/>
                 ) : (
                     <ConversationSelector conversation={null}/>
                 )}

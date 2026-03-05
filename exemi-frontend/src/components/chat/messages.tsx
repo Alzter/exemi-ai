@@ -346,6 +346,7 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
             ) : (
               <form className="chatbox" ref={chatboxRef} onSubmit={sendMessage}>
                   <textarea
+                    autoFocus
                     placeholder="Ask anything"
                     ref={chatboxTextRef}
                     rows={1}
