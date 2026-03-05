@@ -111,7 +111,7 @@ async def encrypt_magic(
         if not legit and is_last_provider:
             raise HTTPException(
                 status_code=401,
-                detail="Error: Token is invalid! Please try again.",
+                detail="Error: Token is invalid! Check the expiry date is set to a date later than today and try again.",
                 headers={"WWW-Authenticate":"Bearer"}
             )
 
