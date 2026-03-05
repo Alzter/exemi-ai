@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 from datetime import timedelta
 from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
-from .models import User, UserPublic, University, UniversityPublic, UniversityPublicWithAliases, UniversityAliasPublic
+from .models import User, UserPublic, University, UniversityCreate, UniversityPublic, UniversityPublicWithAliases, UniversityAliasPublic
 
 load_dotenv()
 
@@ -168,7 +168,10 @@ def create_university_if_not_exists(
     existing_university = session.get(University,name)
     if existing_university: return existing_university
     
-    new_university = University(name=name)
+    new_university = University.model_validate(
+        UniversityCreate(name=name).model_dump()
+    )
+    
     session.add(new_university)
     session.commit()
     session.refresh(new_university)

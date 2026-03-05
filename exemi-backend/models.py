@@ -22,6 +22,8 @@ class University(UniversityBase, table=True):
     aliases : list["UniversityAlias"] = Relationship(back_populates="university", cascade_delete=True)
     users : list["User"] = Relationship(back_populates="university")
 
+class UniversityCreate(UniversityBase): pass
+
 class UniversityAliasBase(SQLModel):
     name : str = Field(max_length=255)
     university_name : str | None = Field(default=None, max_length=255, index=True, foreign_key='university.name')
@@ -83,7 +85,7 @@ class UserPublic(UserBase):
     disabled : bool = False
     password_hash : str
     magic_hash : str | None = None
-    university : UniversityPublicWithAliases
+    university : UniversityPublicWithAliases | None = None
 
 class UserCreate(UserBase):
     password : str
