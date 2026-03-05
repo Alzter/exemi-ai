@@ -54,6 +54,8 @@ pkgs.mkShell {
     sqlalchemy
     mariadb
     cryptography
+    beautifulsoup4
+    types-beautifulsoup4
   ]))
   ];
 #   shellHook = ''

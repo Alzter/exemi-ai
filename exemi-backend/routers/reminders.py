@@ -234,4 +234,4 @@ def get_reminders_list_json(
             days_remaining=days_remaining
         ))
     
-    return reminders_list_adapter.dump_json(reminders_list)
+    return reminders_list_adapter.dump_json(reminders_list).decode("utf-8")

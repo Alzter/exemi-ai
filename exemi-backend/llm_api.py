@@ -9,7 +9,7 @@ from langchain_core.messages import BaseMessage
 from langchain.tools import BaseTool
 from langchain_ollama import ChatOllama
 from .llm_tools import create_tools
-from .routers.chats import get_system_prompt
+from .routers.llm_prompt import get_system_prompt
 from dotenv import load_dotenv
 load_dotenv()
 
