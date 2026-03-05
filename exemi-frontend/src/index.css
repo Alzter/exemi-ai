@@ -39,7 +39,14 @@ div {
 div.error{
   width:100%;
   background-color: #ffbbbb;
+  border: 2px solid #cc4444;
   text-align: center;
+  padding: 1em;
+}
+
+div.error p{
+  padding:0;
+  margin:0;
 }
 
 div.conditional{
