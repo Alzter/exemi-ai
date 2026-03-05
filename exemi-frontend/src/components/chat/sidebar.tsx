@@ -133,6 +133,7 @@ export default function ChatSidebar({session, enabled, setEnabled, isViewing, lo
 
                 {isViewing ? (
                     <input
+                        autoFocus
                         name="username"
                         value={username}
                         onChange={(event)=>{setUsername(event.target.value)}}
