@@ -104,6 +104,26 @@ async def get_conversation(id : int, user : User = Depends(get_current_user), se
 
     return conversation
 
+@router.post("/user_conversations", response_model=list[ConversationPublicWithMessages])
+async def get_user_conversations(
+    date : datetime = datetime(day=27,month=2,year=2026),
+    limit : int = Query(default=100, le=500),
+    current_user : User = Depends(get_current_user),
+    session : Session = Depends(get_session),
+):
+    if not current_user.admin: raise HTTPException(status_code=401,detail="Unauthorised")
+
+    messages = session.exec(
+        select(Conversation)
+        .join(User)
+        .where(Conversation.created_at >= date)
+        .where(User.admin == False)
+        .order_by(Conversation.created_at)
+        .limit(limit)
+    ).all()
+    
+    return messages
+
 @router.get("/conversations/{username}", response_model=list[ConversationPublic])
 async def get_conversations_for_user(
     username : str | None = None,
