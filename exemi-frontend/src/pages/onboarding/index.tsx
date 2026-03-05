@@ -22,9 +22,16 @@ export default function Onboarding({session, setSession, setMagicValid, logOut} 
     },
     {
       photoURL: "/assets/onboarding_slides/1.png",
-      text:(<p>
-        Click <a href={CANVAS_SETTINGS_LINK} target="_blank" rel="noopener noreferrer">here</a> to open your Canvas account settings page.
-      </p>),
+      text: UNIVERSITY ? (<p>
+          Click <a href={CANVAS_SETTINGS_LINK} target="_blank" rel="noopener noreferrer">here</a> to open your Canvas account settings page.
+        </p>
+      ) : (
+        // Do not attempt to link to Canvas if the user does
+        // not have a university (Canvas provider) assigned
+        <p>
+          First, open your Canvas account settings page.
+        </p>
+      ),
     },
     {
       photoURL: "/assets/onboarding_slides/2.png",
@@ -46,9 +53,9 @@ export default function Onboarding({session, setSession, setMagicValid, logOut} 
     },
     {
       photoURL: "",
-      text:(
+      text: UNIVERSITY ? (
         <p style={{fontSize:"1.5em"}}>Enter the copied text here:</p>
-      )
+      ) : null
     }
   ]
 
@@ -99,7 +106,7 @@ export default function Onboarding({session, setSession, setMagicValid, logOut} 
 
         
         {progress == slides.length - 1 ? (
-          <MagicForm  session={session} setSession={setSession} setMagicValid={setMagicValid}/>
+          <MagicForm session={session} setSession={setSession} universityName={UNIVERSITY} setMagicValid={setMagicValid}/>
         ) : null}
 
         <button className="back" onClick={back}>{"<"} Back</button>
