@@ -176,6 +176,32 @@ async def is_magic_valid(
     if not valid: raise HTTPException(status_code=401, detail="The current user's magic is not valid")
     return True
 
+@router.post("/magic_valid_test", response_model=bool)
+async def test_is_magic_valid(
+    magic : str,
+    university : str,
+    fallback_universities : list[str] = [],
+    current_user : User = Depends(root_get_current_user)
+) -> Literal[True]:
+    """
+    Determine if any arbitrary magic is valid (ADMIN ONLY).
+
+    Args:
+        magic (str): The magic to test.
+        provider (str): The name of the institution which has installed magic.
+        fallback_providers (list[str], optional): A list of backup institutions in case the first one fails.
+
+    Raises:
+        HTTPException: Raises a 401 if the magic is invalid.
+    
+    Returns:
+        Literal[True]: If magic is valid, returns True.
+    """
+    if not current_user.admin: raise HTTPException(status_code=401, detail="Unauthorised")
+    valid = await root_is_magic_valid(magic=magic, provider=university, fallback_providers=fallback_universities)
+    if not valid: raise HTTPException(status_code=401, detail="The current user's magic is not valid")
+    return True
+
 @router.get("/users/{username}", response_model = UserPublicWithUnits)
 async def get_user_safe(
     username : str,

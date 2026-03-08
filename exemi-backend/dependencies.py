@@ -98,22 +98,16 @@ async def encrypt_magic(
     fallback_providers : list[str] = [],
     expiry : timedelta | None = timedelta(weeks=4)
 ) -> str:
-
-    providers = [university_name, *fallback_providers]
-
     if university_name is None: raise HTTPException(status_code=400, detail="university_name must be given when providing a magic")
+    
+    legit = await is_magic_valid(provider=university_name, fallback_providers=fallback_providers, magic=magic)
 
-    for i, provider in enumerate(providers):
-        is_last_provider = i == len(providers) - 1
-
-        legit = await is_magic_valid(provider, magic)
-
-        if not legit and is_last_provider:
-            raise HTTPException(
-                status_code=401,
-                detail="Error: Token is invalid! Check the expiry date is set to a date later than today and try again.",
-                headers={"WWW-Authenticate":"Bearer"}
-            )
+    if not legit:
+        raise HTTPException(
+            status_code=401,
+            detail="Error: Token is invalid! Check the expiry date is set to a date later than today and try again.",
+            headers={"WWW-Authenticate":"Bearer"}
+        )
 
     data = {"sub":magic}
     if expiry is not None: data["exp"] = datetime.now(timezone.utc) + expiry
