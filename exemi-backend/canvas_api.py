@@ -18,7 +18,7 @@ async def query_canvas(
     max_items : int = 100,
     timeout : int = 60,
     retries : int = 3
-) -> str:
+) -> (str, str):
     """
     Obtain data from the Canvas API using a HTTP GET request.
     See https://developerdocs.instructure.com/services/canvas/resources for more information.
@@ -37,7 +37,13 @@ async def query_canvas(
         HTTPException: If the request does not return status 200 or times out, a HTTPException is raised.
     
     Returns:
-        data (list[dict]): The response from Canvas as a string.
+        data (str): The response from Canvas as a UTF-8 decoded string.
+        active_university_name (str):
+            The name of the university which was used to retrieve this data.
+            This parameter is necessary because the university name given by
+            'provider' may not be the same as the actual university which
+            returned the data, as any of the backup universities in the
+            'fallback_providers' list may have been used instead.
     """
 
     providers = [provider, *fallback_providers]
@@ -82,7 +88,8 @@ async def query_canvas(
         # must be decoded into a raw string.
 
         if content:
-            return content.decode('utf-8')
+            data = content.decode('utf-8')
+            return (data, provider)
         else:
             if not is_last_provider: continue
             raise HTTPException(status_code=400, detail="Canvas API response contained no content")

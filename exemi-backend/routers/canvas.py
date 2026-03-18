@@ -1,5 +1,5 @@
 from pydantic import TypeAdapter
-from ..models import User, UserPublic, UserPublicWithUnits, UsersAssignments, UniversityAliasPublic
+from ..models import User, UserUpdate, UserPublic, UserPublicWithUnits, UsersAssignments, UniversityAliasPublic
 from ..models import Term, TermCreate, TermPublic, TermUpdate
 from ..models import Unit, UnitCreate, UnitPublicWithTerm, UnitUpdate
 from ..models import Assignment, AssignmentCreate, AssignmentPublicWithGroup, AssignmentUpdate
@@ -9,6 +9,7 @@ from sqlmodel import Session, select
 from fastapi import APIRouter, Depends, HTTPException
 from ..dependencies import get_session, get_current_user, get_current_magic, get_fallback_providers_from_user
 from ..canvas_api import query_canvas
+from pydantic import BaseModel
 from typing import Literal
 import asyncio
 
@@ -19,19 +20,34 @@ canvas_units_adapter = TypeAdapter(list[CanvasUnit])
 canvas_assignment_group_adapter = TypeAdapter(list[CanvasAssignmentGroup])
 canvas_assignment_adapter = TypeAdapter(list[CanvasAssignmentWithSubmission])
 
-@router.get("/canvas/terms", response_model=list[CanvasTerm])
+class CanvasTermsResult(BaseModel):
+    terms : list[CanvasTerm]
+    university_name : str
+class CanvasUnitsResult(BaseModel):
+    units : list[CanvasUnit]
+    university_name : str
+class CanvasAssignmentGroupsResult(BaseModel):
+    assignment_groups : list[CanvasAssignmentGroup] 
+    university_name : str
+class CanvasAssignmentsResult(BaseModel):
+    assignments : list[CanvasAssignmentWithSubmission]
+    university_name : str
+
+@router.get("/canvas/terms", response_model=CanvasTermsResult)#tuple[list[CanvasTerm], str])
 async def canvas_get_terms(
     exclude_complete_units : bool = True,
     exclude_organisation_units : bool = True,
     user : User = Depends(get_current_user),
     magic : str = Depends(get_current_magic)
-):
-    units = await canvas_get_units(
+) -> CanvasTermsResult:#tuple[list[CanvasTerm], str]:
+    result : CanvasUnitsResult = await canvas_get_units(
         user=user,
         magic=magic,
         exclude_complete_units=exclude_complete_units,
         exclude_organisation_units=exclude_organisation_units
     )
+    units : list[CanvasUnit] = result.units
+    active_university_name : str = result.university_name
     
     # Obtain every term object from every unit the user is currently enrolled in.
     raw_terms = [unit.term for unit in units]
@@ -42,7 +58,7 @@ async def canvas_get_terms(
         key=lambda term: term.id
     )
 
-    return terms
+    return CanvasTermsResult(terms=terms, university_name=active_university_name)
 
 def parse_canvas_term(data : CanvasTerm) -> dict | None:
     """
@@ -70,6 +86,27 @@ def parse_canvas_term(data : CanvasTerm) -> dict | None:
         "end_at" : data.end_at
     }
 
+def update_user_active_university_name(
+    active_university_name : str,
+    user : User,
+    session : Session
+) -> User:
+    """
+    If a fallback university was used to
+    retrieve the users' terms/units/assignments,
+    update the user's "active_university_name"
+    field to the name of the fallback university
+    so we know which university is *really*
+    being used to retrieve their Canvas
+    information.
+    """
+    data = {"active_university_name" : active_university_name}
+    user.sqlmodel_update(data)
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return user
+
 @router.post("/canvas/terms", response_model=list[TermPublic])
 async def commit_canvas_terms(
     session: Session = Depends(get_session),
@@ -82,12 +119,22 @@ async def commit_canvas_terms(
     - Update if existing
     """
 
-    canvas_terms: list[CanvasTerm] = await canvas_get_terms(
+    result : CanvasTermsResult = await canvas_get_terms(
         exclude_organisation_units=True,
         exclude_complete_units=True,
         user=user,
         magic=magic
     )
+
+    canvas_terms : list[CanvasTerm] = result.terms
+    active_university_name : str = result.university_name
+
+    update_user_active_university_name(
+        active_university_name=active_university_name,
+        user=user,
+        session=session
+    )
+    
     if not canvas_terms: return []
     
     canvas_ids = [t.id for t in canvas_terms]
@@ -135,18 +182,18 @@ async def commit_canvas_terms(
 
     return modified_terms
     
-@router.get("/canvas/units", response_model=list[CanvasUnit])
+@router.get("/canvas/units", response_model=CanvasUnitsResult)#tuple[list[CanvasUnit], str])
 async def canvas_get_units(
     exclude_complete_units : bool = True,
     exclude_organisation_units : bool = True,
     user : User = Depends(get_current_user),
     magic : str = Depends(get_current_magic)
-):
+) -> CanvasUnitsResult:#tuple[list[CanvasUnit], str]:
 
 
     params = {"include":"term"}
     if exclude_complete_units: params["enrollment_state"] = "active"
-    raw_units = await query_canvas(
+    raw_units, active_university_name = await query_canvas(
         path="courses",
         magic=magic,
         provider=user.university_name,
@@ -154,7 +201,7 @@ async def canvas_get_units(
         max_items=50,
         params=params
     )
-    
+
     # return raw_units
     units = canvas_units_adapter.validate_json(raw_units)
     
@@ -163,7 +210,7 @@ async def canvas_get_units(
     if exclude_organisation_units:
         units = [unit for unit in units if unit.enrollment_term_id != 1]
 
-    return units
+    return CanvasUnitsResult(units=units, university_name=active_university_name)
 
 def parse_canvas_unit(data : CanvasUnit) -> dict | None:
     """
@@ -202,12 +249,22 @@ async def commit_canvas_units(
     - POST /canvas/terms
     """
 
-    canvas_units: list[CanvasUnit] = await canvas_get_units(
+    result : CanvasUnitsResult = await canvas_get_units(
         exclude_organisation_units=True,
         exclude_complete_units=True,
         user=user,
         magic=magic
     )
+
+    canvas_units : list[CanvasUnit] = result.units
+    active_university_name : str = result.university_name
+    
+    update_user_active_university_name(
+        active_university_name=active_university_name,
+        user=user,
+        session=session
+    )
+
     if not canvas_units: return []
 
     canvas_ids = [t.id for t in canvas_units]
@@ -306,16 +363,16 @@ def enrol_user_in_units(
     session.add(user)
     session.commit()
  
-@router.get("/canvas/units/{unit_id}/assignment_groups")#, response_model = list[CanvasAssignmentGroup])
+@router.get("/canvas/units/{unit_id}/assignment_groups", response_model = CanvasAssignmentGroupsResult)#tuple[list[CanvasAssignmentGroup], str])
 async def canvas_get_assignment_groups(
     unit_id : int,
     user : User = Depends(get_current_user),
     magic : str = Depends(get_current_magic),
-):
+) -> CanvasAssignmentGroupsResult:#tuple[list[CanvasAssignmentGroup], str]:
     path = f"courses/{unit_id}/assignment_groups"
     params = {"include":["submission", "assignments"]}
 
-    raw_assignment_groups = await query_canvas(
+    raw_assignment_groups, active_university_name = await query_canvas(
         path=path,
         magic=magic,
         provider=user.university_name,
@@ -325,19 +382,19 @@ async def canvas_get_assignment_groups(
     )
     
     assignment_groups = canvas_assignment_group_adapter.validate_json(raw_assignment_groups)
-    return assignment_groups
+    return CanvasAssignmentGroupsResult(assignment_groups=assignment_groups, university_name=active_university_name)
 
 
-@router.get("/canvas/units/{unit_id}/assignments", response_model=list[CanvasAssignmentWithSubmission])
+@router.get("/canvas/units/{unit_id}/assignments", response_model=CanvasAssignmentsResult)#tuple[list[CanvasAssignmentWithSubmission], str])
 async def canvas_get_assignments(
     unit_id : int,
     user : User = Depends(get_current_user),
     magic : str = Depends(get_current_magic)
-):
+) -> CanvasAssignmentsResult:#tuple[list[CanvasAssignmentWithSubmission], str]:
     path = f"courses/{unit_id}/assignments"
     params = {"include":"submission"}
 
-    raw_assignments = await query_canvas(
+    raw_assignments, active_university_name = await query_canvas(
         path=path,
         magic=magic,
         provider=user.university_name,
@@ -348,20 +405,24 @@ async def canvas_get_assignments(
 
     assignments = canvas_assignment_adapter.validate_json(raw_assignments)
 
-    return assignments
+    return CanvasAssignmentsResult(assignments=assignments, university_name=active_university_name)
 
-@router.get("/canvas/assignments", response_model = list[CanvasAssignmentWithSubmission])
+@router.get("/canvas/assignments", response_model = CanvasAssignmentsResult)#tuple[list[CanvasAssignmentWithSubmission], str])
 async def canvas_get_all_assignments(
     exclude_complete_units : bool = True,
     exclude_organisation_units : bool = True,
     user : User = Depends(get_current_user),
     magic : str = Depends(get_current_magic)
 ):
-    units : list[CanvasUnit] = await canvas_get_units(
-        exclude_complete_units=exclude_complete_units,
-        exclude_organisation_units=exclude_organisation_units,
-        user=user, magic=magic
+    units_result : CanvasUnitsResult = await canvas_get_units(
+        exclude_organisation_units=exclude_complete_units,
+        exclude_complete_units=exclude_organisation_units,
+        user=user,
+        magic=magic
     )
+
+    units : list[CanvasUnit] = units_result.units
+    active_university_name : str = units_result.university_name
     
     tasks = [
         canvas_get_assignments(
@@ -372,13 +433,13 @@ async def canvas_get_all_assignments(
         for unit in units
     ]
 
-    result = await asyncio.gather(*tasks)
+    result : list[CanvasAssignmentsResult] = await asyncio.gather(*tasks)
 
     canvas_assignments = []
-    for unit_assignments in result:
-        canvas_assignments.extend(unit_assignments)
+    for unit_assignments_result in result:
+        canvas_assignments.extend(unit_assignments_result.assignments)
     
-    return canvas_assignments
+    return CanvasAssignmentsResult(assignments=canvas_assignments, university_name=active_university_name)
 
 def parse_canvas_assignment_group(data : CanvasAssignmentGroup) -> dict | None:
     return {
@@ -437,10 +498,18 @@ async def commit_canvas_groups_and_assignments(
         for unit in units
     ]
 
-    result = await asyncio.gather(*tasks)
+    result : list[CanvasAssignmentGroupsResult] = await asyncio.gather(*tasks)
 
-    for unit, groups in zip(units, result):
+    for unit, groups in zip(units, [r.assignment_groups for r in result]):
         all_canvas_groups.extend((unit.id, g) for g in groups)
+    
+    if result:
+        active_university_name = result[0].university_name
+        update_user_active_university_name(
+            active_university_name=active_university_name,
+            user=user,
+            session=session
+        )
 
     if not all_canvas_groups:
         return []
@@ -607,11 +676,11 @@ async def enrol_user_in_assignments(
         for canvas_unit_id in unit_ids
     ]
 
-    results = await asyncio.gather(*tasks)
+    results : list[CanvasAssignmentsResult] = await asyncio.gather(*tasks)
 
     canvas_assignments = []
-    for unit_assignments in results:
-        canvas_assignments.extend(unit_assignments)
+    for unit_assignments_result in results:
+        canvas_assignments.extend(unit_assignments_result.assignments)
 
     canvas_by_id = {a.id: a for a in canvas_assignments}
 

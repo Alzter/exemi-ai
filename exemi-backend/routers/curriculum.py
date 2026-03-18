@@ -482,6 +482,8 @@ def get_assignments_list(
     units_by_id : dict[int, Unit] = {u.id : u for u in units}
     units_assignments : dict[int, list[AssignmentPublic]] = {}
 
+    university_name = user.active_university_name or user.university_name
+
     for unit in units:
 
         assignments = get_assignments(user=user, session=session, unit_id=unit.id, offset=0, limit=100)
@@ -498,7 +500,7 @@ def get_assignments_list(
         message.append(f"## Unit: {unit.readable_name}\n")
 
         for assignment in assignments:
-            url = f"https://www.{user.university_name}.instructure.com/"
+            url = f"https://www.{university_name}.instructure.com/"
             url += f"courses/{unit.canvas_id}/"
             url += f"assignments/{assignment.canvas_id}"
 
@@ -547,13 +549,15 @@ def get_assignments_list_json(
     #units_by_id: dict[int, Unit] = {u.id: u for u in units}
     units_assignments_json: list[UnitAssignmentsJSON] = []
 
+    university_name = user.active_university_name or user.university_name
+
     for unit in units:
         assignments = get_assignments(user=user, session=session, unit_id=unit.id, offset=0, limit=100)
         assignments = [AssignmentPublic.model_validate(a) for a in assignments]
 
         assignment_list: list[AssignmentJSON] = []
         for assignment in assignments:
-            url = f"https://www.{user.university_name}.instructure.com/"
+            url = f"https://www.{university_name}.instructure.com/"
             url += f"courses/{unit.canvas_id}/assignments/{assignment.canvas_id}"
 
             # due_date_string = timestamp_to_string(parse_timestamp(assignment.due_at))

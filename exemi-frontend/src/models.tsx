@@ -1,6 +1,7 @@
 export type User = {
     username : string,
     university_name : string,
+    active_university_name : string | null,
     id : number,
     admin : boolean,
     disabled : boolean,
