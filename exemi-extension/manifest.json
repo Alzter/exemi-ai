@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "Exemi",
+  "version": "1.0",
+
+  "description": "Exemi is an AI-powered study assistance tool designed to help students with ADHD improve their planning and time management skills.",
+
+  "icons": {
+    "48": "icons/exemi-48.png"
+  },
+
+  "host_permissions": ["*://*.instructure.com/*"],
+
+  "web_accessible_resources": [
+    {
+      "resources": ["sidebar.css", "sidebar.html"],
+      "matches": ["*://*.instructure.com/*"]
+    }
+  ],
+
+  "content_scripts": [
+    {
+      "matches": ["*://*.instructure.com/*"],
+      "js": ["exemi.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
