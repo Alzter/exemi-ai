@@ -83,9 +83,7 @@ export default function AppRouter() {
 
     // Set session.user to the current User object
     async function fetchUser() {
-        setSession(
-            (prev : any) => ({...prev, last_user_sync_date : new Date()})
-        );
+        setSession((prev) => ({ ...prev, last_user_sync_date: new Date() }));
 
         try{
             const response = await fetch(backendURL + "/users/self", {
@@ -102,10 +100,7 @@ export default function AppRouter() {
             let data = await response.json();
             let userObject = data as User;
 
-            setSession({
-                ...session,
-                user : userObject
-            });
+            setSession((prev) => ({ ...prev, user: userObject }));
 
         } catch {
             logOut();
@@ -124,7 +119,7 @@ export default function AppRouter() {
             console.log("fetch")
             fetchUser();
         }
-    }, [syncRequired]);
+    }, [session.user_id, syncRequired]);
 
     useEffect(() => {
         if (isBackendOnline == null){
@@ -152,10 +147,6 @@ export default function AppRouter() {
             localStorage.removeItem("user_id");
         };
 
-        if (session.user_id && !session.user){
-            fetchUser();
-        };
-
         if (session.user){
             localStorage.setItem("user", JSON.stringify(session.user));
         } else{
@@ -178,7 +169,7 @@ export default function AppRouter() {
             setError(null);
             logOutIfJWTExpires();
         };
-    });
+    }, [session.token, session.user_id, session.user, session.last_user_sync_date, session.last_canvas_sync_date, isLoggedIn]);
     
     if (isBackendOnline == false) {return <BigError/>}
     if (isLoading) {return <Loading/>}
