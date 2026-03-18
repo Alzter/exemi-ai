@@ -114,9 +114,7 @@ export default function AppRouter() {
     const syncRequired : boolean = (session.last_user_sync_date == null || sync_hours_ago >= userSyncIntervalHours)
 
     useEffect(() => {
-        console.log(sync_hours_ago);
         if (session.user_id && syncRequired){
-            console.log("fetch")
             fetchUser();
         }
     }, [session.user_id, syncRequired]);
