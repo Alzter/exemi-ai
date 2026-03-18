@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import Loading from './pages/loading';
+import BigError from './pages/error';
 import Login from './pages/auth';
 import LoggedInFlow from './pages/app';
 import InitialSetup from './pages/setup';
@@ -16,10 +17,11 @@ export default function AppRouter() {
     });
 
     const [error, setError] = useState<string | null>(null);
+    const [isBackendOnline, setBackendOnline] = useState<boolean|null>(null);
     const [isInitialSetupRequired, setInitialSetupRequired] = useState<boolean|null>(null);
 
     const isLoggedIn = session.token !== null;
-    const isLoading = (isInitialSetupRequired == null);
+    const isLoading = (isInitialSetupRequired == null || isBackendOnline == null);
 
     async function logOut() {
         setSession({
@@ -43,6 +45,21 @@ export default function AppRouter() {
         };
     };
     
+    async function checkIfBackendOnline() {
+        console.log("Querying backend");
+        try{
+            const response = await fetch(backendURL, {
+            headers: {"Authorization" : "Bearer " + session.token,
+                accept: "application/json"
+            },
+            method: "GET",
+            });
+            setBackendOnline(response.ok);
+        } catch {
+            setBackendOnline(false);
+        };
+    };
+
     async function checkIfInitialSetupRequired() {
         const response = await fetch(backendURL + "/admins", {
             headers: {"Authorization" : "Bearer " + session.token,
@@ -91,10 +108,16 @@ export default function AppRouter() {
     };
 
     useEffect(() => {
-        if (isInitialSetupRequired == null){
-            checkIfInitialSetupRequired();
-        }
+        if (isBackendOnline == null){
+            checkIfBackendOnline();
+        };
     }, []);
+
+    useEffect(() => {
+        if (isBackendOnline == true && isInitialSetupRequired == null){
+            checkIfInitialSetupRequired();
+        };
+    }, [isBackendOnline]);
 
     // Synchronise user session (token) with local storage
     useEffect(() => {
@@ -131,7 +154,8 @@ export default function AppRouter() {
             logOutIfJWTExpires();
         };
     });
-
+    
+    if (isBackendOnline == false) {return <BigError/>}
     if (isLoading) {return <Loading/>}
 
     if (isInitialSetupRequired){
