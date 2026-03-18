@@ -6,6 +6,7 @@ import LoggedInFlow from './pages/app';
 import InitialSetup from './pages/setup';
 import {type User, type Session} from './models';
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
+const userSyncIntervalHours = import.meta.env.VITE_USER_SYNC_INTERVAL_HOURS;
 
 export default function AppRouter() {
 
@@ -13,7 +14,8 @@ export default function AppRouter() {
         token : localStorage.getItem("token"),
         user_id : Number(localStorage.getItem("user_id")),
         user : localStorage.getItem("user") != null ? JSON.parse(String(localStorage.getItem("user"))) as User : null,
-        last_sync_date : localStorage.getItem("last_sync_date") != null ? new Date(String(localStorage.getItem("last_sync_date"))) : null
+        last_user_sync_date : localStorage.getItem("last_user_sync_date") != null ? new Date(String(localStorage.getItem("last_user_sync_date"))) : null,
+        last_canvas_sync_date : localStorage.getItem("last_canvas_sync_date") != null ? new Date(String(localStorage.getItem("last_canvas_sync_date"))) : null
     });
 
     const [error, setError] = useState<string | null>(null);
@@ -28,7 +30,8 @@ export default function AppRouter() {
             token:null,
             user_id:null,
             user:null,
-            last_sync_date:null
+            last_user_sync_date:null,
+            last_canvas_sync_date:null
         })
     };
 
@@ -46,7 +49,7 @@ export default function AppRouter() {
     };
     
     async function checkIfBackendOnline() {
-        console.log("Querying backend");
+        // console.log("Querying backend");
         try{
             const response = await fetch(backendURL, {
             headers: {"Authorization" : "Bearer " + session.token,
@@ -78,8 +81,12 @@ export default function AppRouter() {
         setInitialSetupRequired(!doAdminAccountsExist);
     };
 
-    // Set session.user to the current User object.
+    // Set session.user to the current User object
     async function fetchUser() {
+        setSession(
+            (prev : any) => ({...prev, last_user_sync_date : new Date()})
+        );
+
         try{
             const response = await fetch(backendURL + "/users/self", {
                 headers: {"Authorization" : "Bearer " + session.token},
@@ -101,11 +108,23 @@ export default function AppRouter() {
             });
 
         } catch {
-            // Mega oops if this happens.
             logOut();
             setError("System error obtaining user account! Contact Alexander Small.");
         };
     };
+
+    const last_user_sync_date = session.last_user_sync_date ? session.last_user_sync_date as Date : new Date();
+    const now = new Date();
+    const sync_hours_ago : number = Math.abs(now.getTime() - last_user_sync_date.getTime()) / (60*60*1000);
+    const syncRequired : boolean = (session.last_user_sync_date == null || sync_hours_ago >= userSyncIntervalHours)
+
+    useEffect(() => {
+        console.log(sync_hours_ago);
+        if (session.user_id && syncRequired){
+            console.log("fetch")
+            fetchUser();
+        }
+    }, [syncRequired]);
 
     useEffect(() => {
         if (isBackendOnline == null){
@@ -143,10 +162,16 @@ export default function AppRouter() {
             localStorage.removeItem("user");
         };
 
-        if (session.last_sync_date){
-            localStorage.setItem("last_sync_date", session.last_sync_date.toISOString());
+        if (session.last_user_sync_date){
+            localStorage.setItem("last_user_sync_date", session.last_user_sync_date.toISOString());
         } else {
-            localStorage.removeItem("last_sync_date");
+            localStorage.removeItem("last_user_sync_date");
+        };
+
+        if (session.last_canvas_sync_date){
+            localStorage.setItem("last_canvas_sync_date", session.last_canvas_sync_date.toISOString());
+        } else {
+            localStorage.removeItem("last_canvas_sync_date");
         };
         
         if (isLoggedIn){

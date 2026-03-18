@@ -32,7 +32,7 @@ export default function LoggedInFlow({session, setSession, setError, logOut} : a
     // Call the backend API to retrieve the user's units.
     async function fetchUserUnits() {
         setSession(
-            (prev : any) => ({...prev, last_sync_date : new Date()})
+            (prev : any) => ({...prev, last_canvas_sync_date : new Date()})
         );
 
         const response = await fetch(backendURL + "/canvas/all", {
@@ -60,10 +60,10 @@ export default function LoggedInFlow({session, setSession, setError, logOut} : a
         }
     }, [isMagicValid]);
 
-    const last_sync_date = session.last_sync_date ? session.last_sync_date as Date : new Date();
+    const last_canvas_sync_date = session.last_canvas_sync_date ? session.last_canvas_sync_date as Date : new Date();
     const now = new Date();
-    const sync_hours_ago : number = Math.abs(now.getTime() - last_sync_date.getTime()) / (60*60*1000);
-    const syncRequired : boolean = (session.last_sync_date == null || sync_hours_ago >= canvasSyncIntervalHours)
+    const sync_hours_ago : number = Math.abs(now.getTime() - last_canvas_sync_date.getTime()) / (60*60*1000);
+    const syncRequired : boolean = (session.last_canvas_sync_date == null || sync_hours_ago >= canvasSyncIntervalHours)
 
     useEffect(() => {
         if (isMagicValid == true && syncRequired) {
