@@ -26,7 +26,70 @@ sh run.sh
 To stop Exemi, terminate the process with CTRL+C.
 
 ## Architecture Design
-<img width="800" alt="image" src="https://github.com/user-attachments/assets/1b5619cd-0e62-4f50-a703-f074322151dd" />
+<img width="800" alt="image" src="https://github.com/user-attachments/assets/65631107-39b0-48f6-8e63-89080216781e" />
+
+### Presentation Layer
+Provides user interface
+
+- **React + Vite Web App**
+  - Communicates with backend via API
+  - Receives traffic through port forwarding from NGINX
+
+- **NGINX**
+  - Web Server
+  - Handles port forwarding to frontend
+  
+### Service Layer
+Defines API endpoints and response templates and
+communicates with Canvas and locally hosted LLM
+
+- **Python FastAPI**
+  - **Main API entrypoint**
+    - Handles incoming requests
+    - Routes to internal services
+
+  - **LangChain**
+    - Handles LLM chats and tool calling
+
+  - **SQLModel**
+    - Interfaces with database
+    - Performs CRUD operations
+
+- **External Integration**
+  - **Canvas LMS API**
+    - Provides **Curriculum Information**
+
+### Persistence Layer
+Specifies database schema and performs CRUD operations
+
+- Managed via:
+  - **SQLModel**
+
+### Data Layer
+Stores data entries
+
+- **MariaDB**
+  - Primary database
+
+### AI Layer
+Locally hosts open-weights large language models (LLM) for text generation
+
+- **Ollama API**
+  - Serves LLM requests
+
+- **Qwen 3 14B**
+  - Model used for text generation
+
+### Data Flow Overview
+
+1. User interacts with **React + Vite Web App**
+2. Requests go through **NGINX** (port forwarding)
+3. Backend handled by **FastAPI**
+4. FastAPI:
+   - Queries **Canvas LMS API** for curriculum data
+   - Uses **LangChain + Ollama (Qwen 3 14B)** for AI tasks
+   - Reads/writes data via **SQLModel → MariaDB**
+5. Responses returned to frontend
 
 ## License
 Exemi is licensed under the GNU General Public License v3, meaning you are
