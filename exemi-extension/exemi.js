@@ -59,8 +59,41 @@
     }
   }
 
+  function isCanvasLoggedIn() {
+    try {
+      const session = localStorage.getItem("canvas_session");
+      if (typeof session === "string" && session.trim().length > 0) return true;
+    } catch {
+      // ignore
+    }
+
+    // Fallbacks (Canvas sometimes doesn't expose `canvas_session` as expected).
+    // Logged-in pages typically include a user context class and/or global nav profile link.
+    try {
+      const bodyClass = document.body?.className || "";
+      if (bodyClass.includes("context-user_")) return true;
+      if (document.getElementById("global_nav_profile_link")) return true;
+    } catch {
+      // ignore
+    }
+
+    return false;
+  }
+
+  function removeInjected() {
+    const existing = document.getElementById(ROOT_ID);
+    if (existing) existing.remove();
+  }
+
   async function ensureInjected() {
     if (!document.body) return false;
+
+    // Only enable on authenticated Canvas pages.
+    if (!isCanvasLoggedIn()) {
+      removeInjected();
+      return false;
+    }
+
     if (document.getElementById(ROOT_ID)) return true;
 
     await ensureAssetsLoaded();
@@ -137,4 +170,10 @@
       });
     }, 250);
   });
+
+  // Also poll login state periodically since localStorage changes don't trigger DOM mutations.
+  // (Canvas may set session markers async without touching the DOM.)
+  setInterval(() => {
+    void ensureInjected();
+  }, 2000);
 })();
