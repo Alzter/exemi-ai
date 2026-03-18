@@ -67,6 +67,7 @@ class UsersAssignments(SQLModel, UTCModel, table=True):
 class UserBase(SQLModel):
     username : str = Field(max_length=255, unique=True)
     university_name : str | None = Field(default=None, max_length=255, index=True, foreign_key='university.name', ondelete="SET NULL")
+    active_university_name : str | None = Field(default=None, max_length=255, index=True)
 
 class User(UserBase, table=True):
     id : int | None = Field(primary_key=True, default=None)
@@ -96,6 +97,7 @@ class UserUpdate(SQLModel):
     password : str | None = None
     magic : str | None = None
     university_name : str | None = None
+    active_university_name : str | None = None
 
 class TermBase(SQLModel):
     university_name : str = Field(max_length=255, index=True, foreign_key='university.name')
