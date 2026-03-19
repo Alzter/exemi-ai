@@ -62,12 +62,10 @@ function useCanvasUrl(): string {
     const origReplace = history.replaceState;
 
     history.pushState = function (...args) {
-      // @ts-expect-error - TS doesn't like reassigning built-ins.
       origPush.apply(this, args);
       update();
     };
     history.replaceState = function (...args) {
-      // @ts-expect-error - TS doesn't like reassigning built-ins.
       origReplace.apply(this, args);
       update();
     };
@@ -109,16 +107,17 @@ function SidebarApp() {
 
   return (
     <div className="wrap">
-      <div className="tab" title="Toggle Exemi sidebar" onClick={() => setOpenState((v) => !v)}>
-        Exemi
+      <div
+        className={`tab ${open ? "tab-open" : "tab-closed"}`}
+        title="Toggle Exemi sidebar"
+        onClick={() => setOpenState((v) => !v)}
+      >
+        ☰
       </div>
 
       <div className={`panel ${open ? "" : "hidden"}`}>
         <div className="header">
-          <div className="title">Chat</div>
-          <button className="iconBtn" type="button" title="Close" onClick={() => setOpenState(false)}>
-            ×
-          </button>
+          <p className="logo">exemi</p>
         </div>
 
         <div className="body">

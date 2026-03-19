@@ -1,41 +1,97 @@
-.wrap { pointer-events: auto; height: 100vh; display: flex; align-items: stretch; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; }
+.wrap {
+  pointer-events: auto;
+  position: relative;
+  height: 100vh;
+  display: flex;
+  justify-content: flex-end;
+  align-items: stretch;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+}
+
 .tab {
-  width: 36px;
-  background: #111827;
-  color: #fff;
-  border-left: 1px solid rgba(255,255,255,0.12);
+  position: fixed;
+  top: 0;
+  width: 2em;
+  height: 2em;
+  margin: 10px 0;
+  border: 2px solid #aaa;
+  border-right-width: 0;
+  border-radius: 8px 0 0 8px;
+  background-color: #aaa;
+  color: #222;
   display: flex;
   align-items: center;
   justify-content: center;
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
-  letter-spacing: 0.08em;
-  font-size: 12px;
+  text-align: center;
+  font-size: 2em;
+  font-weight: 700;
   user-select: none;
   cursor: pointer;
+  transition: right 0.2s ease-in-out, transform 0.15s ease, box-shadow 0.1s ease, background-color 0.1s ease;
 }
+
+.tab-open {
+  right: calc(min(50dvw, 400px) + 0.66em);
+}
+
+.tab-closed {
+  right: 0;
+}
+
+.tab:hover {
+  background-color: #999;
+  transform: scale(1.1) translateX(-2px);
+  box-shadow: -1px 3px 3px #aaa8;
+}
+
+.tab:active {
+  background-color: #777;
+  transform: scale(1) translateX(0);
+  box-shadow: -2px 3px 3px #aaaa;
+}
+
+/* Mirror frontend chat-sidebar style while docked to the right side. */
 .panel {
-  width: 380px;
-  max-width: min(420px, 90vw);
-  height: 100vh;
-  background: #ffffff;
-  border-left: 1px solid rgba(17,24,39,0.12);
-  box-shadow: -12px 0 30px rgba(0,0,0,0.12);
+  width: calc(min(50dvw, 400px));
+  flex-shrink: 0;
   display: flex;
+  margin-left: 0;
   flex-direction: column;
+  height: 100%;
+  background-color: #eee;
+  gap: 10px;
+  color: #222;
+  border-left: 2px solid #aaa;
+  border-radius: 0;
+  padding: 0 10px;
+  transition: 0.2s ease-in-out;
+  overflow-x: hidden;
 }
-.hidden { display: none; }
+
+.hidden {
+  width: 0;
+  padding: 0;
+  border-left-width: 0;
+  gap: 0;
+}
+
 .header {
   display: flex;
+  flex-direction: row;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 12px;
-  border-bottom: 1px solid rgba(17,24,39,0.10);
-  background: #fff;
+  width: 100%;
+  max-height: 50px;
 }
-.title { font-weight: 700; font-size: 14px; color: #111827; }
+
+.logo {
+  font-size: 32px;
+  font-weight: 800;
+  margin: 0;
+}
+
 .iconBtn {
-  border: 1px solid rgba(17,24,39,0.12);
+  border: 2px solid #aaa;
   background: #fff;
   width: 32px;
   height: 32px;
@@ -43,46 +99,80 @@
   cursor: pointer;
   display: grid;
   place-items: center;
-  color: #111827;
+  color: #222;
 }
-.body { flex: 1; overflow: auto; padding: 12px; background: #f9fafb; }
+
+.body {
+  flex: 1;
+  overflow: hidden;
+  overflow-y: scroll;
+  border: 2px solid #aaa;
+  border-radius: 8px;
+  padding: 0.5em;
+  background: #fff;
+}
+
 .bubble {
   background: #fff;
-  border: 1px solid rgba(17,24,39,0.08);
+  border: 2px solid #ddd;
   border-radius: 12px;
   padding: 10px 12px;
   font-size: 13px;
-  color: #111827;
+  color: #222;
   margin-bottom: 10px;
   line-height: 1.35;
 }
+
 .composer {
-  border-top: 1px solid rgba(17,24,39,0.10);
-  padding: 10px;
-  background: #fff;
+  padding: 8px 0 12px;
   display: flex;
   gap: 8px;
 }
+
 .input {
   flex: 1;
-  border: 1px solid rgba(17,24,39,0.16);
+  border: 2px solid #aaa;
   border-radius: 10px;
+  margin-top: 0.5em;
   padding: 10px 10px;
   font-size: 13px;
+  box-shadow: 0 0 0 rgba(0, 0, 0, 0);
   outline: none;
 }
+
+.input:focus {
+  outline: none;
+  border-color: #4f46e5;
+  box-shadow: 0 3px 3px rgba(0, 0, 0, 0.2);
+}
+
 .send {
   border: none;
-  background: #2563eb;
+  background-color: #4f46e5;
   color: #fff;
   font-weight: 600;
   border-radius: 10px;
+  box-shadow: 0 0 0 rgba(0, 0, 0, 0);
   padding: 0 14px;
   cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.1s ease, background-color 0.1s ease;
 }
+
+.send:hover {
+  background-color: #4338ca;
+  transform: scale(1.03);
+  box-shadow: 0 3px 3px rgba(0, 0, 0, 0.2);
+}
+
+.send:active {
+  background-color: #2a218f;
+  transform: scale(0.98);
+  box-shadow: 0 3px 3px rgba(0, 0, 0, 0.5);
+}
+
 .meta {
   font-size: 12px;
-  color: #6b7280;
+  color: #444;
   margin-top: 8px;
 }
 
