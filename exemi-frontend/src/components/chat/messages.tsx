@@ -328,7 +328,6 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
     }
 
     useEffect(() => {
-        setError(null);
         loadMessages(conversationID);
     }, [conversationID])
     // When loading the conversation,
