@@ -132,47 +132,53 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
 
         let URL = backendURL + "/conversation_stream_reply/" + conversationID
 
-        const llm_response = await fetch(URL, {
-            headers:{
-                "Authorization" : "Bearer " + session.token,
-                accept:"application/json"
-            },
-            method:"GET"
-        });
+        try{
+            const llm_response = await fetch(URL, {
+                headers:{
+                    "Authorization" : "Bearer " + session.token,
+                    accept:"application/json"
+                },
+                method:"GET"
+            });
 
-        // Add an empty message before the LLM responds
-        setMessages(prev => [
-            ...prev,
-            {"role":"assistant","content":"",id:-3}
-        ]);
-
-        const reader = llm_response.body.getReader();
-        const decoder = new TextDecoder("utf-8");
-
-        let done = false;
-        let responseText = ""
-
-        while (!done){
-            const {value, done: readerDone} = await reader.read();
-            done = readerDone;
-            
-            const chunkValue : string = decoder.decode(value, {stream:true});
-            
-            if (!chunkValue) { continue };
-
-            setAwaitingLLMResponse(false);
-
-            responseText += chunkValue;
-
-            // Overwrite the placeholder LLM message with the
-            // current streamed content.
+            // Add an empty message before the LLM responds
             setMessages(prev => [
-                ...prev.slice(0, -1), // Drop the previous LLM message
-                {"role":"assistant","content":responseText,id:-3}
+                ...prev,
+                {"role":"assistant","content":"",id:-3}
             ]);
-            
+
+            const reader = llm_response.body.getReader();
+            const decoder = new TextDecoder("utf-8");
+
+            let done = false;
+            let responseText = ""
+
+            while (!done){
+                const {value, done: readerDone} = await reader.read();
+                done = readerDone;
+                
+                const chunkValue : string = decoder.decode(value, {stream:true});
+                
+                if (!chunkValue) { continue };
+
+                setAwaitingLLMResponse(false);
+
+                responseText += chunkValue;
+
+                // Overwrite the placeholder LLM message with the
+                // current streamed content.
+                setMessages(prev => [
+                    ...prev.slice(0, -1), // Drop the previous LLM message
+                    {"role":"assistant","content":responseText,id:-3}
+                ]);
+                
+            };
+        } catch {
+            setError("Error retrieving LLM response.");
+            setAwaitingLLMResponse(false);
+            setLoading(false);
         };
-    }
+    };
 
     async function sendMessage(event : React.SubmitEvent<HTMLFormElement>){
         event.preventDefault();
@@ -180,7 +186,7 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
         // Prevent the user sending an empty message
         if (!userText.trim() || loading){
             return;
-        }
+        };
 
         setLoading(true);
         setUserText("");
@@ -232,7 +238,7 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
                 setError(message);
             }
             return;
-        }
+        };
 
         const conversation = await response.json();
         setConversationID(conversation.id);

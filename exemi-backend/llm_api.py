@@ -11,17 +11,22 @@ from langchain_ollama import ChatOllama
 from .llm_tools import create_tools
 from .routers.llm_prompt import get_system_prompt
 from dotenv import load_dotenv
+import warnings
 load_dotenv()
 
 LLM_MODEL = os.environ["LLM_MODEL"]
 LLM_API_URL = os.environ["LLM_API_URL"]
 
-model = ChatOllama(
-    base_url=LLM_API_URL,
-    model=LLM_MODEL,
-    validate_model_on_init=True,
-    streaming=True
-)
+model = None
+try:
+    model = ChatOllama(
+        base_url=LLM_API_URL,
+        model=LLM_MODEL,
+        validate_model_on_init=True,
+        streaming=True
+    )
+except:
+    warnings.warn("Ollama server unreachable: AI functionality will not work")
 
 async def chat(
     messages : list[dict],
@@ -39,7 +44,9 @@ async def chat(
     Returns:
         list[BaseMessage]: The LLM response messages.
     """
-    
+
+    if not model: raise HTTPException(status_code=500, detail="Error reaching LLM: Ollama server offline")
+
     tools : list[BaseTool] = create_tools(user=user, magic=magic, session=session)
 
     agent = create_agent(
@@ -98,6 +105,8 @@ async def chat_stream(
         str: The next chunk of the LLM response.
     """
     
+    if not model: raise HTTPException(status_code=500, detail="Error reaching LLM: Ollama server offline")
+
     tools : list[BaseTool] = create_tools(user=user, magic=magic, session=session)
 
     agent = create_agent(
