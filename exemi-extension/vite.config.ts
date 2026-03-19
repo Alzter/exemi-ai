@@ -11,7 +11,9 @@ export default defineConfig({
   },
   build: {
     outDir: "dist",
-    emptyOutDir: true,
+    // Don't wipe `dist/` during watch; the dev workflow relies on
+    // static files like `manifest.json` and icons being present.
+    emptyOutDir: false,
     lib: {
       entry: "src/content.tsx",
       name: "ExemiContentScript",

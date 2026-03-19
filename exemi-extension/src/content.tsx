@@ -122,7 +122,7 @@ function SidebarApp() {
         </div>
 
         <div className="body">
-          <div className="bubble">Hi! How can I help you today?</div>
+          <div className="bubble">abcd</div>
           <div className="meta">
             <div>
               <strong>Page:</strong> {pageContext.path}
