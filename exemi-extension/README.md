@@ -48,7 +48,7 @@ From `exemi-extension`, use `run.sh`. It:
 
 ```bash
 cd exemi-extension
-. run.sh
+./run.sh
 ```
 
 Logs from the two watchers go to `.vite-frontend-watch.log` and `.vite-watch.log` in this directory.
