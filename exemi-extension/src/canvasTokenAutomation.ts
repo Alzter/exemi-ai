@@ -7,7 +7,11 @@ import {
   type ExemiAutomationReadyPayload,
   type ExemiCanvasTokenResultPayload,
 } from "./extensionAutomationMessages";
-import { getExtensionOrigin, postMessageToExemiIframe } from "./postMessageToExemiIframe";
+import {
+  getExtensionOrigin,
+  isTrustedIframeAutomationMessage,
+  postMessageToExemiIframe,
+} from "./postMessageToExemiIframe";
 
 function getExpiryDays(): number {
   const raw = import.meta.env.VITE_CANVAS_TOKEN_EXPIRY_DAYS;
@@ -36,19 +40,6 @@ function getExtensionRuntime(): { getURL: (path: string) => string } {
 
 function extensionOrigin(): string {
   return new URL(getExtensionRuntime().getURL("")).origin;
-}
-
-function isExtensionIframeOrigin(origin: string): boolean {
-  try {
-    const u = new URL(origin);
-    return (
-      u.protocol === "chrome-extension:" ||
-      u.protocol === "moz-extension:" ||
-      u.protocol === "safari-web-extension:"
-    );
-  } catch {
-    return false;
-  }
 }
 
 function readAutomationState(): CanvasTokenAutomationState | null {
@@ -334,8 +325,9 @@ export function installCanvasTokenAutomation(options: CanvasTokenAutomationOptio
   };
 
   const onMessage = (event: MessageEvent) => {
-    if (!isExtensionIframeOrigin(event.origin)) return;
-    if (event.origin !== extOrigin) return;
+    if (!isTrustedIframeAutomationMessage(event, options.getIframeWindow(), extOrigin)) {
+      return;
+    }
 
     const data = event.data;
     if (!data || typeof data !== "object") return;

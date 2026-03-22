@@ -36,7 +36,18 @@ export function useExtensionCanvasTokenAutomation({ onTokenResult }: Options): v
   useEffect(() => {
     if (!isExemiExtensionIframe()) return
 
-    const parentOrigin = parentOriginFromHref(ctx.href)
+    const referrerCanvasOrigin = (): string | null => {
+      if (!document.referrer) return null
+      try {
+        const o = new URL(document.referrer).origin
+        return isExemiCanvasEmbedderOrigin(o) ? o : null
+      } catch {
+        return null
+      }
+    }
+
+    const parentOrigin =
+      parentOriginFromHref(ctx.href) ?? referrerCanvasOrigin()
     const postTarget = parentOrigin ?? '*'
 
     const sendReady = () => {
@@ -50,6 +61,9 @@ export function useExtensionCanvasTokenAutomation({ onTokenResult }: Options): v
     }
 
     sendReady()
+    const retryIds = [400, 1200, 2500].map((ms) =>
+      window.setTimeout(sendReady, ms),
+    )
 
     const onMessage = (event: MessageEvent) => {
       if (event.source !== window.parent) return
@@ -78,6 +92,9 @@ export function useExtensionCanvasTokenAutomation({ onTokenResult }: Options): v
     }
 
     window.addEventListener('message', onMessage)
-    return () => window.removeEventListener('message', onMessage)
+    return () => {
+      for (const id of retryIds) window.clearTimeout(id)
+      window.removeEventListener('message', onMessage)
+    }
   }, [ctx.href, location.pathname])
 }
