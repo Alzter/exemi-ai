@@ -9,7 +9,11 @@
     "48": "icons/exemi-48.png"
   },
 
-  "host_permissions": ["*://*.instructure.com/*"],
+  "host_permissions": [
+    "*://*.instructure.com/*",
+    "https://exemi.au/*",
+    "https://www.exemi.au/*"
+  ],
 
   "web_accessible_resources": [
     {
