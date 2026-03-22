@@ -170,11 +170,27 @@ function SidebarApp() {
   }, [open]);
 
   return (
+
     <div className="wrap">
-      <div className="exemi-iframe-host">
-        <ExemiAppIframe pageContext={pageContext} />
+      <div
+        className={`tab ${open ? "tab-open" : "tab-closed"}`}
+        title="Toggle Exemi sidebar"
+        onClick={() => setOpenState((v) => !v)}
+      >
+        ☰
+      </div>
+
+      <div className={`panel ${open ? "" : "hidden"}`}>
+        <div className="exemi-iframe-host">
+          <ExemiAppIframe pageContext={pageContext} />
+        </div>
       </div>
     </div>
+    // <div className="wrap">
+    //   <div className="exemi-iframe-host">
+    //     <ExemiAppIframe pageContext={pageContext} />
+    //   </div>
+    // </div>
   );
 }
 
