@@ -35,6 +35,9 @@ Provides user interface
   - Communicates with backend via API
   - Receives traffic through port forwarding from NGINX
 
+- **Browser extension (Canvas)**
+  - Embeds the web app on `*.instructure.com` and can automate creation of a Canvas personal access token during onboarding. See [docs/canvas-token-automation.md](docs/canvas-token-automation.md).
+
 - **NGINX**
   - Web Server
   - Handles port forwarding to frontend

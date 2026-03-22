@@ -14,6 +14,7 @@ Integrates Exemi into Canvas by injecting a **sidebar** on `*.instructure.com`. 
 
 - Shadow DOM host so injected UI stays isolated from Canvas
 - React sidebar + iframe-hosted **exemi-frontend** (full chat and auth flows)
+- **Automatic Canvas API token setup** during onboarding (content script drives Canvas UI; iframe handshake via `postMessage`). Rationale, protocol, and file map: **[docs/canvas-token-automation.md](../docs/canvas-token-automation.md)**.
 - Injects only when Canvas looks logged in (`localStorage.canvas_session` and DOM fallbacks)
 - `web_accessible_resources`: `exemi-frontend/` for Canvas origins
 
@@ -68,7 +69,10 @@ Load `exemi-extension/dist` as an unpacked extension in the browser.
 | Path                      | Role                                                                                                        |
 | ------------------------- | ----------------------------------------------------------------------------------------------------------- |
 | `manifest.json`           | Matches Canvas, `content_scripts`, `web_accessible_resources`, `host_permissions`                           |
-| `src/content.tsx`         | Inject, sidebar, iframe `src`, `postMessage` bridge                                                         |
+| `src/content.tsx`         | Inject, sidebar, iframe `src`, `postMessage` bridge, token automation overlay                               |
+| `src/canvasTokenAutomation.ts` | Canvas DOM automation + navigation for onboarding token flow (see [docs](../docs/canvas-token-automation.md)) |
+| `src/automationOverlay.ts` / `src/loading.tsx` | Full-page “Exemi is loading” overlay during token automation                                         |
+| `src/postMessageToExemiIframe.ts` | Trusted `postMessage` to/from the extension iframe                                                   |
 | `vite.config.ts`          | Library IIFE → `dist/content.js`, `emptyOutDir: false` so `exemi-frontend/` in `dist/` is kept during watch |
 | `scripts/copy-static.mjs` | Copies `manifest.json` and icons into `dist/`                                                               |
 
