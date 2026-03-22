@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "yarn vite build --watch --force",
+    "dev": "yarn vite build --watch",
     "build": "yarn vite build && node ./scripts/copy-static.mjs"
   },
   "dependencies": {

@@ -248,4 +248,3 @@ obs.observe(document.documentElement, { childList: true, subtree: true });
 
 ensure();
 setInterval(ensure, 1500);
-
