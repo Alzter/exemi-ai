@@ -11,7 +11,7 @@
   margin: 0;
   padding: 0;
   font-size: 14px;
-
+  z-index: 2;
 }
 
 .exemi-iframe-host {
@@ -246,4 +246,68 @@
 .meta {
   color: #444;
   margin-top: 8px;
+}
+
+/* Full-viewport blocker above Canvas and the Exemi sidebar/tab. */
+.exemi-loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.exemi-loading-overlay-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(248, 250, 252, 0.92);
+  backdrop-filter: blur(2px);
+}
+
+.exemi-loading-overlay-card {
+  position: relative;
+  z-index: 2;
+  max-width: min(420px, calc(100vw - 48px));
+  padding: 28px 32px;
+  border-radius: 16px;
+  background: #fff;
+  border: 2px solid #c7d2fe;
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.12);
+  text-align: center;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Helvetica, Arial, sans-serif;
+  color: #1e1b4b;
+}
+
+.exemi-loading-spinner {
+  width: 44px;
+  height: 44px;
+  margin: 0 auto 16px;
+  border-radius: 50%;
+  border: 3px solid #e0e7ff;
+  border-top-color: #4f46e5;
+  animation: exemi-loading-spin 0.85s linear infinite;
+}
+
+@keyframes exemi-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.exemi-loading-overlay-text {
+  margin: 0 0 8px;
+  font-size: 1.15em;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.exemi-loading-overlay-sub {
+  margin: 0;
+  font-size: 0.9em;
+  color: #475569;
+  line-height: 1.4;
 }

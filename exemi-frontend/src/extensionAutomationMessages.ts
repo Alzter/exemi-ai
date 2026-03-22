@@ -32,6 +32,9 @@ export const EXEMI_IFRAME_AUTOMATION_SESSION_PENDING_KEY = 'exemi_iframe_automat
 /** Canvas origin sessionStorage: pathname+search+hash to restore after successful token flow (content script). */
 export const CANVAS_TOKEN_RETURN_URL_SS_KEY = 'exemi_cs_return_after_token'
 
+/** Extension iframe sessionStorage: pending token automation failure (survives Canvas navigation). */
+export const EXEMI_CANVAS_TOKEN_FAILURE_STICKY_KEY = 'exemi_canvas_token_failure'
+
 export function instructureSubdomainFromCanvasHref(href: string): string | null {
   try {
     const host = new URL(href).hostname

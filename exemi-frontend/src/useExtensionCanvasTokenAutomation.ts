@@ -5,6 +5,7 @@ import {
   EXEMI_AUTOMATION_READY,
   EXEMI_AUTOMATION_REDIRECTING,
   EXEMI_CANVAS_TOKEN_RESULT,
+  EXEMI_CANVAS_TOKEN_FAILURE_STICKY_KEY,
   EXEMI_IFRAME_AUTOMATION_RESUME_KEY,
   EXEMI_IFRAME_AUTOMATION_SESSION_PENDING_KEY,
   isExemiCanvasEmbedderOrigin,
@@ -103,7 +104,20 @@ export function useExtensionCanvasTokenAutomation({ onTokenResult }: Options): v
         }
         const payload = (data as { payload?: ExemiCanvasTokenResultPayload }).payload
         if (!payload || typeof payload !== 'object' || !('ok' in payload)) return
-        onTokenResultRef.current(payload as ExemiCanvasTokenResultPayload)
+        const p = payload as ExemiCanvasTokenResultPayload
+        try {
+          if (p.ok) {
+            sessionStorage.removeItem(EXEMI_CANVAS_TOKEN_FAILURE_STICKY_KEY)
+          } else {
+            sessionStorage.setItem(
+              EXEMI_CANVAS_TOKEN_FAILURE_STICKY_KEY,
+              JSON.stringify({ code: p.code }),
+            )
+          }
+        } catch {
+          // ignore
+        }
+        onTokenResultRef.current(p)
       }
     }
 

@@ -1,4 +1,4 @@
-import {Routes, Route} from "react-router-dom";
+import { Routes, Route, useNavigate } from "react-router-dom";
 import AdminDashboard from "./admin_dashboard";
 import ChatUI from "./chat";
 import UserCreate from "./user_create";
@@ -8,12 +8,29 @@ import { useEffect, useState } from "react";
 import Loading from "../loading";
 import Onboarding from '../../pages/onboarding';
 import ExtensionIncompatible from '../extension_incompatible';
+import {
+  EXEMI_CANVAS_TOKEN_FAILURE_STICKY_KEY,
+  isExemiExtensionIframe,
+} from "../../extensionAutomationMessages";
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 const canvasSyncIntervalHours = import.meta.env.VITE_CANVAS_SYNC_INTERVAL_HOURS;
 
 export default function LoggedInFlow({session, setSession, setError, logOut} : any) {
+    const navigate = useNavigate();
     const [isMagicValid, setMagicValid] = useState<boolean | null>(null);
     const isLoading = (isMagicValid == null);
+
+    useEffect(() => {
+        if (isLoading) return;
+        if (!isExemiExtensionIframe()) return;
+        try {
+            if (sessionStorage.getItem(EXEMI_CANVAS_TOKEN_FAILURE_STICKY_KEY)) {
+                navigate("/extension_incompatible/", { replace: true });
+            }
+        } catch {
+            // ignore
+        }
+    }, [navigate, isLoading]);
 
     // Call the backend API to determine if the user's current magic is valid.
     async function checkIfUserMagicValid() {
@@ -94,7 +111,7 @@ export default function LoggedInFlow({session, setSession, setError, logOut} : a
                   <Route path="user_create/" element={<UserCreate session={session}/>}/>
                   <Route path="user_delete/" element={<UserDelete session={session}/>}/>
                   <Route path="uni_aliases/" element={<EditUniAliases session={session}/>}/>
-
+                  <Route path="extension_incompatible/" element={<ExtensionIncompatible/>}/>
                 </Routes>
               </div>
         );

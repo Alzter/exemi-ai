@@ -8,6 +8,8 @@ import React, {
 } from "react";
 import { installCanvasTokenAutomation } from "./canvasTokenAutomation";
 import { postMessageToExemiIframe } from "./postMessageToExemiIframe";
+import { readAutomationOverlayVisible } from "./automationOverlay";
+import { LoadingOverlay } from "./loading";
 import { createRoot, type Root } from "react-dom/client";
 import sidebarCss from "./sidebar.css?inline";
 
@@ -199,7 +201,19 @@ function SidebarApp() {
   const [open, setOpenState] = useState(getInitialOpen);
   const [sidebarWidthPx, setSidebarWidthPx] = useState(getInitialSidebarWidthPx);
   const [resizing, setResizing] = useState(false);
+  const [automationOverlayVisible, setAutomationOverlayVisible] = useState(
+    readAutomationOverlayVisible,
+  );
   const url = useCanvasUrl();
+
+  useEffect(() => {
+    const onOverlay = (e: Event) => {
+      const v = (e as CustomEvent<{ visible?: boolean }>).detail?.visible;
+      if (typeof v === "boolean") setAutomationOverlayVisible(v);
+    };
+    window.addEventListener("exemi-automation-overlay", onOverlay);
+    return () => window.removeEventListener("exemi-automation-overlay", onOverlay);
+  }, []);
 
   useEffect(() => {
     return installCanvasTokenAutomation({
@@ -266,31 +280,36 @@ function SidebarApp() {
   );
 
   return (
-    <div
-      className="wrap"
-      style={{ ["--exemi-sidebar-width" as string]: `${sidebarWidthPx}px` } as React.CSSProperties}
-    >
+    <>
       <div
-        className={`tab ${open ? "tab-open" : "tab-closed"}${resizing ? " tab-resizing" : ""}`}
-        title="Toggle Exemi sidebar"
-        onClick={() => setOpenState((v) => !v)}
+        className="wrap"
+        style={
+          { ["--exemi-sidebar-width" as string]: `${sidebarWidthPx}px` } as React.CSSProperties
+        }
       >
-        ☰
-      </div>
+        <div
+          className={`tab ${open ? "tab-open" : "tab-closed"}${resizing ? " tab-resizing" : ""}`}
+          title="Toggle Exemi sidebar"
+          onClick={() => setOpenState((v) => !v)}
+        >
+          ☰
+        </div>
 
-      <div className={`panel ${open ? "" : "hidden"} ${resizing ? "panel-resizing" : ""}`}>
-        {open ? (
-          <div
-            className="resize-edge"
-            aria-hidden
-            onPointerDown={onResizeEdgePointerDown}
-          />
-        ) : null}
-        <div className="exemi-iframe-host">
-          <ExemiAppIframe ref={iframeRef} pageContext={pageContext} />
+        <div className={`panel ${open ? "" : "hidden"} ${resizing ? "panel-resizing" : ""}`}>
+          {open ? (
+            <div
+              className="resize-edge"
+              aria-hidden
+              onPointerDown={onResizeEdgePointerDown}
+            />
+          ) : null}
+          <div className="exemi-iframe-host">
+            <ExemiAppIframe ref={iframeRef} pageContext={pageContext} />
+          </div>
         </div>
       </div>
-    </div>
+      <LoadingOverlay visible={automationOverlayVisible} />
+    </>
   );
 }
 

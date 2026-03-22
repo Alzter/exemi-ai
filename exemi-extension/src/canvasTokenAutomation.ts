@@ -13,6 +13,7 @@ import {
   isTrustedIframeAutomationMessage,
   postMessageToExemiIframe,
 } from "./postMessageToExemiIframe";
+import { setAutomationOverlayVisible } from "./automationOverlay";
 
 function getExpiryDays(): number {
   const raw = import.meta.env.VITE_CANVAS_TOKEN_EXPIRY_DAYS;
@@ -150,8 +151,9 @@ function pathnameOnlyFromReturnStored(raw: string): string {
   return noHash.split("?")[0] ?? "";
 }
 
-/** After a successful token handoff, return to the pre-settings page if we saved one. */
-function tryNavigateReturnAfterTokenSuccess(): void {
+/** Hide overlay and return to the pre-settings Canvas URL if we saved one (success or failure). */
+function finishAutomationNavigationToReturnUrl(delayMs: number): void {
+  setAutomationOverlayVisible(false);
   try {
     const raw = sessionStorage.getItem(CANVAS_TOKEN_RETURN_URL_SS_KEY);
     clearStoredReturnUrlAfterToken();
@@ -160,7 +162,7 @@ function tryNavigateReturnAfterTokenSuccess(): void {
     if (isProfileSettingsPathname(pathnameOnlyFromReturnStored(raw))) return;
     window.setTimeout(() => {
       window.location.assign(`${window.location.origin}${raw}`);
-    }, 350);
+    }, delayMs);
   } catch {
     // ignore
   }
@@ -713,12 +715,14 @@ export function installCanvasTokenAutomation(options: CanvasTokenAutomationOptio
       // after a short delay; duplicate EXEMI_AUTOMATION_READY must not clear the
       // stored return URL or we never navigate back after success.
       if (phase === "scraping") {
+        setAutomationOverlayVisible(false);
         clearStoredReturnUrlAfterToken();
         clearAutomationState();
         scrapingInFlight = false;
         return;
       }
       if (scrapingInFlight) return;
+      setAutomationOverlayVisible(true);
       saveReturnUrlBeforeSettingsRedirect();
       writeAutomationState("redirecting");
       sendRedirecting();
@@ -731,6 +735,7 @@ export function installCanvasTokenAutomation(options: CanvasTokenAutomationOptio
     const resume = Boolean((payload as ExemiAutomationReadyPayload).automationResume);
     const shouldStart = phase === "redirecting" || (phase === "idle" && resume);
     if (shouldStart) {
+      setAutomationOverlayVisible(true);
       if (phase === "idle" && resume) {
         writeAutomationState("redirecting");
       }
@@ -761,9 +766,9 @@ export function installCanvasTokenAutomation(options: CanvasTokenAutomationOptio
 
     if (!lastReady?.isOnboarding) {
       scrapingInFlight = false;
-      clearStoredReturnUrlAfterToken();
-      clearAutomationState();
       notifyIframe({ ok: false, code: "IFRAME_HANDSHAKE_TIMEOUT" });
+      finishAutomationNavigationToReturnUrl(450);
+      clearAutomationState();
       return;
     }
 
@@ -776,14 +781,14 @@ export function installCanvasTokenAutomation(options: CanvasTokenAutomationOptio
       }
       notifyIframe(result);
       if (result.ok) {
-        tryNavigateReturnAfterTokenSuccess();
+        finishAutomationNavigationToReturnUrl(350);
       } else {
-        clearStoredReturnUrlAfterToken();
+        finishAutomationNavigationToReturnUrl(550);
       }
     } catch {
       writeAutomationState("failed");
-      clearStoredReturnUrlAfterToken();
       notifyIframe({ ok: false, code: "UNKNOWN" });
+      finishAutomationNavigationToReturnUrl(550);
     } finally {
       scrapingInFlight = false;
       window.setTimeout(() => clearAutomationState(), 5000);

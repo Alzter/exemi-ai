@@ -31,6 +31,9 @@ export const CANVAS_TOKEN_AUTOMATION_SS_KEY = "exemi_cs_token_automation";
 /** Canvas origin sessionStorage: pathname+search+hash to restore after successful token flow. */
 export const CANVAS_TOKEN_RETURN_URL_SS_KEY = "exemi_cs_return_after_token";
 
+/** Extension iframe sessionStorage (frontend reads this). See exemi-frontend extensionAutomationMessages. */
+export const EXEMI_CANVAS_TOKEN_FAILURE_STICKY_KEY = "exemi_canvas_token_failure";
+
 export type CanvasTokenAutomationPhase = "idle" | "redirecting" | "scraping" | "done" | "failed";
 
 export type CanvasTokenAutomationState = {
