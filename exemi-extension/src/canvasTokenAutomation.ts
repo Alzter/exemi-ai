@@ -155,6 +155,312 @@ function querySelectorDeep(
   return null;
 }
 
+function collectDocumentAndShadowRoots(): (Document | ShadowRoot)[] {
+  const roots: (Document | ShadowRoot)[] = [document];
+  for (const el of document.querySelectorAll("*")) {
+    if (el.shadowRoot) roots.push(el.shadowRoot);
+  }
+  return roots;
+}
+
+function dispatchKey(target: EventTarget, key: string, code: string) {
+  target.dispatchEvent(
+    new KeyboardEvent("keydown", { key, code, bubbles: true, cancelable: true }),
+  );
+  target.dispatchEvent(
+    new KeyboardEvent("keyup", { key, code, bubbles: true, cancelable: true }),
+  );
+}
+
+function safeCssId(id: string): string {
+  if (typeof CSS !== "undefined" && typeof CSS.escape === "function") {
+    return CSS.escape(id);
+  }
+  return id.replace(/[^a-zA-Z0-9_-]/g, "\\$&");
+}
+
+function setNativeInputValue(el: HTMLInputElement, value: string) {
+  const proto = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
+  if (proto?.set) proto.set.call(el, value);
+  else el.value = value;
+}
+
+function parseIsoYmd(iso: string): { y: number; m: number; d: number } | null {
+  const p = iso.split("-").map(Number);
+  if (p.length !== 3 || p.some((n) => !Number.isFinite(n))) return null;
+  return { y: p[0], m: p[1], d: p[2] };
+}
+
+/** Canvas commits dates as e.g. "1 January 2020" after Enter/blur. */
+function expirationDisplayMatchesIso(displayValue: string, iso: string): boolean {
+  const v = displayValue.trim();
+  if (!v) return false;
+  const expect = parseIsoYmd(iso);
+  if (!expect) return false;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+    return v === iso;
+  }
+  const t = Date.parse(v);
+  if (Number.isNaN(t)) return false;
+  const dt = new Date(t);
+  return dt.getFullYear() === expect.y && dt.getMonth() + 1 === expect.m && dt.getDate() === expect.d;
+}
+
+function getExpirationDateInput(): HTMLInputElement | null {
+  return querySelectorDeep(document, '[data-testid="expiration-date"]') as HTMLInputElement | null;
+}
+
+async function commitExpirationDateField(input: HTMLInputElement) {
+  input.focus();
+  await sleep(40);
+  const enterInit: KeyboardEventInit = {
+    key: "Enter",
+    code: "Enter",
+    keyCode: 13,
+    which: 13,
+    bubbles: true,
+    cancelable: true,
+  };
+  input.dispatchEvent(new KeyboardEvent("keydown", enterInit));
+  input.dispatchEvent(new KeyboardEvent("keypress", enterInit));
+  input.dispatchEvent(new KeyboardEvent("keyup", enterInit));
+  await sleep(80);
+  const purpose = querySelectorDeep(document, 'input[name="purpose"]') as HTMLInputElement | null;
+  if (purpose) {
+    purpose.focus();
+    try {
+      purpose.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true }));
+    } catch {
+      purpose.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+    }
+  }
+  input.blur();
+  await sleep(120);
+}
+
+async function waitForExpirationDateCommitted(iso: string, timeoutMs: number): Promise<boolean> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const inp = getExpirationDateInput();
+    if (inp && expirationDisplayMatchesIso(inp.value, iso)) {
+      if (inp.getAttribute("aria-invalid") !== "true") return true;
+    }
+    await sleep(100);
+  }
+  const last = getExpirationDateInput();
+  return Boolean(
+    last && expirationDisplayMatchesIso(last.value, iso) && last.getAttribute("aria-invalid") !== "true",
+  );
+}
+
+function parseMonthYearFromCalendarHeader(text: string): { y: number; m: number } | null {
+  const m = text.match(
+    /(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})/i,
+  );
+  if (!m) return null;
+  const d = new Date(`${m[1]} 1, ${m[2]}`);
+  if (Number.isNaN(d.getTime())) return null;
+  return { y: d.getFullYear(), m: d.getMonth() + 1 };
+}
+
+function findVisibleCalendarGrid(): { grid: Element; header: Element | null } | null {
+  for (const root of collectDocumentAndShadowRoots()) {
+    for (const grid of root.querySelectorAll('[role="grid"]')) {
+      const el = grid as HTMLElement;
+      if (el.offsetParent === null && el.getClientRects().length === 0) continue;
+      const host = grid.closest('[role="dialog"], [data-position-target]') || grid.parentElement;
+      const header =
+        host?.querySelector("h2, h3, [class*='header']") ||
+        grid.previousElementSibling ||
+        null;
+      return { grid, header };
+    }
+  }
+  return null;
+}
+
+function findExpirationPopoverRoot(input: HTMLInputElement): Element | null {
+  const targetId = input.getAttribute("data-position-target");
+  if (targetId) {
+    for (const root of collectDocumentAndShadowRoots()) {
+      const hit = root.querySelector(`#${safeCssId(targetId)}`);
+      if (hit) return hit;
+    }
+  }
+  const ac = input.getAttribute("aria-controls");
+  if (ac) {
+    for (const root of collectDocumentAndShadowRoots()) {
+      const node = root.querySelector(`#${safeCssId(ac)}`);
+      if (node) {
+        return (
+          node.closest('[role="presentation"]') ||
+          node.closest('[role="dialog"]') ||
+          node.parentElement
+        );
+      }
+    }
+  }
+  return null;
+}
+
+function findCalendarGridForExpirationInput(
+  input: HTMLInputElement,
+): { grid: Element; header: Element | null } | null {
+  const pop = findExpirationPopoverRoot(input);
+  if (pop) {
+    const grid = pop.querySelector('[role="grid"]');
+    if (grid) {
+      const gh = grid as HTMLElement;
+      if (gh.offsetParent !== null || gh.getClientRects().length > 0) {
+        return {
+          grid,
+          header:
+            pop.querySelector("h2, h3, [class*='month'], [class*='header']") ||
+            pop.querySelector("span") ||
+            null,
+        };
+      }
+    }
+  }
+  return findVisibleCalendarGrid();
+}
+
+function findCalendarMonthNav(grid: Element): { prev?: HTMLElement; next?: HTMLElement } {
+  const scope = grid.closest('[role="dialog"]') || grid.parentElement || document.body;
+  let prev: HTMLElement | undefined;
+  let next: HTMLElement | undefined;
+  for (const b of scope.querySelectorAll("button")) {
+    const label = (b.getAttribute("aria-label") || "").toLowerCase();
+    const svg = b.querySelector("svg");
+    const name = svg?.getAttribute("name") || "";
+    if (label.includes("previous") || label.includes("prev") || /arrow.*start|left/i.test(name)) {
+      prev = b as HTMLElement;
+    }
+    if (label.includes("next") || /arrow.*end|right/i.test(name)) {
+      next = b as HTMLElement;
+    }
+  }
+  return { prev, next };
+}
+
+async function typeDateLikeUser(input: HTMLInputElement, iso: string) {
+  input.focus();
+  await sleep(40);
+  setNativeInputValue(input, "");
+  input.dispatchEvent(
+    new InputEvent("input", { bubbles: true, cancelable: true, inputType: "deleteContentBackward" }),
+  );
+  for (const char of iso) {
+    const next = input.value + char;
+    setNativeInputValue(input, next);
+    input.dispatchEvent(
+      new InputEvent("input", {
+        bubbles: true,
+        cancelable: true,
+        inputType: "insertText",
+        data: char,
+      }),
+    );
+    await sleep(22);
+  }
+  input.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+async function tryPlainTextExpirationDate(input: HTMLInputElement, iso: string): Promise<boolean> {
+  input.focus();
+  await sleep(60);
+  dispatchKey(input, "Escape", "Escape");
+  dispatchKey(document.body, "Escape", "Escape");
+  await sleep(120);
+  input.focus();
+  await sleep(60);
+  setNativeInputValue(input, "");
+  input.dispatchEvent(
+    new InputEvent("input", { bubbles: true, cancelable: true, inputType: "deleteContentBackward" }),
+  );
+  setNativeInputValue(input, iso);
+  input.dispatchEvent(
+    new InputEvent("input", {
+      bubbles: true,
+      cancelable: true,
+      inputType: "insertText",
+      data: iso,
+    }),
+  );
+  input.dispatchEvent(new Event("change", { bubbles: true }));
+  await sleep(100);
+  if (input.value.trim() === iso) return true;
+
+  await typeDateLikeUser(input, iso);
+  await sleep(120);
+  return input.value.trim() === iso;
+}
+
+async function pickExpirationDateViaCalendar(input: HTMLInputElement, iso: string): Promise<boolean> {
+  const parts = iso.split("-").map(Number);
+  const targetYear = parts[0];
+  const targetMonth = parts[1];
+  const targetDay = parts[2];
+  if (!targetYear || !targetMonth || !targetDay) return false;
+
+  input.focus();
+  input.click();
+  await sleep(450);
+
+  const found = await waitFor(() => findCalendarGridForExpirationInput(input), 10_000, 150);
+  if (!found) return false;
+
+  const { grid, header } = found;
+  const nav = findCalendarMonthNav(grid);
+
+  for (let step = 0; step < 36; step++) {
+    const label =
+      (header?.textContent || grid.parentElement?.textContent || "").replace(/\s+/g, " ").trim();
+    const cur = parseMonthYearFromCalendarHeader(label);
+    if (cur && cur.y === targetYear && cur.m === targetMonth) break;
+    if (!cur) break;
+    const want = targetYear * 12 + targetMonth;
+    const have = cur.y * 12 + cur.m;
+    if (want > have) {
+      if (!nav.next) break;
+      nav.next.click();
+    } else {
+      if (!nav.prev) break;
+      nav.prev.click();
+    }
+    await sleep(220);
+  }
+
+  const dayStr = String(targetDay);
+  const candidates = grid.querySelectorAll("button, [role='gridcell'] button, [role='option']");
+  for (const cell of candidates) {
+    if (!(cell instanceof HTMLElement)) continue;
+    if (cell.textContent?.trim() !== dayStr) continue;
+    if (cell.getAttribute("aria-disabled") === "true") continue;
+    if ((cell as HTMLButtonElement).disabled) continue;
+    const op = parseFloat(getComputedStyle(cell).opacity || "1");
+    if (op < 0.45) continue;
+    cell.click();
+    await sleep(200);
+    return true;
+  }
+
+  return false;
+}
+
+async function fillInstUiExpirationDate(input: HTMLInputElement, iso: string): Promise<boolean> {
+  const seeded =
+    (await tryPlainTextExpirationDate(input, iso)) ||
+    (await pickExpirationDateViaCalendar(input, iso));
+  if (!seeded) return false;
+
+  await commitExpirationDateField(input);
+  if (await waitForExpirationDateCommitted(iso, 14_000)) return true;
+
+  await commitExpirationDateField(input);
+  return waitForExpirationDateCommitted(iso, 10_000);
+}
+
 function findNewAccessTokenTrigger(): HTMLElement | null {
   const byClass = querySelectorDeep(document, "a.add_access_token_link");
   if (byClass) return byClass;
@@ -213,7 +519,12 @@ async function runTokenScraper(): Promise<ExemiCanvasTokenResultPayload> {
   if (!dateEl) {
     return { ok: false, code: "FORM_TIMEOUT" };
   }
-  setInputValueReactFriendly(dateEl, expiryDateYyyyMmDd());
+  const isoDate = expiryDateYyyyMmDd();
+  const dateOk = await fillInstUiExpirationDate(dateEl, isoDate);
+  if (!dateOk) {
+    return { ok: false, code: "FORM_TIMEOUT" };
+  }
+  await sleep(150);
 
   const timeEl = await waitFor(
     () =>
