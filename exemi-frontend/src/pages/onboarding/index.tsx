@@ -60,9 +60,31 @@ export default function Onboarding({session, setSession, setMagicValid, logOut} 
     }
   ]
 
-  const [progress, setProgress] = useState<number>(0);
+  const [progress, setProgress] = useState<number>(0)
+  const [automationPrefill, setAutomationPrefill] = useState<{
+    token: string
+    universitySubdomain?: string
+  } | null>(null)
 
-  let navigate = useNavigate();
+  const navigate = useNavigate()
+  const lastSlideIndex = slides.length - 1
+
+  useExtensionCanvasTokenAutomation({
+    onTokenResult: useCallback(
+      (p) => {
+        if (!p.ok) {
+          navigate('/extension_incompatible')
+          return
+        }
+        setProgress(lastSlideIndex)
+        setAutomationPrefill({
+          token: p.token,
+          universitySubdomain: p.universitySubdomain,
+        })
+      },
+      [navigate, lastSlideIndex],
+    ),
+  })
 
   async function back(){
     if (progress == 0){
