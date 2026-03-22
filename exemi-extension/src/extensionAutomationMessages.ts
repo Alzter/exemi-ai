@@ -10,6 +10,7 @@ export const EXEMI_CANVAS_TOKEN_RESULT = "EXEMI_CANVAS_TOKEN_RESULT";
 export type ExemiAutomationReadyPayload = {
   hashRoute: string;
   isOnboarding: boolean;
+  automationResume?: boolean;
 };
 
 export type ExemiTokenFailureCode =

@@ -6,6 +6,7 @@ import {
   EXEMI_AUTOMATION_REDIRECTING,
   EXEMI_CANVAS_TOKEN_RESULT,
   EXEMI_IFRAME_AUTOMATION_RESUME_KEY,
+  EXEMI_IFRAME_AUTOMATION_SESSION_PENDING_KEY,
   isExemiCanvasEmbedderOrigin,
   isExemiExtensionIframe,
   type ExemiCanvasTokenResultPayload,
@@ -51,10 +52,24 @@ export function useExtensionCanvasTokenAutomation({ onTokenResult }: Options): v
     const postTarget = parentOrigin ?? '*'
 
     const sendReady = () => {
+      let redirectResume = false
+      let sessionPending = false
+      try {
+        redirectResume = sessionStorage.getItem(EXEMI_IFRAME_AUTOMATION_RESUME_KEY) === '1'
+        sessionPending =
+          sessionStorage.getItem(EXEMI_IFRAME_AUTOMATION_SESSION_PENDING_KEY) === '1'
+      } catch {
+        // ignore
+      }
+      const automationResume = redirectResume || sessionPending
       window.parent.postMessage(
         {
           type: EXEMI_AUTOMATION_READY,
-          payload: { hashRoute: location.pathname, isOnboarding: true },
+          payload: {
+            hashRoute: location.pathname,
+            isOnboarding: true,
+            automationResume,
+          },
         },
         postTarget,
       )
@@ -82,6 +97,7 @@ export function useExtensionCanvasTokenAutomation({ onTokenResult }: Options): v
       if (t === EXEMI_CANVAS_TOKEN_RESULT) {
         try {
           sessionStorage.removeItem(EXEMI_IFRAME_AUTOMATION_RESUME_KEY)
+          sessionStorage.removeItem(EXEMI_IFRAME_AUTOMATION_SESSION_PENDING_KEY)
         } catch {
           // ignore
         }

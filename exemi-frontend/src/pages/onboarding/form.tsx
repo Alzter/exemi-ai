@@ -12,7 +12,10 @@ type AutomationPrefill = {
 type MagicFormParams = {
   session: Session
   setSession: any
+  /** From session when set; when null, university field is shown. */
   universityName: string | null
+  /** e.g. swinburne from *.instructure.com when extension has Canvas context */
+  canvasSubdomainHint?: string | null
   setMagicValid: any
   automationPrefill?: AutomationPrefill | null
   autoSubmitFromAutomation?: boolean
@@ -22,6 +25,7 @@ export default function MagicForm({
   session,
   setSession,
   universityName,
+  canvasSubdomainHint,
   setMagicValid,
   automationPrefill,
   autoSubmitFromAutomation,
@@ -39,9 +43,23 @@ export default function MagicForm({
   const [error, setError] = useState<string | null>(null)
 
   const [form, setForm] = useState<MagicForm>({
-    university_name: universityName || '',
+    university_name:
+      (universityName && universityName.trim()) ||
+      (canvasSubdomainHint && canvasSubdomainHint.trim()) ||
+      '',
     magic: '',
   })
+
+  useEffect(() => {
+    const fromSession = universityName?.trim() || ''
+    const fromCanvas = canvasSubdomainHint?.trim() || ''
+    if (fromSession || fromCanvas) {
+      setForm((prev) => ({
+        ...prev,
+        university_name: fromSession || fromCanvas || prev.university_name,
+      }))
+    }
+  }, [universityName, canvasSubdomainHint])
 
   useEffect(() => {
     if (!automationPrefill) return
@@ -49,15 +67,18 @@ export default function MagicForm({
       ...prev,
       magic: automationPrefill.token,
       university_name:
-        universityName || automationPrefill.universitySubdomain || prev.university_name,
+        universityName?.trim() ||
+        automationPrefill.universitySubdomain ||
+        canvasSubdomainHint?.trim() ||
+        prev.university_name,
     }))
-  }, [automationPrefill, universityName])
+  }, [automationPrefill, universityName, canvasSubdomainHint])
 
   useEffect(() => {
     if (!autoSubmitFromAutomation || didAutoSubmit.current) return
     if (!automationPrefill) return
     if (!form.magic.trim()) return
-    if (!universityName && !form.university_name.trim()) return
+    if (!universityName?.trim() && !form.university_name.trim()) return
     didAutoSubmit.current = true
     queueMicrotask(() => formElRef.current?.requestSubmit())
   }, [

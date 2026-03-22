@@ -1,6 +1,12 @@
-import { useState, useCallback, type ReactNode } from 'react'
+import { useState, useCallback, useEffect, type ReactNode } from 'react'
 import MagicForm from './form'
 import { useNavigate } from 'react-router-dom'
+import { useExemiCanvasPageContext } from '../../canvasExtensionContext'
+import {
+  EXEMI_IFRAME_AUTOMATION_SESSION_PENDING_KEY,
+  instructureSubdomainFromCanvasHref,
+  isExemiExtensionIframe,
+} from '../../extensionAutomationMessages'
 import { useExtensionCanvasTokenAutomation } from '../../useExtensionCanvasTokenAutomation'
 
 interface Slide {
@@ -10,9 +16,30 @@ interface Slide {
 
 export default function Onboarding({session, setSession, setMagicValid, logOut} : any) {
 
-  const UNIVERSITY = session.user.university_name;
+  const UNIVERSITY = session.user.university_name
+  const ctx = useExemiCanvasPageContext()
+  const canvasSubdomain = instructureSubdomainFromCanvasHref(ctx.href)
+  const institutionForLinks =
+    (typeof UNIVERSITY === 'string' && UNIVERSITY.trim()) || canvasSubdomain || ''
+  const CANVAS_SETTINGS_LINK = institutionForLinks
+    ? `https://${institutionForLinks}.instructure.com/profile/settings`
+    : ''
 
-  const CANVAS_SETTINGS_LINK = "https://" + UNIVERSITY + ".instructure.com/profile/settings"
+  useEffect(() => {
+    if (!isExemiExtensionIframe()) return
+    try {
+      sessionStorage.setItem(EXEMI_IFRAME_AUTOMATION_SESSION_PENDING_KEY, '1')
+    } catch {
+      // ignore
+    }
+    return () => {
+      try {
+        sessionStorage.removeItem(EXEMI_IFRAME_AUTOMATION_SESSION_PENDING_KEY)
+      } catch {
+        // ignore
+      }
+    }
+  }, [])
 
   const slides : Slide[] = [
     {
@@ -23,15 +50,16 @@ export default function Onboarding({session, setSession, setMagicValid, logOut} 
     },
     {
       photoURL: "/assets/onboarding_slides/1.png",
-      text: UNIVERSITY ? (<p>
-          Click <a href={CANVAS_SETTINGS_LINK} target="_blank" rel="noopener noreferrer">here</a> to open your Canvas account settings page.
+      text: institutionForLinks ? (
+        <p>
+          Click{' '}
+          <a href={CANVAS_SETTINGS_LINK} target="_blank" rel="noopener noreferrer">
+            here
+          </a>{' '}
+          to open your Canvas account settings page.
         </p>
       ) : (
-        // Do not attempt to link to Canvas if the user does
-        // not have a university (Canvas provider) assigned
-        <p>
-          First, open your Canvas account settings page.
-        </p>
+        <p>First, open your Canvas account settings page.</p>
       ),
     },
     {
@@ -54,9 +82,9 @@ export default function Onboarding({session, setSession, setMagicValid, logOut} 
     },
     {
       photoURL: "",
-      text: UNIVERSITY ? (
-        <p style={{fontSize:"1.5em"}}>Enter the copied text here:</p>
-      ) : null
+      text: (
+        <p style={{ fontSize: '1.5em' }}>Enter the copied text here:</p>
+      ),
     }
   ]
 
@@ -132,7 +160,10 @@ export default function Onboarding({session, setSession, setMagicValid, logOut} 
           <MagicForm
             session={session}
             setSession={setSession}
-            universityName={UNIVERSITY}
+            universityName={
+              typeof UNIVERSITY === 'string' && UNIVERSITY.trim() ? UNIVERSITY : null
+            }
+            canvasSubdomainHint={canvasSubdomain}
             setMagicValid={setMagicValid}
             automationPrefill={automationPrefill}
             autoSubmitFromAutomation={automationPrefill != null}

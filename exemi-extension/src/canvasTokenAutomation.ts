@@ -673,7 +673,12 @@ export function installCanvasTokenAutomation(options: CanvasTokenAutomationOptio
       return;
     }
 
-    if (phase === "redirecting") {
+    const resume = Boolean((payload as ExemiAutomationReadyPayload).automationResume);
+    const shouldStart = phase === "redirecting" || (phase === "idle" && resume);
+    if (shouldStart) {
+      if (phase === "idle" && resume) {
+        writeAutomationState("redirecting");
+      }
       void runScrapeFlow();
     }
   };

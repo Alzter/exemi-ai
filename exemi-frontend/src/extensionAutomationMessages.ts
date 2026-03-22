@@ -7,6 +7,8 @@ export const EXEMI_CANVAS_TOKEN_RESULT = 'EXEMI_CANVAS_TOKEN_RESULT'
 export type ExemiAutomationReadyPayload = {
   hashRoute: string
   isOnboarding: boolean
+  /** True if iframe expects automation after redirect (or active onboarding session). */
+  automationResume?: boolean
 }
 
 export type ExemiTokenFailureCode =
@@ -23,6 +25,20 @@ export type ExemiCanvasTokenResultPayload =
   | { ok: false; code: ExemiTokenFailureCode }
 
 export const EXEMI_IFRAME_AUTOMATION_RESUME_KEY = 'exemi_iframe_token_automation_resume'
+
+/** Set while onboarding is mounted in the extension iframe (survives missed REDIRECTING postMessage). */
+export const EXEMI_IFRAME_AUTOMATION_SESSION_PENDING_KEY = 'exemi_iframe_automation_session_pending'
+
+export function instructureSubdomainFromCanvasHref(href: string): string | null {
+  try {
+    const host = new URL(href).hostname
+    if (!host.endsWith('.instructure.com')) return null
+    const sub = host.slice(0, -'.instructure.com'.length)
+    return sub || null
+  } catch {
+    return null
+  }
+}
 
 export function isExemiExtensionIframe(): boolean {
   if (typeof window === 'undefined') return false
