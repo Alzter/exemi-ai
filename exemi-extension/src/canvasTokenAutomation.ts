@@ -13,7 +13,10 @@ import {
   isTrustedIframeAutomationMessage,
   postMessageToExemiIframe,
 } from "./postMessageToExemiIframe";
-import { setAutomationOverlayVisible } from "./automationOverlay";
+import {
+  armOverlayDismissAfterSuccessfulCanvasReturn,
+  setAutomationOverlayVisible,
+} from "./automationOverlay";
 
 function getExpiryDays(): number {
   const raw = import.meta.env.VITE_CANVAS_TOKEN_EXPIRY_DAYS;
@@ -151,20 +154,37 @@ function pathnameOnlyFromReturnStored(raw: string): string {
   return noHash.split("?")[0] ?? "";
 }
 
-/** Hide overlay and return to the pre-settings Canvas URL if we saved one (success or failure). */
-function finishAutomationNavigationToReturnUrl(delayMs: number): void {
-  setAutomationOverlayVisible(false);
+/**
+ * Return to the pre-settings Canvas URL if we saved one.
+ * On **success**, keep the loading overlay until that navigation completes (next page load).
+ * On **failure** (and handshake errors), hide the overlay immediately so the sidebar error is visible.
+ */
+function finishAutomationNavigationToReturnUrl(
+  delayMs: number,
+  mode: "success" | "failure",
+): void {
   try {
     const raw = sessionStorage.getItem(CANVAS_TOKEN_RETURN_URL_SS_KEY);
     clearStoredReturnUrlAfterToken();
-    if (!raw) return;
-    if (!raw.startsWith("/") || raw.startsWith("//")) return;
-    if (isProfileSettingsPathname(pathnameOnlyFromReturnStored(raw))) return;
+    const canReturn =
+      Boolean(raw) &&
+      raw!.startsWith("/") &&
+      !raw!.startsWith("//") &&
+      !isProfileSettingsPathname(pathnameOnlyFromReturnStored(raw!));
+
+    if (mode === "failure" || !canReturn) {
+      setAutomationOverlayVisible(false);
+    } else {
+      armOverlayDismissAfterSuccessfulCanvasReturn();
+    }
+
+    if (!canReturn) return;
+
     window.setTimeout(() => {
-      window.location.assign(`${window.location.origin}${raw}`);
+      window.location.assign(`${window.location.origin}${raw!}`);
     }, delayMs);
   } catch {
-    // ignore
+    setAutomationOverlayVisible(false);
   }
 }
 
@@ -767,7 +787,7 @@ export function installCanvasTokenAutomation(options: CanvasTokenAutomationOptio
     if (!lastReady?.isOnboarding) {
       scrapingInFlight = false;
       notifyIframe({ ok: false, code: "IFRAME_HANDSHAKE_TIMEOUT" });
-      finishAutomationNavigationToReturnUrl(450);
+      finishAutomationNavigationToReturnUrl(450, "failure");
       clearAutomationState();
       return;
     }
@@ -781,14 +801,14 @@ export function installCanvasTokenAutomation(options: CanvasTokenAutomationOptio
       }
       notifyIframe(result);
       if (result.ok) {
-        finishAutomationNavigationToReturnUrl(350);
+        finishAutomationNavigationToReturnUrl(350, "success");
       } else {
-        finishAutomationNavigationToReturnUrl(550);
+        finishAutomationNavigationToReturnUrl(550, "failure");
       }
     } catch {
       writeAutomationState("failed");
       notifyIframe({ ok: false, code: "UNKNOWN" });
-      finishAutomationNavigationToReturnUrl(550);
+      finishAutomationNavigationToReturnUrl(550, "failure");
     } finally {
       scrapingInFlight = false;
       window.setTimeout(() => clearAutomationState(), 5000);

@@ -97,7 +97,7 @@ This survives **in-tab** navigations on the same Canvas origin so that after red
 
 Key: `exemi_cs_return_after_token` (`CANVAS_TOKEN_RETURN_URL_SS_KEY`).
 
-Before sending the user to `/profile/settings`, the content script saves `pathname + search + hash`. After success **or** failure (when configured), navigation restores that URL when it is safe (same origin, not settings path). The overlay is hidden before that navigation.
+Before sending the user to `/profile/settings`, the content script saves `pathname + search + hash`. After success **or** failure (when configured), navigation restores that URL when it is safe (same origin, not settings path).
 
 ---
 
@@ -108,6 +108,8 @@ Key: `exemi_cs_automation_overlay` plus a window event `exemi-automation-overlay
 - Persisted in Canvas `sessionStorage` so the overlay stays “on” across full reloads.
 - Dispatched as a `CustomEvent` so the React shell can update immediately without reload.
 - Implemented in `exemi-extension/src/automationOverlay.ts`, rendered by `LoadingOverlay` in `exemi-extension/src/loading.tsx`, styled in `sidebar.css`. The overlay stacks **above** the sidebar so the user cannot interact with Canvas or the iframe until automation finishes.
+- **Success + return navigation:** the overlay stays up while the iframe receives the token and until Canvas has navigated back to the saved URL. Session key `exemi_cs_overlay_dismiss_after_success_return` arms that transition; on the next load, `consumeAutomationOverlayAfterSuccessReturn()` in the content shell clears the overlay before first paint so the user does not briefly see the prefilled magic form under a loading card.
+- **Failure** (or success with nowhere to return): the overlay is cleared immediately before any `location.assign`, so the sidebar error UI is visible during the trip back.
 
 ---
 

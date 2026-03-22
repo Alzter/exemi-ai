@@ -8,7 +8,10 @@ import React, {
 } from "react";
 import { installCanvasTokenAutomation } from "./canvasTokenAutomation";
 import { postMessageToExemiIframe } from "./postMessageToExemiIframe";
-import { readAutomationOverlayVisible } from "./automationOverlay";
+import {
+  consumeAutomationOverlayAfterSuccessReturn,
+  readAutomationOverlayVisible,
+} from "./automationOverlay";
 import { LoadingOverlay } from "./loading";
 import { createRoot, type Root } from "react-dom/client";
 import sidebarCss from "./sidebar.css?inline";
@@ -201,9 +204,10 @@ function SidebarApp() {
   const [open, setOpenState] = useState(getInitialOpen);
   const [sidebarWidthPx, setSidebarWidthPx] = useState(getInitialSidebarWidthPx);
   const [resizing, setResizing] = useState(false);
-  const [automationOverlayVisible, setAutomationOverlayVisible] = useState(
-    readAutomationOverlayVisible,
-  );
+  const [automationOverlayVisible, setAutomationOverlayVisible] = useState(() => {
+    if (consumeAutomationOverlayAfterSuccessReturn()) return false;
+    return readAutomationOverlayVisible();
+  });
   const url = useCanvasUrl();
 
   useEffect(() => {
