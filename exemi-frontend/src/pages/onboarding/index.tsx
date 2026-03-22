@@ -1,6 +1,7 @@
-import {useState, useEffect, type ReactNode} from 'react';
-import MagicForm from "./form";
-import { useNavigate } from 'react-router';
+import { useState, useCallback, type ReactNode } from 'react'
+import MagicForm from './form'
+import { useNavigate } from 'react-router-dom'
+import { useExtensionCanvasTokenAutomation } from '../../useExtensionCanvasTokenAutomation'
 
 interface Slide {
   photoURL : string,
@@ -106,7 +107,14 @@ export default function Onboarding({session, setSession, setMagicValid, logOut} 
 
         
         {progress == slides.length - 1 ? (
-          <MagicForm session={session} setSession={setSession} universityName={UNIVERSITY} setMagicValid={setMagicValid}/>
+          <MagicForm
+            session={session}
+            setSession={setSession}
+            universityName={UNIVERSITY}
+            setMagicValid={setMagicValid}
+            automationPrefill={automationPrefill}
+            autoSubmitFromAutomation={automationPrefill != null}
+          />
         ) : null}
 
         <button className="back" onClick={back}>{"<"} Back</button>

@@ -1,4 +1,12 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { installCanvasTokenAutomation } from "./canvasTokenAutomation";
 import { createRoot, type Root } from "react-dom/client";
 import sidebarCss from "./sidebar.css?inline";
 
@@ -57,8 +65,20 @@ function getExtensionRuntime(): { getURL: (path: string) => string } {
   throw new Error("Extension runtime API not available");
 }
 
-function ExemiAppIframe({ pageContext }: { pageContext: CanvasPagePayload }) {
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+const ExemiAppIframe = forwardRef<
+  HTMLIFrameElement,
+  { pageContext: CanvasPagePayload }
+>(function ExemiAppIframe({ pageContext }, ref) {
+  const innerRef = useRef<HTMLIFrameElement | null>(null);
+  const setIframeRef = useCallback(
+    (el: HTMLIFrameElement | null) => {
+      innerRef.current = el;
+      if (typeof ref === "function") ref(el);
+      else if (ref) ref.current = el;
+    },
+    [ref],
+  );
+
   const pageContextRef = useRef(pageContext);
   pageContextRef.current = pageContext;
 
@@ -79,7 +99,7 @@ function ExemiAppIframe({ pageContext }: { pageContext: CanvasPagePayload }) {
   }, []);
 
   const postContext = useCallback(() => {
-    const win = iframeRef.current?.contentWindow;
+    const win = innerRef.current?.contentWindow;
     if (!win) return;
     const origin = targetOrigin === "*" ? "*" : targetOrigin;
     win.postMessage(
@@ -97,14 +117,14 @@ function ExemiAppIframe({ pageContext }: { pageContext: CanvasPagePayload }) {
 
   return (
     <iframe
-      ref={iframeRef}
+      ref={setIframeRef}
       className="exemi-app-iframe"
       src={iframeSrc}
       title="Exemi"
       onLoad={postContext}
     />
   );
-}
+});
 
 function isCanvasLoggedIn(): boolean {
   try {
@@ -186,10 +206,17 @@ function useCanvasUrl(): string {
 }
 
 function SidebarApp() {
+  const iframeRef = useRef<HTMLIFrameElement>(null);
   const [open, setOpenState] = useState(getInitialOpen);
   const [sidebarWidthPx, setSidebarWidthPx] = useState(getInitialSidebarWidthPx);
   const [resizing, setResizing] = useState(false);
   const url = useCanvasUrl();
+
+  useEffect(() => {
+    return installCanvasTokenAutomation({
+      getIframeWindow: () => iframeRef.current?.contentWindow ?? null,
+    });
+  }, []);
 
   useEffect(() => {
     const onResize = () => setSidebarWidthPx((w) => clampSidebarWidthPx(w));
@@ -271,7 +298,7 @@ function SidebarApp() {
           />
         ) : null}
         <div className="exemi-iframe-host">
-          <ExemiAppIframe pageContext={pageContext} />
+          <ExemiAppIframe ref={iframeRef} pageContext={pageContext} />
         </div>
       </div>
     </div>

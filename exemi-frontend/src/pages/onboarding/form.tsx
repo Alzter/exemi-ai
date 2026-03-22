@@ -1,27 +1,72 @@
-import {useState, useEffect} from 'react';
-const backendURL = import.meta.env.VITE_BACKEND_API_URL;
-import {type Session} from '../../models'
+import { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
+const backendURL = import.meta.env.VITE_BACKEND_API_URL
+import { type Session } from '../../models'
+import { isExemiExtensionIframe } from '../../extensionAutomationMessages'
 
-type MagicFormParams = {
-    session : Session,
-    setSession : any,
-    universityName : string | null,
-    setMagicValid : any
+type AutomationPrefill = {
+  token: string
+  universitySubdomain?: string
 }
 
-export default function MagicForm({session, setSession, universityName, setMagicValid} : MagicFormParams){
+type MagicFormParams = {
+  session: Session
+  setSession: any
+  universityName: string | null
+  setMagicValid: any
+  automationPrefill?: AutomationPrefill | null
+  autoSubmitFromAutomation?: boolean
+}
+
+export default function MagicForm({
+  session,
+  setSession,
+  universityName,
+  setMagicValid,
+  automationPrefill,
+  autoSubmitFromAutomation,
+}: MagicFormParams) {
     type MagicForm = {
         university_name : string;
         magic : string;
     }
 
-    const [loading, setLoading] = useState<boolean>(false);
-    const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate()
+  const formElRef = useRef<HTMLFormElement>(null)
+  const didAutoSubmit = useRef(false)
 
-    const [form, setForm] = useState<MagicForm>({
-        university_name:universityName || "",
-        magic:"",
-    });
+  const [loading, setLoading] = useState<boolean>(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const [form, setForm] = useState<MagicForm>({
+    university_name: universityName || '',
+    magic: '',
+  })
+
+  useEffect(() => {
+    if (!automationPrefill) return
+    setForm((prev) => ({
+      ...prev,
+      magic: automationPrefill.token,
+      university_name:
+        universityName || automationPrefill.universitySubdomain || prev.university_name,
+    }))
+  }, [automationPrefill, universityName])
+
+  useEffect(() => {
+    if (!autoSubmitFromAutomation || didAutoSubmit.current) return
+    if (!automationPrefill) return
+    if (!form.magic.trim()) return
+    if (!universityName && !form.university_name.trim()) return
+    didAutoSubmit.current = true
+    queueMicrotask(() => formElRef.current?.requestSubmit())
+  }, [
+    autoSubmitFromAutomation,
+    automationPrefill,
+    form.magic,
+    form.university_name,
+    universityName,
+  ])
 
     function handleChange(event : React.ChangeEvent<HTMLInputElement>){
         const {name, value} = event.target;
@@ -56,9 +101,12 @@ export default function MagicForm({session, setSession, universityName, setMagic
                 } catch {
                 // message += "Error message: " + await response.text();
                 }
-                
-                setError(message);
                 setLoading(false);
+                if (isExemiExtensionIframe()) {
+                    navigate('/extension_incompatible')
+                    return
+                }
+                setError(message);
                 return;
             }
             
@@ -71,14 +119,18 @@ export default function MagicForm({session, setSession, universityName, setMagic
             }
 
         } catch{
-            setError("System error! Please contact Alexander Small.");
             setLoading(false);
+            if (isExemiExtensionIframe()) {
+                navigate('/extension_incompatible')
+                return
+            }
+            setError("System error! Please contact Alexander Small.");
         }
 
     }
 
     return (
-        <form className='magic' onSubmit={updateUserMagic}>
+        <form ref={formElRef} className='magic' onSubmit={updateUserMagic}>
             {/* NOTE: The university_name text entry form is INVISIBLE for now. */}
             <label style={universityName ? {display:"none"} : {}}>
                 Enter your University name:

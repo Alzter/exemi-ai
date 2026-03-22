@@ -7,6 +7,7 @@ import EditUniAliases from "./uni_aliases";
 import { useEffect, useState } from "react";
 import Loading from "../loading";
 import Onboarding from '../../pages/onboarding';
+import ExtensionIncompatible from '../extension_incompatible';
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 const canvasSyncIntervalHours = import.meta.env.VITE_CANVAS_SYNC_INTERVAL_HOURS;
 
@@ -102,6 +103,7 @@ export default function LoggedInFlow({session, setSession, setError, logOut} : a
             <div>
                 <Routes>
                     <Route path="/" element={<ChatUIOrOnboarding/>}/>
+                    <Route path="extension_incompatible/" element={<ExtensionIncompatible/>}/>
                 </Routes>
             </div>
         );
