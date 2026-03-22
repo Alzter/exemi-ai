@@ -15,7 +15,7 @@
 }
 
 .exemi-iframe-host {
-  width: calc(min(50dvw, 400px));
+  width: 100%;
   flex-shrink: 0;
   height: 100%;
   min-height: 0;
@@ -73,8 +73,16 @@
     background-color 0.1s ease;
 }
 
+/* While resizing width, `right` must track `--exemi-sidebar-width` instantly (no lag). */
+.tab.tab-resizing {
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.1s ease,
+    background-color 0.1s ease;
+}
+
 .tab-open {
-  right: calc(min(50dvw, 400px) + 0.6em);
+  right: calc(var(--exemi-sidebar-width, calc(min(50dvw, 400px))) + 0.6em);
 }
 
 .tab-closed {
@@ -95,7 +103,8 @@
 
 /* Mirror frontend chat-sidebar style while docked to the right side. */
 .panel {
-  width: calc(min(50dvw, 400px));
+  position: relative;
+  width: var(--exemi-sidebar-width, calc(min(50dvw, 400px)));
   flex-shrink: 0;
   display: flex;
   margin-left: 0;
@@ -109,6 +118,22 @@
   padding: 0 10px;
   transition: 0.2s ease-in-out;
   overflow-x: hidden;
+}
+
+.panel-resizing {
+  transition: none;
+}
+
+.resize-edge {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 12px;
+  z-index: 2;
+  cursor: ew-resize;
+  touch-action: none;
+  background: transparent;
 }
 
 .hidden {
@@ -201,7 +226,7 @@
   height: 100%;
   cursor: pointer;
   transition:
-    transform 0.15s ease,
+    /* transform 0.15s ease, */
     box-shadow 0.1s ease,
     background-color 0.1s ease;
 }

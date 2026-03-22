@@ -4,6 +4,43 @@ import sidebarCss from "./sidebar.css?inline";
 
 const ROOT_ID = "exemi-root";
 const OPEN_KEY = "exemi_sidebar_open";
+const WIDTH_KEY = "exemi_sidebar_width_px";
+const SIDEBAR_MIN_WIDTH = 200;
+const SIDEBAR_MAX_WIDTH_RATIO = 0.9;
+const SIDEBAR_MAX_WIDTH_CAP = 1200;
+
+function defaultSidebarWidthPx(): number {
+  return Math.min(window.innerWidth * 0.5, 400);
+}
+
+function clampSidebarWidthPx(w: number): number {
+  const max = Math.min(
+    Math.floor(window.innerWidth * SIDEBAR_MAX_WIDTH_RATIO),
+    SIDEBAR_MAX_WIDTH_CAP,
+  );
+  return Math.round(Math.max(SIDEBAR_MIN_WIDTH, Math.min(max, w)));
+}
+
+function getInitialSidebarWidthPx(): number {
+  try {
+    const raw = localStorage.getItem(WIDTH_KEY);
+    if (raw != null) {
+      const n = Number(raw);
+      if (Number.isFinite(n)) return clampSidebarWidthPx(n);
+    }
+  } catch {
+    // ignore
+  }
+  return clampSidebarWidthPx(defaultSidebarWidthPx());
+}
+
+function setSidebarWidthStored(px: number) {
+  try {
+    localStorage.setItem(WIDTH_KEY, String(px));
+  } catch {
+    // ignore
+  }
+}
 
 /** Must match exemi-frontend `EXEMI_CANVAS_CONTEXT_MESSAGE`. */
 const EXEMI_CANVAS_CONTEXT_MESSAGE = "EXEMI_CANVAS_CONTEXT";
@@ -150,7 +187,15 @@ function useCanvasUrl(): string {
 
 function SidebarApp() {
   const [open, setOpenState] = useState(getInitialOpen);
+  const [sidebarWidthPx, setSidebarWidthPx] = useState(getInitialSidebarWidthPx);
+  const [resizing, setResizing] = useState(false);
   const url = useCanvasUrl();
+
+  useEffect(() => {
+    const onResize = () => setSidebarWidthPx((w) => clampSidebarWidthPx(w));
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   const pageContext = useMemo(() => {
     try {
@@ -169,28 +214,67 @@ function SidebarApp() {
     setOpen(open);
   }, [open]);
 
-  return (
+  const onResizeEdgePointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (!open || e.button !== 0) return;
+      e.preventDefault();
+      const el = e.currentTarget;
+      el.setPointerCapture(e.pointerId);
+      setResizing(true);
+      const startX = e.clientX;
+      const startW = sidebarWidthPx;
 
-    <div className="wrap">
+      const onMove = (ev: PointerEvent) => {
+        const dx = startX - ev.clientX;
+        setSidebarWidthPx(clampSidebarWidthPx(startW + dx));
+      };
+
+      const onUp = (ev: PointerEvent) => {
+        el.releasePointerCapture(ev.pointerId);
+        setResizing(false);
+        document.removeEventListener("pointermove", onMove);
+        document.removeEventListener("pointerup", onUp);
+        document.removeEventListener("pointercancel", onUp);
+        setSidebarWidthPx((w) => {
+          const next = clampSidebarWidthPx(w);
+          setSidebarWidthStored(next);
+          return next;
+        });
+      };
+
+      document.addEventListener("pointermove", onMove);
+      document.addEventListener("pointerup", onUp);
+      document.addEventListener("pointercancel", onUp);
+    },
+    [open, sidebarWidthPx],
+  );
+
+  return (
+    <div
+      className="wrap"
+      style={{ ["--exemi-sidebar-width" as string]: `${sidebarWidthPx}px` } as React.CSSProperties}
+    >
       <div
-        className={`tab ${open ? "tab-open" : "tab-closed"}`}
+        className={`tab ${open ? "tab-open" : "tab-closed"}${resizing ? " tab-resizing" : ""}`}
         title="Toggle Exemi sidebar"
         onClick={() => setOpenState((v) => !v)}
       >
         ☰
       </div>
 
-      <div className={`panel ${open ? "" : "hidden"}`}>
+      <div className={`panel ${open ? "" : "hidden"} ${resizing ? "panel-resizing" : ""}`}>
+        {open ? (
+          <div
+            className="resize-edge"
+            aria-hidden
+            onPointerDown={onResizeEdgePointerDown}
+          />
+        ) : null}
         <div className="exemi-iframe-host">
           <ExemiAppIframe pageContext={pageContext} />
         </div>
       </div>
     </div>
-    // <div className="wrap">
-    //   <div className="exemi-iframe-host">
-    //     <ExemiAppIframe pageContext={pageContext} />
-    //   </div>
-    // </div>
   );
 }
 
