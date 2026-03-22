@@ -6,6 +6,7 @@ import {
   EXEMI_AUTOMATION_REDIRECTING,
   EXEMI_CANVAS_TOKEN_RESULT,
   EXEMI_IFRAME_AUTOMATION_RESUME_KEY,
+  isExemiCanvasEmbedderOrigin,
   isExemiExtensionIframe,
   type ExemiCanvasTokenResultPayload,
 } from './extensionAutomationMessages'
@@ -36,7 +37,7 @@ export function useExtensionCanvasTokenAutomation({ onTokenResult }: Options): v
     if (!isExemiExtensionIframe()) return
 
     const parentOrigin = parentOriginFromHref(ctx.href)
-    if (!parentOrigin) return
+    const postTarget = parentOrigin ?? '*'
 
     const sendReady = () => {
       window.parent.postMessage(
@@ -44,14 +45,15 @@ export function useExtensionCanvasTokenAutomation({ onTokenResult }: Options): v
           type: EXEMI_AUTOMATION_READY,
           payload: { hashRoute: location.pathname, isOnboarding: true },
         },
-        parentOrigin,
+        postTarget,
       )
     }
 
     sendReady()
 
     const onMessage = (event: MessageEvent) => {
-      if (event.origin !== parentOrigin) return
+      if (event.source !== window.parent) return
+      if (!isExemiCanvasEmbedderOrigin(event.origin)) return
       const data = event.data
       if (!data || typeof data !== 'object') return
       const t = (data as { type?: string }).type

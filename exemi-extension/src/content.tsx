@@ -7,6 +7,7 @@ import React, {
   useState,
 } from "react";
 import { installCanvasTokenAutomation } from "./canvasTokenAutomation";
+import { postMessageToExemiIframe } from "./postMessageToExemiIframe";
 import { createRoot, type Root } from "react-dom/client";
 import sidebarCss from "./sidebar.css?inline";
 
@@ -90,26 +91,14 @@ const ExemiAppIframe = forwardRef<
     }
   }, []);
 
-  const targetOrigin = useMemo(() => {
-    try {
-      return new URL(getExtensionRuntime().getURL("")).origin;
-    } catch {
-      return "*";
-    }
-  }, []);
-
   const postContext = useCallback(() => {
     const win = innerRef.current?.contentWindow;
     if (!win) return;
-    const origin = targetOrigin === "*" ? "*" : targetOrigin;
-    win.postMessage(
-      {
-        type: EXEMI_CANVAS_CONTEXT_MESSAGE,
-        payload: pageContextRef.current,
-      },
-      origin,
-    );
-  }, [targetOrigin]);
+    postMessageToExemiIframe(win, {
+      type: EXEMI_CANVAS_CONTEXT_MESSAGE,
+      payload: pageContextRef.current,
+    });
+  }, []);
 
   useEffect(() => {
     postContext();

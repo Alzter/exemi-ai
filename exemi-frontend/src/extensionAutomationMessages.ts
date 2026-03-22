@@ -33,3 +33,13 @@ export function isExemiExtensionIframe(): boolean {
     p === 'safari-web-extension:'
   )
 }
+
+/** True if origin is a typical Canvas host (messages from the embedding tab). */
+export function isExemiCanvasEmbedderOrigin(origin: string): boolean {
+  try {
+    const u = new URL(origin)
+    return u.protocol === 'https:' && u.hostname.endsWith('.instructure.com')
+  } catch {
+    return false
+  }
+}

@@ -7,6 +7,7 @@ import {
   type ExemiAutomationReadyPayload,
   type ExemiCanvasTokenResultPayload,
 } from "./extensionAutomationMessages";
+import { getExtensionOrigin, postMessageToExemiIframe } from "./postMessageToExemiIframe";
 
 function getExpiryDays(): number {
   const raw = import.meta.env.VITE_CANVAS_TOKEN_EXPIRY_DAYS;
@@ -86,15 +87,6 @@ function canvasUniversitySubdomain(host: string): string | undefined {
   return parts[0];
 }
 
-function postToIframe(
-  iframeWin: Window | null | undefined,
-  extensionTargetOrigin: string,
-  payload: { type: string; payload?: unknown },
-) {
-  if (!iframeWin) return;
-  iframeWin.postMessage(payload, extensionTargetOrigin);
-}
-
 function setInputValueReactFriendly(el: HTMLInputElement, value: string) {
   const proto = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
   if (proto?.set) {
@@ -124,60 +116,98 @@ async function waitFor<T>(
   return null;
 }
 
-function observeUntil<T>(
-  doc: Document,
-  fn: () => T | null,
-  timeoutMs: number,
-): Promise<T | null> {
-  return new Promise((resolve) => {
-    let done = false;
-    const finish = (v: T | null) => {
-      if (done) return;
-      done = true;
-      obs.disconnect();
-      clearTimeout(tid);
-      resolve(v);
-    };
-    const tryOnce = () => {
-      const v = fn();
-      if (v != null) finish(v);
-    };
-    tryOnce();
-    const obs = new MutationObserver(() => tryOnce());
-    obs.observe(doc.documentElement, { childList: true, subtree: true, attributes: true });
-    const tid = window.setTimeout(() => finish(null), timeoutMs);
-  });
-}
-
 const SETTINGS_PATH = "/profile/settings";
 const SCRAPER_DEADLINE_MS = 120_000;
 const HANDSHAKE_WAIT_MS = 25_000;
-const GATE_WAIT_MS = 20_000;
+/** Canvas often hydrates this section late; keep generous. */
+const GATE_WAIT_MS = 60_000;
 
 function isProfileSettingsPathname(pathname: string): boolean {
   return pathname === SETTINGS_PATH || pathname.endsWith("/profile/settings");
+}
+
+const NEW_TOKEN_TEXT_NEEDLES = [
+  "new access token",
+  "add new access token",
+  "create access token",
+  "+ new access token",
+] as const;
+
+function normalizeUiText(s: string): string {
+  return s.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function elementMatchesNewTokenTrigger(el: Element): el is HTMLElement {
+  if (!(el instanceof HTMLElement)) return false;
+  const tag = el.tagName.toLowerCase();
+  if (tag !== "a" && tag !== "button" && el.getAttribute("role") !== "button") return false;
+  const t = normalizeUiText(el.textContent || "");
+  if (!t) return false;
+  return NEW_TOKEN_TEXT_NEEDLES.some((n) => t.includes(n));
+}
+
+/**
+ * Walk document and open shadow roots (Canvas / InstUI often mount inside shadow DOM).
+ */
+function querySelectorDeep(
+  root: Document | ShadowRoot,
+  selector: string,
+): HTMLElement | null {
+  const hit = root.querySelector<HTMLElement>(selector);
+  if (hit) return hit;
+  for (const el of root.querySelectorAll("*")) {
+    if (el.shadowRoot) {
+      const inner = querySelectorDeep(el.shadowRoot, selector);
+      if (inner) return inner;
+    }
+  }
+  return null;
+}
+
+function findNewAccessTokenTrigger(): HTMLElement | null {
+  const byClass = querySelectorDeep(document, "a.add_access_token_link");
+  if (byClass) return byClass;
+
+  const roots: (Document | ShadowRoot)[] = [document];
+  for (const el of document.querySelectorAll("*")) {
+    if (el.shadowRoot) roots.push(el.shadowRoot);
+  }
+  for (const root of roots) {
+    for (const el of root.querySelectorAll("a, button, [role='button']")) {
+      if (elementMatchesNewTokenTrigger(el)) return el;
+    }
+  }
+  return null;
 }
 
 async function runTokenScraper(): Promise<ExemiCanvasTokenResultPayload> {
   const deadline = Date.now() + SCRAPER_DEADLINE_MS;
   const timeLeft = () => Math.max(0, deadline - Date.now());
 
-  const newTokenLink = await observeUntil(
-    document,
-    () => document.querySelector<HTMLAnchorElement>("a.add_access_token_link"),
+  await sleep(800);
+
+  const newTokenLink = await waitFor(
+    () => findNewAccessTokenTrigger(),
     Math.min(GATE_WAIT_MS, timeLeft()),
+    200,
   );
 
   if (!newTokenLink) {
     return { ok: false, code: "NO_NEW_TOKEN_BUTTON" };
   }
 
+  try {
+    newTokenLink.scrollIntoView({ block: "center", inline: "nearest" });
+  } catch {
+    // ignore
+  }
+  await sleep(200);
   newTokenLink.click();
   await sleep(300);
 
   const purpose = await waitFor(
-    () => document.querySelector<HTMLInputElement>('input[name="purpose"]'),
-    Math.min(15_000, timeLeft()),
+    () => querySelectorDeep(document, 'input[name="purpose"]') as HTMLInputElement | null,
+    Math.min(20_000, timeLeft()),
   );
   if (!purpose) {
     return { ok: false, code: "FORM_TIMEOUT" };
@@ -185,8 +215,9 @@ async function runTokenScraper(): Promise<ExemiCanvasTokenResultPayload> {
   setInputValueReactFriendly(purpose, "exemi");
 
   const dateEl = await waitFor(
-    () => document.querySelector<HTMLInputElement>('[data-testid="expiration-date"]'),
-    Math.min(15_000, timeLeft()),
+    () =>
+      querySelectorDeep(document, '[data-testid="expiration-date"]') as HTMLInputElement | null,
+    Math.min(20_000, timeLeft()),
   );
   if (!dateEl) {
     return { ok: false, code: "FORM_TIMEOUT" };
@@ -194,36 +225,43 @@ async function runTokenScraper(): Promise<ExemiCanvasTokenResultPayload> {
   setInputValueReactFriendly(dateEl, expiryDateYyyyMmDd());
 
   const timeEl = await waitFor(
-    () => document.querySelector<HTMLInputElement>('[data-testid="expiration-time"]'),
-    Math.min(10_000, timeLeft()),
+    () =>
+      querySelectorDeep(document, '[data-testid="expiration-time"]') as HTMLInputElement | null,
+    Math.min(15_000, timeLeft()),
   );
   if (!timeEl) {
     return { ok: false, code: "FORM_TIMEOUT" };
   }
   setInputValueReactFriendly(timeEl, "00:00");
 
+  const findGenerateButton = (): HTMLButtonElement | null => {
+    const byLabel = querySelectorDeep(document, 'button[aria-label="Generate token"]');
+    if (byLabel instanceof HTMLButtonElement) return byLabel;
+    const roots: (Document | ShadowRoot)[] = [document];
+    for (const el of document.querySelectorAll("*")) {
+      if (el.shadowRoot) roots.push(el.shadowRoot);
+    }
+    for (const root of roots) {
+      for (const b of root.querySelectorAll<HTMLButtonElement>("button[type='submit'], button")) {
+        if (normalizeUiText(b.textContent || "").includes("generate token")) return b;
+      }
+    }
+    return null;
+  };
+
   const genBtn =
-    document.querySelector<HTMLButtonElement>('button[aria-label="Generate token"]') ||
-    (await waitFor(
-      () => {
-        const buttons = document.querySelectorAll<HTMLButtonElement>("button[type='submit']");
-        for (const b of buttons) {
-          if (b.textContent?.includes("Generate token")) return b;
-        }
-        return null;
-      },
-      Math.min(5000, timeLeft()),
-    ));
+    findGenerateButton() ||
+    (await waitFor(findGenerateButton, Math.min(10_000, timeLeft())));
 
   if (!genBtn) {
     return { ok: false, code: "FORM_TIMEOUT" };
   }
   genBtn.click();
 
-  const tokenSpan = await observeUntil(
-    document,
-    () => document.querySelector<HTMLElement>('[data-testid="visible_token"]'),
-    Math.min(30_000, timeLeft()),
+  const tokenSpan = await waitFor(
+    () => querySelectorDeep(document, '[data-testid="visible_token"]'),
+    Math.min(45_000, timeLeft()),
+    150,
   );
 
   if (!tokenSpan) {
@@ -235,17 +273,20 @@ async function runTokenScraper(): Promise<ExemiCanvasTokenResultPayload> {
     return { ok: false, code: "TOKEN_NOT_FOUND" };
   }
 
-  const closeClicked =
-    (() => {
-      const buttons = document.querySelectorAll("button");
-      for (const b of buttons) {
+  const closeClicked = (() => {
+    const roots: (Document | ShadowRoot)[] = [document];
+    for (const el of document.querySelectorAll("*")) {
+      if (el.shadowRoot) roots.push(el.shadowRoot);
+    }
+    for (const root of roots) {
+      for (const b of root.querySelectorAll("button")) {
         const sr = b.querySelector('[class*="screenReaderContent"]');
         if (sr?.textContent?.trim() === "Close") {
-          (b as HTMLButtonElement).click();
+          b.click();
           return true;
         }
       }
-      const iconClose = document.querySelector('button svg[name="IconX"]');
+      const iconClose = root.querySelector('svg[name="IconX"]');
       if (iconClose) {
         const btn = iconClose.closest("button");
         if (btn) {
@@ -253,8 +294,9 @@ async function runTokenScraper(): Promise<ExemiCanvasTokenResultPayload> {
           return true;
         }
       }
-      return false;
-    })();
+    }
+    return false;
+  })();
 
   if (!closeClicked) {
     return { ok: false, code: "CLOSE_MODAL_FAILED" };
@@ -276,17 +318,17 @@ export function installCanvasTokenAutomation(options: CanvasTokenAutomationOptio
   let lastReady: ExemiAutomationReadyPayload | null = null;
   let handshakeResolver: (() => void) | null = null;
 
-  const extOrigin = extensionOrigin();
+  const extOrigin = getExtensionOrigin();
 
   const notifyIframe = (payload: ExemiCanvasTokenResultPayload) => {
-    postToIframe(options.getIframeWindow(), extOrigin, {
+    postMessageToExemiIframe(options.getIframeWindow(), {
       type: EXEMI_CANVAS_TOKEN_RESULT,
       payload,
     });
   };
 
   const sendRedirecting = () => {
-    postToIframe(options.getIframeWindow(), extOrigin, {
+    postMessageToExemiIframe(options.getIframeWindow(), {
       type: EXEMI_AUTOMATION_REDIRECTING,
     });
   };
