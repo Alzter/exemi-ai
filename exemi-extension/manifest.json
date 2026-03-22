@@ -11,6 +11,13 @@
 
   "host_permissions": ["*://*.instructure.com/*"],
 
+  "web_accessible_resources": [
+    {
+      "resources": ["exemi-frontend/**"],
+      "matches": ["*://*.instructure.com/*"]
+    }
+  ],
+
   "content_scripts": [
     {
       "matches": ["*://*.instructure.com/*"],

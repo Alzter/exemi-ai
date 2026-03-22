@@ -4,10 +4,12 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
+    "dev": "yarn vite",
+    "build": "tsc -b && yarn vite build",
+    "build:extension": "EXEMI_EXTENSION_BUILD=1 yarn vite build",
+    "build:extension-watch": "EXEMI_EXTENSION_BUILD=1 yarn vite build --watch",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "yarn vite preview"
   },
   "dependencies": {
     "react": "^19.2.0",

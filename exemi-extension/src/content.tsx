@@ -1,9 +1,73 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import sidebarCss from "./sidebar.css?inline";
 
 const ROOT_ID = "exemi-root";
 const OPEN_KEY = "exemi_sidebar_open";
+
+/** Must match exemi-frontend `EXEMI_CANVAS_CONTEXT_MESSAGE`. */
+const EXEMI_CANVAS_CONTEXT_MESSAGE = "EXEMI_CANVAS_CONTEXT";
+
+type CanvasPagePayload = { href: string; path: string; query: string };
+
+function getExtensionRuntime(): { getURL: (path: string) => string } {
+  const g = globalThis as typeof globalThis & {
+    browser?: { runtime: { getURL: (path: string) => string } };
+    chrome?: { runtime: { getURL: (path: string) => string } };
+  };
+  if (g.browser?.runtime?.getURL) return g.browser.runtime;
+  if (g.chrome?.runtime?.getURL) return g.chrome.runtime;
+  throw new Error("Extension runtime API not available");
+}
+
+function ExemiAppIframe({ pageContext }: { pageContext: CanvasPagePayload }) {
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const pageContextRef = useRef(pageContext);
+  pageContextRef.current = pageContext;
+
+  const iframeSrc = useMemo(() => {
+    try {
+      return getExtensionRuntime().getURL("exemi-frontend/index.html");
+    } catch {
+      return "about:blank";
+    }
+  }, []);
+
+  const targetOrigin = useMemo(() => {
+    try {
+      return new URL(getExtensionRuntime().getURL("")).origin;
+    } catch {
+      return "*";
+    }
+  }, []);
+
+  const postContext = useCallback(() => {
+    const win = iframeRef.current?.contentWindow;
+    if (!win) return;
+    const origin = targetOrigin === "*" ? "*" : targetOrigin;
+    win.postMessage(
+      {
+        type: EXEMI_CANVAS_CONTEXT_MESSAGE,
+        payload: pageContextRef.current,
+      },
+      origin,
+    );
+  }, [targetOrigin]);
+
+  useEffect(() => {
+    postContext();
+  }, [pageContext, postContext]);
+
+  return (
+    <iframe
+      ref={iframeRef}
+      className="exemi-app-iframe"
+      src={iframeSrc}
+      title="Exemi"
+      onLoad={postContext}
+    />
+  );
+}
 
 function isCanvasLoggedIn(): boolean {
   try {
@@ -107,42 +171,8 @@ function SidebarApp() {
 
   return (
     <div className="wrap">
-      <div
-        className={`tab ${open ? "tab-open" : "tab-closed"}`}
-        title="Toggle Exemi sidebar"
-        onClick={() => setOpenState((v) => !v)}
-      >
-        ☰
-      </div>
-
-      <div className={`panel ${open ? "" : "hidden"}`}>
-        <div className="header">
-          <p className="logo">exemi</p>
-        </div>
-
-        <div className="body">
-          <div className="bubble">Hi! How can I help you today?</div>
-          <div className="meta">
-            <div>
-              <strong>Page:</strong> {pageContext.path}
-            </div>
-            <div style={{ marginTop: 4, wordBreak: "break-word" }}>
-              <strong>URL:</strong> {pageContext.href}
-            </div>
-          </div>
-        </div>
-
-        <form
-          className="composer"
-          onSubmit={(e) => {
-            e.preventDefault();
-          }}
-        >
-          <input className="input" placeholder="Ask Exemi…" autoComplete="off" />
-          <button className="send" type="submit">
-            Send
-          </button>
-        </form>
+      <div className="exemi-iframe-host">
+        <ExemiAppIframe pageContext={pageContext} />
       </div>
     </div>
   );

@@ -4,8 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite build --watch --force",
-    "build": "vite build && node ./scripts/copy-static.mjs"
+    "dev": "yarn vite build --watch --force",
+    "build": "yarn vite build && node ./scripts/copy-static.mjs"
   },
   "dependencies": {
     "react": "^19.2.0",

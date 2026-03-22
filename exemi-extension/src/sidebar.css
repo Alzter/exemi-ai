@@ -14,6 +14,26 @@
 
 }
 
+.exemi-iframe-host {
+  width: calc(min(50dvw, 400px));
+  flex-shrink: 0;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  /* background-color: #eee; */
+  border-left: 2px solid #aaa;
+  box-sizing: border-box;
+}
+
+.exemi-app-iframe {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  border: 0;
+  display: block;
+}
+
 /* Make the font size bigger on wider displays */
 @media only screen and (min-width: 600px) {
   .wrap {
