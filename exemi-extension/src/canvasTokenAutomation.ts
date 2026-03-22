@@ -1,5 +1,6 @@
 import {
   CANVAS_TOKEN_AUTOMATION_SS_KEY,
+  CANVAS_TOKEN_RETURN_URL_SS_KEY,
   EXEMI_AUTOMATION_READY,
   EXEMI_AUTOMATION_REDIRECTING,
   EXEMI_CANVAS_TOKEN_RESULT,
@@ -113,8 +114,56 @@ const HANDSHAKE_WAIT_MS = 25_000;
 /** Canvas often hydrates this section late; keep generous. */
 const GATE_WAIT_MS = 60_000;
 
+function normalizePathnameTrailingSlash(pathname: string): string {
+  if (pathname.length > 1 && pathname.endsWith("/")) {
+    return pathname.slice(0, -1);
+  }
+  return pathname;
+}
+
 function isProfileSettingsPathname(pathname: string): boolean {
-  return pathname === SETTINGS_PATH || pathname.endsWith("/profile/settings");
+  const p = normalizePathnameTrailingSlash(pathname);
+  return p === SETTINGS_PATH || p.endsWith("/profile/settings");
+}
+
+function clearStoredReturnUrlAfterToken(): void {
+  try {
+    sessionStorage.removeItem(CANVAS_TOKEN_RETURN_URL_SS_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+/** Remember where the user was before we send them to profile/settings (same Canvas origin). */
+function saveReturnUrlBeforeSettingsRedirect(): void {
+  try {
+    if (isProfileSettingsPathname(window.location.pathname)) return;
+    const p = window.location.pathname + window.location.search + window.location.hash;
+    sessionStorage.setItem(CANVAS_TOKEN_RETURN_URL_SS_KEY, p);
+  } catch {
+    // ignore
+  }
+}
+
+function pathnameOnlyFromReturnStored(raw: string): string {
+  const noHash = raw.split("#")[0] ?? "";
+  return noHash.split("?")[0] ?? "";
+}
+
+/** After a successful token handoff, return to the pre-settings page if we saved one. */
+function tryNavigateReturnAfterTokenSuccess(): void {
+  try {
+    const raw = sessionStorage.getItem(CANVAS_TOKEN_RETURN_URL_SS_KEY);
+    clearStoredReturnUrlAfterToken();
+    if (!raw) return;
+    if (!raw.startsWith("/") || raw.startsWith("//")) return;
+    if (isProfileSettingsPathname(pathnameOnlyFromReturnStored(raw))) return;
+    window.setTimeout(() => {
+      window.location.assign(`${window.location.origin}${raw}`);
+    }, 350);
+  } catch {
+    // ignore
+  }
 }
 
 const NEW_TOKEN_TEXT_NEEDLES = [
@@ -659,12 +708,18 @@ export function installCanvasTokenAutomation(options: CanvasTokenAutomationOptio
     const phase = state?.phase ?? "idle";
 
     if (!onSettings) {
-      if (phase === "redirecting" || phase === "scraping") {
+      // Only "scraping" off settings means the user left profile/settings mid-run.
+      // "redirecting" on a non-settings page is normal: we set it here, then assign()
+      // after a short delay; duplicate EXEMI_AUTOMATION_READY must not clear the
+      // stored return URL or we never navigate back after success.
+      if (phase === "scraping") {
+        clearStoredReturnUrlAfterToken();
         clearAutomationState();
         scrapingInFlight = false;
         return;
       }
       if (scrapingInFlight) return;
+      saveReturnUrlBeforeSettingsRedirect();
       writeAutomationState("redirecting");
       sendRedirecting();
       window.setTimeout(() => {
@@ -706,6 +761,7 @@ export function installCanvasTokenAutomation(options: CanvasTokenAutomationOptio
 
     if (!lastReady?.isOnboarding) {
       scrapingInFlight = false;
+      clearStoredReturnUrlAfterToken();
       clearAutomationState();
       notifyIframe({ ok: false, code: "IFRAME_HANDSHAKE_TIMEOUT" });
       return;
@@ -719,8 +775,14 @@ export function installCanvasTokenAutomation(options: CanvasTokenAutomationOptio
         writeAutomationState("failed");
       }
       notifyIframe(result);
+      if (result.ok) {
+        tryNavigateReturnAfterTokenSuccess();
+      } else {
+        clearStoredReturnUrlAfterToken();
+      }
     } catch {
       writeAutomationState("failed");
+      clearStoredReturnUrlAfterToken();
       notifyIframe({ ok: false, code: "UNKNOWN" });
     } finally {
       scrapingInFlight = false;

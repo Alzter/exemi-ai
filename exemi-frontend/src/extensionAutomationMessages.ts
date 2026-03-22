@@ -29,6 +29,9 @@ export const EXEMI_IFRAME_AUTOMATION_RESUME_KEY = 'exemi_iframe_token_automation
 /** Set while onboarding is mounted in the extension iframe (survives missed REDIRECTING postMessage). */
 export const EXEMI_IFRAME_AUTOMATION_SESSION_PENDING_KEY = 'exemi_iframe_automation_session_pending'
 
+/** Canvas origin sessionStorage: pathname+search+hash to restore after successful token flow (content script). */
+export const CANVAS_TOKEN_RETURN_URL_SS_KEY = 'exemi_cs_return_after_token'
+
 export function instructureSubdomainFromCanvasHref(href: string): string | null {
   try {
     const host = new URL(href).hostname

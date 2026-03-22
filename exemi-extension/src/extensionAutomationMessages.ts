@@ -28,6 +28,9 @@ export type ExemiCanvasTokenResultPayload =
 
 export const CANVAS_TOKEN_AUTOMATION_SS_KEY = "exemi_cs_token_automation";
 
+/** Canvas origin sessionStorage: pathname+search+hash to restore after successful token flow. */
+export const CANVAS_TOKEN_RETURN_URL_SS_KEY = "exemi_cs_return_after_token";
+
 export type CanvasTokenAutomationPhase = "idle" | "redirecting" | "scraping" | "done" | "failed";
 
 export type CanvasTokenAutomationState = {
