@@ -49,15 +49,13 @@ export default function AppRouter() {
     };
     
     async function checkIfBackendOnline() {
-        // console.log("Querying backend");
+        // Only check network reachability; auth failures should not be treated as "backend offline".
         try{
             const response = await fetch(backendURL, {
-            headers: {"Authorization" : "Bearer " + session.token,
-                accept: "application/json"
-            },
-            method: "GET",
+                method: "GET",
+                headers: { accept: "application/json" }
             });
-            setBackendOnline(response.ok);
+            setBackendOnline(response.status > 0);
         } catch {
             setBackendOnline(false);
         };
