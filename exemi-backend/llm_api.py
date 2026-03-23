@@ -27,7 +27,7 @@ try:
         streaming=True
     )
 except:
-    warnings.warn("Ollama server unreachable: AI functionality will not work")
+    warnings.warn("\033[1;31mOllama server unreachable: AI functionality will not work\033[0m")
 
 async def chat(
     messages : list[dict],

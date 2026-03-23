@@ -3,6 +3,7 @@ import warnings
 from contextlib import AbstractContextManager
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote_plus
 
 
 _checkpointer: Any = None
@@ -16,14 +17,41 @@ def using_langgraph_memory() -> bool:
     return backend in {"langgraph", "langgraph_hybrid"}
 
 
+def _build_postgres_uri(prefix: str = "LANGGRAPH_POSTGRES") -> str | None:
+    """
+    Build a PostgreSQL URI from split env vars.
+    Falls back to <prefix>_URI for backward compatibility.
+    """
+    explicit_uri = os.getenv(f"{prefix}_URI")
+    if explicit_uri:
+        return explicit_uri
+
+    user = os.getenv(f"{prefix}_USER")
+    password = os.getenv(f"{prefix}_PASS")
+    host = os.getenv(f"{prefix}_HOST")
+    port = os.getenv(f"{prefix}_PORT", "5432")
+    database = os.getenv(f"{prefix}_DB")
+
+    if not all([user, password, host, database]):
+        return None
+
+    return (
+        f"postgresql://{quote_plus(user)}:{quote_plus(password)}"
+        f"@{host}:{port}/{database}"
+    )
+
+
 def _build_checkpointer():
     backend = os.getenv("LANGGRAPH_CHECKPOINTER", "sqlite").strip().lower()
     if backend == "postgres":
         from langgraph.checkpoint.postgres import PostgresSaver
 
-        postgres_uri = os.getenv("LANGGRAPH_POSTGRES_URI")
+        postgres_uri = _build_postgres_uri("LANGGRAPH_POSTGRES")
         if not postgres_uri:
-            raise RuntimeError("LANGGRAPH_POSTGRES_URI is required when LANGGRAPH_CHECKPOINTER=postgres")
+            raise RuntimeError(
+                "Set LANGGRAPH_POSTGRES_URI or LANGGRAPH_POSTGRES_USER/PASS/HOST/PORT/DB "
+                "when LANGGRAPH_CHECKPOINTER=postgres"
+            )
         context_manager = PostgresSaver.from_conn_string(postgres_uri)
         saver = context_manager.__enter__()
         saver.setup()
@@ -47,10 +75,11 @@ def _build_store():
     if backend == "postgres":
         from langgraph.store.postgres import PostgresStore
 
-        postgres_uri = os.getenv("LANGGRAPH_STORE_POSTGRES_URI") or os.getenv("LANGGRAPH_POSTGRES_URI")
+        postgres_uri = _build_postgres_uri("LANGGRAPH_STORE_POSTGRES") or _build_postgres_uri("LANGGRAPH_POSTGRES")
         if not postgres_uri:
             raise RuntimeError(
-                "LANGGRAPH_STORE_POSTGRES_URI or LANGGRAPH_POSTGRES_URI is required when LANGGRAPH_STORE=postgres"
+                "Set LANGGRAPH_STORE_POSTGRES_URI or LANGGRAPH_STORE_POSTGRES_USER/PASS/HOST/PORT/DB "
+                "(or LANGGRAPH_POSTGRES_*) when LANGGRAPH_STORE=postgres"
             )
         context_manager = PostgresStore.from_conn_string(postgres_uri)
         store = context_manager.__enter__()

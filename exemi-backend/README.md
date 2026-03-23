@@ -101,8 +101,22 @@ CHAT_MEMORY_BACKEND = "sql" # "sql" | "langgraph_hybrid"
 LANGGRAPH_CHECKPOINTER = "sqlite" # "sqlite" | "postgres" | "memory"
 LANGGRAPH_SQLITE_PATH = ".data/langgraph_checkpoints.sqlite"
 LANGGRAPH_STORE = "memory" # "memory" | "postgres" | "redis"
-LANGGRAPH_STORE_POSTGRES_URI = "postgresql://USER:PASS@HOST:5432/DB"
+LANGGRAPH_POSTGRES_USER = "postgres"
+LANGGRAPH_POSTGRES_PASS = "YOURSTRONGPASSWORD"
+LANGGRAPH_POSTGRES_HOST = "127.0.0.1"
+LANGGRAPH_POSTGRES_PORT = "5432"
+LANGGRAPH_POSTGRES_DB = "exemi_langgraph"
+
+# Optional override URI (legacy/advanced)
 LANGGRAPH_POSTGRES_URI = "postgresql://USER:PASS@HOST:5432/DB"
+
+# Optional separate store DB (defaults to LANGGRAPH_POSTGRES_* if omitted)
+LANGGRAPH_STORE_POSTGRES_USER = "postgres"
+LANGGRAPH_STORE_POSTGRES_PASS = "YOURSTRONGPASSWORD"
+LANGGRAPH_STORE_POSTGRES_HOST = "127.0.0.1"
+LANGGRAPH_STORE_POSTGRES_PORT = "5432"
+LANGGRAPH_STORE_POSTGRES_DB = "exemi_langgraph"
+LANGGRAPH_STORE_POSTGRES_URI = "postgresql://USER:PASS@HOST:5432/DB"
 ```
 
 ## Running
