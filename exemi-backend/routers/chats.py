@@ -7,8 +7,29 @@ from ..llm_api import chat, chat_stream
 from langchain_core.messages import BaseMessage
 from datetime import datetime, timezone
 from typing import Literal
+from ..chat_memory import ChatMemoryService
+from ..chat_memory.types import ChatConversationData
 
 router = APIRouter()
+memory_service = ChatMemoryService()
+
+
+def _conversation_data_to_response(conversation: ChatConversationData) -> dict:
+    return {
+        "id": conversation.id,
+        "user_id": conversation.user_id,
+        "created_at": conversation.created_at,
+        "messages": [
+            {
+                "id": message.id,
+                "conversation_id": message.conversation_id,
+                "role": message.role,
+                "content": message.content,
+                "created_at": message.created_at,
+            }
+            for message in conversation.messages
+        ],
+    }
 
 @router.get("/test_chat/{message}")
 async def test_chat(
@@ -95,14 +116,8 @@ async def get_conversation(id : int, user : User = Depends(get_current_user), se
         ConversationPublicWithMessages: The conversation with its messages included.
     """
 
-    conversation = session.get(Conversation, id)
-
-    if not conversation: raise HTTPException(status_code=404, detail=f"Conversation not found with ID {id}")
-
-    if not conversation.user_id == user.id and not user.admin:
-        raise HTTPException(status_code=401, detail="You are not authorised to view this conversation")
-
-    return conversation
+    conversation = memory_service.get_conversation(conversation_id=id, user=user, session=session)
+    return _conversation_data_to_response(conversation)
 
 @router.post("/user_conversations", response_model=list[ConversationPublicWithMessages])
 async def get_user_conversations(
@@ -111,18 +126,10 @@ async def get_user_conversations(
     current_user : User = Depends(get_current_user),
     session : Session = Depends(get_session),
 ):
-    if not current_user.admin: raise HTTPException(status_code=401,detail="Unauthorised")
-
-    messages = session.exec(
-        select(Conversation)
-        .join(User)
-        .where(Conversation.created_at >= date)
-        .where(User.admin == False)
-        .order_by(Conversation.created_at)
-        .limit(limit)
-    ).all()
-    
-    return messages
+    conversations = memory_service.get_user_conversations_since(
+        date=date, limit=limit, current_user=current_user, session=session
+    )
+    return [_conversation_data_to_response(conversation) for conversation in conversations]
 
 @router.get("/conversations/{username}", response_model=list[ConversationPublic])
 async def get_conversations_for_user(
@@ -145,13 +152,9 @@ async def get_conversations_for_user(
     Returns:
         list[ConversationPublicWithMessages]: The conversations with their messages included.
     """
-    if username is None: username = user.username
-    if username != user.username and not user.admin:
-        raise HTTPException(status_code=401, detail="You are not authorised to view these conversations")
-
-    return session.exec(
-        select(Conversation).order_by(desc(Conversation.created_at)).join(User).where(User.username == username).offset(offset).limit(limit)
-    ).all()
+    return memory_service.get_conversations_for_user(
+        username=username, offset=offset, limit=limit, user=user, session=session
+    )
 
 @router.get("/conversations", response_model=list[ConversationPublic])
 async def get_conversations_for_self(
@@ -166,9 +169,7 @@ async def get_conversations_for_self(
     Returns:
         list[ConversationPublicWithMessages]: The conversations with their messages included.
     """
-    return session.exec(
-        select(Conversation).order_by(desc(Conversation.created_at)).where(Conversation.user_id == user.id).offset(offset).limit(limit)
-    ).all()
+    return memory_service.get_conversations_for_self(offset=offset, limit=limit, user=user, session=session)
 
 @router.delete("/conversation/{id}", response_model=Literal[True])
 async def delete_conversation(
@@ -188,13 +189,7 @@ async def delete_conversation(
     Returns:
         Literal[True]: Successful response.
     """
-    conversation = session.get(Conversation, id)
-    if not conversation: raise HTTPException(status_code=404, detail="Conversation not found")
-
-    if conversation.user_id != user.id and not user.admin: raise HTTPException(status_code=401, detail="You are not authorised to delete this conversation")
-    session.delete(conversation)
-    session.commit()
-    return True
+    return memory_service.delete_conversation(conversation_id=id, user=user, session=session)
 
 # @router.post("/message", response_model=ConversationPublicWithMessages)
 async def add_message_to_conversation(
@@ -202,29 +197,15 @@ async def add_message_to_conversation(
     user : User,
     session : Session
 ):
-    existing_conversation = session.get(Conversation, data.conversation_id)
-    if not existing_conversation:
-        raise HTTPException(status_code=404, detail="Conversation not found")
-    
-    if existing_conversation.user_id != user.id and not user.admin:
-        raise HTTPException(status_code=401, detail="You are not authorised to add messages to another user's conversation")
-
-    message = Message.model_validate(data, update={
-        "created_at" : datetime.now(timezone.utc)
-    })
-
-    session.add(message)
-    session.commit()
-    session.refresh(message)
-
-    return existing_conversation
+    conversation = memory_service.add_message(data=data, user=user, session=session)
+    return _conversation_data_to_response(conversation)
 
 async def add_messages_to_conversation(
     messages : list[dict[str,str]],
     conversation_id : int,
     user : User,
     session : Session
-) -> Conversation:
+) -> dict:
     """
     Add a list of messages in the OpenAI chat template
     format to an existing conversation.
@@ -242,30 +223,10 @@ async def add_messages_to_conversation(
         Conversation: The conversation with the LLM response added to the list of messages.
     """
 
-    existing_conversation = session.get(Conversation, conversation_id)
-    if not existing_conversation: raise HTTPException(status_code=404, detail="Conversation not found")
-    
-    if existing_conversation.user_id != user.id and not user.admin:
-        raise HTTPException(status_code=401, detail="You are not authorised to add messages to another user's conversation")
-
-    for message in messages:
-
-        if not message.get("role") or not message.get("content"):
-            raise HTTPException(status_code=400, detail="Chat messages must contain a 'role' and 'content' field!")
-        
-        message_data = MessageCreate(
-            conversation_id = conversation_id,
-            role=message.get("role"),
-            content=message.get("content")
-        )
-
-        new_conversation = await add_message_to_conversation(
-            message_data,
-            user=user,
-            session=session
-        )
-
-    return new_conversation
+    conversation = memory_service.add_messages(
+        messages=messages, conversation_id=conversation_id, user=user, session=session
+    )
+    return _conversation_data_to_response(conversation)
 
 @router.patch("/message/{message_id}", response_model=ConversationPublicWithMessages)
 async def update_message_in_conversation(
@@ -288,37 +249,13 @@ async def update_message_in_conversation(
         ConversationPublicWithMessages:
             The conversation with the message updated.
     """
-    existing_message = session.get(Message, message_id)
-    if not existing_message: raise HTTPException(status_code=404, detail="Message not found")
-    if not existing_message.role == "user": raise HTTPException(status_code=400, detail="You may not edit LLM messages")
-
-    existing_conversation = session.get(Conversation, existing_message.conversation_id)
-    if not existing_conversation: raise HTTPException(status_code=404, detail="Conversation not found")
-
-    if existing_conversation.user_id != user.id and not user.admin:
-        raise HTTPException(status_code=401, detail="You are not authorised to edit messages from another user's conversation")
-    
-    existing_message.sqlmodel_update({"content" : new_message_text})
-
-    session.add(existing_message)
-    session.commit()
-    
-    session.refresh(existing_conversation)
-
-    if not existing_conversation.id: raise HTTPException(status_code=500, detail="Conversation ID missing")
-
-    messages_to_delete = session.exec(
-        select(Message).where(Message.conversation_id == existing_conversation.id).where(Message.id > existing_message.id)
-    ).all()
-    
-    if messages_to_delete:
-        for message in messages_to_delete:
-            session.delete(message)
-
-        session.commit()
-        session.refresh(existing_conversation)
-
-    return existing_conversation 
+    conversation = memory_service.update_user_message_and_truncate(
+        message_id=message_id,
+        new_message_text=new_message_text,
+        user=user,
+        session=session,
+    )
+    return _conversation_data_to_response(conversation)
 
 @router.delete("/message/{message_id}", response_model=ConversationPublicWithMessages)
 async def delete_message_in_conversation(
@@ -336,16 +273,8 @@ async def delete_message_in_conversation(
         ConversationPublicWithMessages:
             The conversation with the message removed.
     """
-    existing_message = session.get(Message, message_id)
-    if not existing_message: raise HTTPException(status_code=404, detail="Message not found")
-    existing_conversation = session.get(Conversation, existing_message.conversation_id)
-    if not existing_conversation: raise HTTPException(status_code=404, detail="Conversation not found")
-    if existing_conversation.user_id != user.id and not user.admin:
-        raise HTTPException(status_code=401, detail="You are not authorised to remove messages from another user's conversation")
-    session.delete(existing_message)
-    session.commit()
-    session.refresh(existing_conversation)
-    return existing_conversation
+    conversation = memory_service.delete_message(message_id=message_id, user=user, session=session)
+    return _conversation_data_to_response(conversation)
 
 @router.get("/conversation_greeting", response_model=str)
 async def get_conversation_greeting(
@@ -406,60 +335,16 @@ async def conversation_start(
         ConversationPublicWithMessages: The new conversation.
     """
 
-    conversation_data = {
-        "user_id" : user.id,
-        "user" : user,
-        "created_at" : datetime.now(timezone.utc)
-    }
-
-    conversation = Conversation.model_validate(conversation_data)
-
-    # Get the conversation's greeting message
-    # *before* we add it to the database, since
-    # the get_conversation_greeting method checks
-    # if we have any existing conversations in the
-    # DB to determine whether to show the initial
-    # greeting message or not.
-
-    # existing_conversations : list[Conversation] = await get_conversations_for_self(offset=0, limit=1, user=user, session=session)
-    
-    # is_first_conversation = len(existing_conversations) == 0
-    
     greeting_message = await get_conversation_greeting(
         user=user, session=session
     )
-
-    session.add(conversation)
-    session.commit()
-    session.refresh(conversation)
-
-    if not conversation:
-        raise HTTPException(status_code=500, detail="System error creating conversation!")
-    
-    # Add the chatbot's initial "greeting"
-    # message to the conversation.
-
-    # if is_first_conversation:
-    greeting_message_data = MessageCreate(
-        conversation_id=conversation.id,
-        role="assistant",
-        content = greeting_message
-    )
-
-    await add_message_to_conversation(
-        greeting_message_data,
+    conversation = memory_service.create_conversation(
         user=user,
-        session=session
+        greeting_message=greeting_message,
+        first_user_message=new_message.message_text,
+        session=session,
     )
-
-    conversation_with_response = await conversation_continue(
-        conversation_id = conversation.id,
-        new_message=new_message,
-        user=user,
-        session=session
-    )
-
-    return conversation_with_response
+    return _conversation_data_to_response(conversation)
 
 @router.post("/conversation/{conversation_id}", response_model=ConversationPublicWithMessages)
 async def conversation_continue(
@@ -480,26 +365,13 @@ async def conversation_continue(
         ConversationPublicWithMessages:
             The conversation updated to include the new user message.
     """
-    existing_conversation = session.get(Conversation, conversation_id)
-    if not existing_conversation:
-        raise HTTPException(status_code=404, detail="Conversation not found")
-    
-    if existing_conversation.user_id != user.id and not user.admin:
-        raise HTTPException(status_code=401, detail="You are not authorised to add messages to another user's conversation")
-    
-    message_data = MessageCreate(
-        conversation_id = conversation_id,
-        role="user",
-        content=new_message.message_text
-    )
-    
-    new_conversation = await add_message_to_conversation(
-        message_data,
+    conversation = memory_service.append_user_message(
+        conversation_id=conversation_id,
+        message_text=new_message.message_text,
         user=user,
-        session=session
+        session=session,
     )
-
-    return new_conversation
+    return _conversation_data_to_response(conversation)
 
 def get_message_list(
     conversation_id : int,
@@ -517,21 +389,7 @@ def get_message_list(
     Returns:
         list[dict[str, str]]: The messages with "role" and "content" fields.
     """
-    existing_conversation = session.get(Conversation, conversation_id)
-    if not existing_conversation: raise HTTPException(status_code=404, detail="Conversation not found")
-    
-    if existing_conversation.user_id != user.id and not user.admin:
-        raise HTTPException(status_code=401, detail="You are not authorised to add messages to another user's conversation")
-
-    existing_messages = session.exec(
-        select(Message).where(Message.conversation_id == existing_conversation.id)
-    ).all()
-
-    message_dict = [{
-        "role": message.role, "content": message.content
-    } for message in existing_messages]
-
-    return message_dict
+    return memory_service.get_openai_messages(conversation_id=conversation_id, user=user, session=session)
 
 
 @router.get("/conversation_reply/{conversation_id}", response_model=str)
@@ -571,7 +429,8 @@ async def call_llm_response_to_conversation(
         user=user,
         magic=magic,
         session=session,
-        messages=messages
+        messages=messages,
+        thread_id=memory_service.get_thread_id(conversation_id),
     )
 
     response_text = str(response_messages[-1].content)
@@ -640,7 +499,8 @@ async def stream_llm_response_to_conversation(
             messages=messages,
             background_tasks=background_tasks,
             end_function=end_function,
-            end_function_kwargs=end_function_kwargs
+            end_function_kwargs=end_function_kwargs,
+            thread_id=memory_service.get_thread_id(conversation_id),
         ),
         media_type="text/plain",
         headers={

@@ -10,6 +10,7 @@ from langchain.tools import BaseTool
 from langchain_ollama import ChatOllama
 from .llm_tools import create_tools
 from .routers.llm_prompt import get_system_prompt
+from .langgraph_persistence import get_langgraph_resources, using_langgraph_memory
 from dotenv import load_dotenv
 import warnings
 load_dotenv()
@@ -32,7 +33,8 @@ async def chat(
     messages : list[dict],
     user : User,
     magic : str,
-    session : Session
+    session : Session,
+    thread_id : str | None = None,
 ) -> list[BaseMessage]:
     """
     Call the LLM to respond to the user's message(s).
@@ -49,15 +51,24 @@ async def chat(
 
     tools : list[BaseTool] = create_tools(user=user, magic=magic, session=session)
 
-    agent = create_agent(
-        model=model,
-        system_prompt=get_system_prompt(user=user, session=session),
-        tools=tools
-    )
+    agent_kwargs = {
+        "model": model,
+        "system_prompt": get_system_prompt(user=user, session=session),
+        "tools": tools,
+    }
+    checkpointer, store = get_langgraph_resources()
+    if checkpointer is not None:
+        agent_kwargs["checkpointer"] = checkpointer
+    if store is not None:
+        agent_kwargs["store"] = store
+    agent = create_agent(**agent_kwargs)
 
     try:
 # pyright: reportArgumentType=false 
-        response = await agent.ainvoke({"messages": messages})
+        config = None
+        if using_langgraph_memory() and thread_id is not None:
+            config = {"configurable": {"thread_id": thread_id, "user_id": str(user.id)}}
+        response = await agent.ainvoke({"messages": messages}, config=config)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating LLM response.\nDetail: {str(e)}")
     
@@ -77,7 +88,8 @@ async def chat_stream(
     session : Session,
     end_function : Callable | None = None,
     end_function_kwargs : dict[str, Any] | None = None,
-    include_tool_responses : bool = False
+    include_tool_responses : bool = False,
+    thread_id : str | None = None,
 ) -> AsyncGenerator[str, None]:
     """
     Call the LLM to respond to the user's message(s).
@@ -109,11 +121,17 @@ async def chat_stream(
 
     tools : list[BaseTool] = create_tools(user=user, magic=magic, session=session)
 
-    agent = create_agent(
-        model=model,
-        system_prompt=get_system_prompt(user=user, session=session),
-        tools=tools
-    )
+    agent_kwargs = {
+        "model": model,
+        "system_prompt": get_system_prompt(user=user, session=session),
+        "tools": tools,
+    }
+    checkpointer, store = get_langgraph_resources()
+    if checkpointer is not None:
+        agent_kwargs["checkpointer"] = checkpointer
+    if store is not None:
+        agent_kwargs["store"] = store
+    agent = create_agent(**agent_kwargs)
     
     # We will store the tool and LLM responses in
     # a separate list using OpenAI format.
@@ -131,10 +149,11 @@ async def chat_stream(
 
     try:
 
-        async for token, metadata in agent.astream(
-            {"messages":messages},
-            stream_mode="messages"
-        ):
+        graph_config = None
+        if using_langgraph_memory() and thread_id is not None:
+            graph_config = {"configurable": {"thread_id": thread_id, "user_id": str(user.id)}}
+
+        async for token, metadata in agent.astream({"messages": messages}, config=graph_config, stream_mode="messages"):
             node = metadata["langgraph_node"]
             content : list[dict] = token.content_blocks
 

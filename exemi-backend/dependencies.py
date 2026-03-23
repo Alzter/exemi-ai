@@ -14,8 +14,9 @@ from .models import User, UserPublic, University, UniversityCreate, UniversityPu
 load_dotenv()
 
 # Establish a connection to the database.
+DB_DRIVER = os.getenv("DB_DRIVER", "mariadb+mariadbconnector")
 url = URL.create(
-    "mariadb+mariadbconnector",
+    DB_DRIVER,
     username=os.environ["DB_USER"],
     password=os.environ["DB_PASS"],
     host=os.environ["DB_HOST"],

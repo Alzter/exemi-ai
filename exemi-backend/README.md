@@ -95,6 +95,14 @@ DB_NAME = "exemi"
 SECRET_KEY = "YOURSECRETKEY"
 LLM_MODEL = "llama3.1:8b"
 LLM_API_URL = "http://localhost:11434"
+
+# Optional: LangGraph memory migration
+CHAT_MEMORY_BACKEND = "sql" # "sql" | "langgraph_hybrid"
+LANGGRAPH_CHECKPOINTER = "sqlite" # "sqlite" | "postgres" | "memory"
+LANGGRAPH_SQLITE_PATH = ".data/langgraph_checkpoints.sqlite"
+LANGGRAPH_STORE = "memory" # "memory" | "postgres" | "redis"
+LANGGRAPH_STORE_POSTGRES_URI = "postgresql://USER:PASS@HOST:5432/DB"
+LANGGRAPH_POSTGRES_URI = "postgresql://USER:PASS@HOST:5432/DB"
 ```
 
 ## Running
@@ -111,3 +119,9 @@ cd exemi-backend
 nix-shell
 fastapi run main.py
 ```
+
+## LangGraph migration assets
+
+- Endpoint behavior contract: `docs/langgraph_chat_memory_contract.md`
+- Migration + rollout guide: `docs/langgraph_migration_runbook.md`
+- Export payloads for replay jobs: `scripts/backfill_langgraph_threads.py`

@@ -1,4 +1,5 @@
 from .dependencies import get_session, get_engine
+from .langgraph_persistence import close_langgraph_resources
 from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, HTTPException, Query
 # from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -24,6 +25,7 @@ async def lifespan(app : FastAPI):
     create_db_and_tables()
     yield
     # Shutdown
+    close_langgraph_resources()
 
 app = FastAPI(
     lifespan = lifespan,
