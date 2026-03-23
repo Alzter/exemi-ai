@@ -8,6 +8,14 @@ import {type User, type Session} from './models';
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 const userSyncIntervalHours = import.meta.env.VITE_USER_SYNC_INTERVAL_HOURS;
 
+function withNoTrailingSlash(url: string): string {
+    return url.endsWith("/") ? url.slice(0, -1) : url;
+}
+
+function withTrailingSlash(url: string): string {
+    return url.endsWith("/") ? url : `${url}/`;
+}
+
 export default function AppRouter() {
 
     const [session, setSession] = useState<Session>({
@@ -49,16 +57,33 @@ export default function AppRouter() {
     };
     
     async function checkIfBackendOnline() {
-        // Only check network reachability; auth failures should not be treated as "backend offline".
-        try{
-            const response = await fetch(backendURL, {
-                method: "GET",
-                headers: { accept: "application/json" }
-            });
-            setBackendOnline(response.status > 0);
-        } catch {
-            setBackendOnline(false);
-        };
+        // Mobile browsers can fail a specific origin/path while the API is reachable;
+        // probe both configured and same-origin API paths before showing offline.
+        const configuredBase = withNoTrailingSlash(String(backendURL ?? ""));
+        const fallbackBase = "/api";
+        const candidates = configuredBase
+            ? [configuredBase, fallbackBase]
+            : [fallbackBase];
+
+        for (let attempt = 0; attempt < 3; attempt++) {
+            for (const base of candidates) {
+                try {
+                    const response = await fetch(withTrailingSlash(base), {
+                        method: "GET",
+                        headers: { accept: "application/json" }
+                    });
+                    if (response.status > 0) {
+                        setBackendOnline(true);
+                        return;
+                    }
+                } catch {
+                    // Ignore and continue trying additional candidates/retries.
+                }
+            }
+            await new Promise((resolve) => setTimeout(resolve, 300 * (attempt + 1)));
+        }
+
+        setBackendOnline(false);
     };
 
     async function checkIfInitialSetupRequired() {
