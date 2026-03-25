@@ -15,7 +15,7 @@ async def get_previous_conversation_summaries(
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session),
     offset : int = 1,
-    limit : int = 5,
+    limit : int = 3,
     creation_limit : int = 1,
     max_words : int = 100
 ) -> str:
