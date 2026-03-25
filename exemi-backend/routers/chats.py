@@ -1,9 +1,11 @@
+from pydantic import BaseModel, TypeAdapter
 from ..models import Conversation, ConversationUpdate, ConversationPublic, ConversationPublicWithMessages
 from ..models import User, NewMessage, Message, MessageCreate
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from sqlmodel import Session, select, desc
 from ..dependencies import get_current_magic, get_current_user, get_session
+from ..date_utils import parse_timestamp
 from ..llm_api import chat, chat_stream, summarise
 from langchain_core.messages import BaseMessage
 from datetime import datetime, timezone
@@ -802,13 +804,17 @@ async def get_conversation_summary(
 
     return summary
 
-@router.get("/conversation_summaries", response_model=list[ConversationPublic])
+class ConversationSummary(BaseModel):
+    summary : str
+    date : datetime
+
+@router.get("/tool/conversation_summaries", response_model=list[ConversationSummary])
 async def get_conversation_summaries(
     limit : int = Query(default=5, le=10),
     creation_limit : int = Query(default=1, le=5),
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session)
-) -> list[Conversation]:
+) -> list[ConversationSummary]:
     """
     Get the first *n* (``limit``) of the user's most recent conversations,
     and create summaries for the first *m* (``creation_limit``)
@@ -821,8 +827,7 @@ async def get_conversation_summaries(
             Maximum number of new conversation summaries to create. Defaults to 1. Max of 5.
 
     Returns:
-        list[Conversation]:
-        A list of conversations with summaries added.
+        list[ConversationSummary]: A list of conversation summaries.
     """
 
     conversations = await get_conversations_for_self(
@@ -841,4 +846,57 @@ async def get_conversation_summaries(
             session=session
         )
     
-    return conversations
+    # Filter out all conversations which don't have a summmary
+    conversations = [c for c in conversations if c.summary]
+
+    summaries = [
+        ConversationSummary(
+            date = conversation.created_at,
+            summary = conversation.summary or ""
+        ) for conversation in conversations
+    ]
+
+    return summaries
+
+summary_list_adapter = TypeAdapter(list[ConversationSummary])
+
+@router.get("/tool/conversation_summaries_json", response_model=str)
+async def get_conversation_summaries_json(
+    limit : int = Query(default=5, le=10),
+    creation_limit : int = Query(default=1, le=5),
+    user : User = Depends(get_current_user),
+    session : Session = Depends(get_session)
+) -> str:
+    """
+    Obtain a string representing a JSON object of a list
+    of conversation summaries with timestamps attached.
+
+    See ``get_conversation_summaries()`` for more
+    information on how the conversation summaries
+    are created / cached.
+
+    Args:
+        limit (int, optional):
+            Maximum number of summaries to retrieve. Defaults to 5. Max of 10.
+        creation_limit (int, optional):
+            Maximum number of new conversation summaries to create. Defaults to 1. Max of 5.
+
+    Returns:
+        str: The conversation summary data.
+    """
+
+    summaries : list[ConversationSummary] = await get_conversation_summaries(
+        limit=limit,
+        creation_limit=creation_limit,
+        user=user,
+        session=session
+    )
+
+    return summary_list_adapter.dump_json(summaries).decode("utf-8")
+
+    # summaries = [{
+    #     "date" : str(parse_timestamp(conversation.created_at)),
+    #     "summary" : conversation.summary
+    # } for conversation in conversations]
+
+    # return json.dumps(summaries, ensure_ascii=False).encode("utf-8")
