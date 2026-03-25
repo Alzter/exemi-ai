@@ -91,7 +91,7 @@ async def chat(
 
     agent = create_agent(
         model=model,
-        system_prompt=get_system_prompt(user=user, session=session),
+        system_prompt=await get_system_prompt(user=user, session=session),
         tools=tools
     )
 
@@ -154,7 +154,7 @@ async def chat_stream(
 
     agent = create_agent(
         model=model,
-        system_prompt=get_system_prompt(user=user, session=session),
+        system_prompt=await get_system_prompt(user=user, session=session),
         tools=tools
     )
     

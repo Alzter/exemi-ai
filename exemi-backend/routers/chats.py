@@ -812,6 +812,7 @@ class ConversationSummary(BaseModel):
 async def get_conversation_summaries(
     limit : int = Query(default=5, le=10),
     creation_limit : int = Query(default=1, le=5),
+    max_words : int = Query(default=50, le=500),
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session)
 ) -> list[ConversationSummary]:
@@ -825,6 +826,7 @@ async def get_conversation_summaries(
             Maximum number of summaries to retrieve. Defaults to 5. Max of 10.
         creation_limit (int, optional):
             Maximum number of new conversation summaries to create. Defaults to 1. Max of 5.
+        max_words (int, optional): Conversation summary word limit. Defaults to 50. Max of 500.
 
     Returns:
         list[ConversationSummary]: A list of conversation summaries.
@@ -842,6 +844,7 @@ async def get_conversation_summaries(
     for i in range(creation_limit):
         conversations[i] = await create_conversation_summary(
             conversation=conversations[i],
+            max_words=max_words,
             user=user,
             session=session
         )
@@ -864,6 +867,7 @@ summary_list_adapter = TypeAdapter(list[ConversationSummary])
 async def get_conversation_summaries_json(
     limit : int = Query(default=5, le=10),
     creation_limit : int = Query(default=1, le=5),
+    max_words : int = Query(default=50, le=500),
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session)
 ) -> str:
@@ -880,6 +884,7 @@ async def get_conversation_summaries_json(
             Maximum number of summaries to retrieve. Defaults to 5. Max of 10.
         creation_limit (int, optional):
             Maximum number of new conversation summaries to create. Defaults to 1. Max of 5.
+        max_words (int, optional): Conversation summary word limit. Defaults to 50. Max of 500.
 
     Returns:
         str: The conversation summary data.
@@ -888,6 +893,7 @@ async def get_conversation_summaries_json(
     summaries : list[ConversationSummary] = await get_conversation_summaries(
         limit=limit,
         creation_limit=creation_limit,
+        max_words=max_words,
         user=user,
         session=session
     )

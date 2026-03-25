@@ -2,7 +2,6 @@ from ..models import User
 from ..date_utils import timestamp_to_string
 from ..routers.curriculum import get_assignments_list_json, get_units_list_json
 from ..routers.reminders import get_reminders_list_json
-from ..routers.chats import get_conversation_summaries_json
 from ..dependencies import get_current_user, get_session
 from fastapi import APIRouter, Depends
 from sqlmodel import Session
@@ -12,10 +11,13 @@ from zoneinfo import ZoneInfo
 router = APIRouter()
 
 @router.get("/prompt/history")
-def get_previous_conversation_summaries(
+async def get_previous_conversation_summaries(
     user : User = Depends(get_current_user),
-    session : Session = Depends(get_session)
-) -> str | None:
+    session : Session = Depends(get_session),
+    limit : int = 5,
+    creation_limit : int = 1,
+    max_words : int = 50
+) -> str:
     """
     Obtain a JSON list of the summaries of
     the student's prior conversations.
@@ -27,13 +29,19 @@ def get_previous_conversation_summaries(
     Returns:
         str: The summary list.
     """
+    # Imported lazily to avoid circular imports (chats → llm_api → this module → chats).
+    from ..routers import chats as chats_router
 
-    summary_list = get_conversation_summaries_json(
+    summary_list = await chats_router.get_conversation_summaries_json(
         user=user,
-        session=session
+        session=session,
+        limit=limit,
+        creation_limit=creation_limit,
+        max_words=max_words
     )
 
-    if summary_list == "[]" return None
+    if summary_list == "[]":
+        return ""
 
     summaries = "## CHAT HISTORY\n\nHere is a summary of your previous conversations with the student:"
     summaries += str(summary_list)
@@ -83,7 +91,7 @@ Return ONLY the conversation summary. Max of {max_words} words.
 """.strip()
 
 @router.get("/prompt")
-def get_system_prompt(
+async def get_system_prompt(
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session)
 ) -> str:
@@ -131,7 +139,13 @@ Remember these principles for helping students with ADHD:
 - Break study sessions into 25 minute chunks, or less if the task is hard.
 - Replace depressive / anxious beliefs with more realistic ones.
 
-{get_previous_conversation_summaries(user=user, session=session)}
+{await get_previous_conversation_summaries(
+    user=user,
+    session=session,
+    limit=5,
+    creation_limit=1,
+    max_words=50
+)}
 
 {get_reminder_list(user=user, session=session)}
 
