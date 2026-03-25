@@ -83,7 +83,7 @@ def get_summarising_prompt(
 ) -> str:
     return f"""
 You are Exemi, a study assistance chatbot.
-You are helping an undergraduate student from Swinburne University who has ADHD.
+You are helping an undergraduate student who has ADHD.
 
 Read a JSON-formatted conversation log between yourself and the
 student and summarise the conversation in {max_words} words or less.
