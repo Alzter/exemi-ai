@@ -15,9 +15,9 @@ async def get_previous_conversation_summaries(
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session),
     offset : int = 1,
-    limit : int = 3,
+    limit : int = 1,
     creation_limit : int = 1,
-    max_words : int = 100
+    max_words : int = 200
 ) -> str:
     """
     Obtain a JSON list of the summaries of
@@ -148,11 +148,7 @@ Remember these principles for helping students with ADHD:
 
 {await get_previous_conversation_summaries(
     user=user,
-    session=session,
-    offset=1,
-    limit=5,
-    creation_limit=1,
-    max_words=100
+    session=session
 )}
 
 {get_reminder_list(user=user, session=session)}
