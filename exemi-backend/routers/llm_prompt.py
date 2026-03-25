@@ -87,11 +87,11 @@ designed to help undergraduate students with ADHD
 improve their time management and planning.
 
 Read the following conversation log between yourself and a
-student and summarise the conversation. Focus on what tasks you
-and the student planned to complete and on any new information
-the student disclosed, such as their learning goals or
-personal challenges. Do not exceed {max_words} words.
-Respond with ONLY the conversation summary.
+student and summarise the conversation. Mention which
+assignment tasks you and the student decided to focus on,
+if any. Also mention any personal information the student
+disclosed, such as learning goals or challenges, if any.
+Do not exceed {max_words} words. Respond with ONLY the conversation summary.
 """.strip()
 
 @router.get("/prompt")
