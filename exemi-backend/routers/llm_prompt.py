@@ -2,6 +2,7 @@ from ..models import User
 from ..date_utils import timestamp_to_string
 from ..routers.curriculum import get_assignments_list_json, get_units_list_json
 from ..routers.reminders import get_reminders_list_json
+from ..routers.chats import get_conversation_summaries_json
 from ..dependencies import get_current_user, get_session
 from fastapi import APIRouter, Depends
 from sqlmodel import Session
@@ -9,6 +10,34 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 router = APIRouter()
+
+@router.get("/prompt/history")
+def get_previous_conversation_summaries(
+    user : User = Depends(get_current_user),
+    session : Session = Depends(get_session)
+) -> str | None:
+    """
+    Obtain a JSON list of the summaries of
+    the student's prior conversations.
+
+    Args:
+        user (User): The currently logged-in user.
+        session (Session): Connection to the database.
+
+    Returns:
+        str: The summary list.
+    """
+
+    summary_list = get_conversation_summaries_json(
+        user=user,
+        session=session
+    )
+
+    if summary_list == "[]" return None
+
+    summaries = "## CHAT HISTORY\n\nHere is a summary of your previous conversations with the student:"
+    summaries += str(summary_list)
+    return summaries.strip()
 
 @router.get("/prompt/reminders")
 def get_reminder_list(
@@ -101,6 +130,8 @@ Remember these principles for helping students with ADHD:
 - Work in a space free of distractions.
 - Break study sessions into 25 minute chunks, or less if the task is hard.
 - Replace depressive / anxious beliefs with more realistic ones.
+
+{get_previous_conversation_summaries(user=user, session=session)}
 
 {get_reminder_list(user=user, session=session)}
 
