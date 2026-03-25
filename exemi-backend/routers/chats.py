@@ -810,6 +810,7 @@ class ConversationSummary(BaseModel):
 
 @router.get("/tool/conversation_summaries", response_model=list[ConversationSummary])
 async def get_conversation_summaries(
+    offset : int = 1,
     limit : int = Query(default=5, le=10),
     creation_limit : int = Query(default=1, le=5),
     max_words : int = Query(default=50, le=500),
@@ -822,6 +823,8 @@ async def get_conversation_summaries(
     of these *n* conversations. Return all *n* conversations in a list.
 
     Args:
+        offset (int, optional):
+            Skip the first *n* most recent conversations. Defaults to 1.
         limit (int, optional):
             Maximum number of summaries to retrieve. Defaults to 5. Max of 10.
         creation_limit (int, optional):
@@ -833,7 +836,7 @@ async def get_conversation_summaries(
     """
 
     conversations = await get_conversations_for_self(
-        offset=0,
+        offset=offset,
         limit=limit,
         user=user,
         session=session
@@ -865,6 +868,7 @@ summary_list_adapter = TypeAdapter(list[ConversationSummary])
 
 @router.get("/tool/conversation_summaries_json", response_model=str)
 async def get_conversation_summaries_json(
+    offset : int = 1,
     limit : int = Query(default=5, le=10),
     creation_limit : int = Query(default=1, le=5),
     max_words : int = Query(default=50, le=500),
@@ -880,6 +884,8 @@ async def get_conversation_summaries_json(
     are created / cached.
 
     Args:
+        offset (int, optional):
+            Skip the first *n* most recent conversations. Defaults to 1.
         limit (int, optional):
             Maximum number of summaries to retrieve. Defaults to 5. Max of 10.
         creation_limit (int, optional):
@@ -891,6 +897,7 @@ async def get_conversation_summaries_json(
     """
 
     summaries : list[ConversationSummary] = await get_conversation_summaries(
+        offset=offset,
         limit=limit,
         creation_limit=creation_limit,
         max_words=max_words,

@@ -14,6 +14,7 @@ router = APIRouter()
 async def get_previous_conversation_summaries(
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session),
+    offset : int = 1,
     limit : int = 5,
     creation_limit : int = 1,
     max_words : int = 100
@@ -35,6 +36,7 @@ async def get_previous_conversation_summaries(
     summary_list = await chats_router.get_conversation_summaries_json(
         user=user,
         session=session,
+        offset=offset,
         limit=limit,
         creation_limit=creation_limit,
         max_words=max_words
@@ -146,6 +148,7 @@ Remember these principles for helping students with ADHD:
 {await get_previous_conversation_summaries(
     user=user,
     session=session,
+    offset=1,
     limit=5,
     creation_limit=1,
     max_words=100
