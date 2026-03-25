@@ -53,7 +53,7 @@ If the student has not asked to work on any
 specific assignment task, encourage them to continue
 with the last assignment task you discussed with them
 from previous conversation summary, if any.
-""".strip()
+""".replace("\n", " ").strip()
     return summaries.strip()
 
 @router.get("/prompt/reminders")
