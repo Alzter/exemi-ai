@@ -693,7 +693,7 @@ async def stream_llm_response_to_conversation(
 
     return response
 
-@router.get("/conversation/{id}/summary", response_model=str)
+@router.get("/conversation_summary/{id}", response_model=str|None)
 async def get_conversation_summary(
     conversation_id : int,
     create_if_not_exists : bool = True,

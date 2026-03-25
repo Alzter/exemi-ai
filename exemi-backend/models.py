@@ -296,6 +296,7 @@ class ConversationPublic(ConversationBase, UTCModel):
     id : int
     user_id : int
     created_at : datetime
+    summary : str | None
 
 class ConversationUpdate(SQLModel):
     summary : str | None
