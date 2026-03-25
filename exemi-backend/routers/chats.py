@@ -1,12 +1,14 @@
-from ..models import User, Conversation, NewMessage, ConversationPublic, ConversationPublicWithMessages, Message, MessageCreate
+from ..models import Conversation, ConversationUpdate, ConversationPublic, ConversationPublicWithMessages
+from ..models import User, NewMessage, Message, MessageCreate
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from sqlmodel import Session, select, desc
 from ..dependencies import get_current_magic, get_current_user, get_session
-from ..llm_api import chat, chat_stream
+from ..llm_api import chat, chat_stream, summarise
 from langchain_core.messages import BaseMessage
 from datetime import datetime, timezone
 from typing import Literal
+import json
 
 router = APIRouter()
 
@@ -169,6 +171,46 @@ async def get_conversations_for_self(
     return session.exec(
         select(Conversation).order_by(desc(Conversation.created_at)).where(Conversation.user_id == user.id).offset(offset).limit(limit)
     ).all()
+
+@router.patch("/conversation/{id}", response_model=ConversationPublicWithMessages)
+async def update_conversation(
+    data : ConversationUpdate,
+    id : int,
+    user : User = Depends(get_current_user),
+    session : Session = Depends(get_session)
+):
+    """
+    Assign a conversation summary to a given
+    conversation.
+
+    Args:
+        data (ConversationUpdate): The conversation summary to add.
+        id (int): The ID of the conversation to update.
+    
+    Raises:
+        HTTPException:
+            If the current user is not an administrator, this will return a 401 (Unauthorized) response when attempting to update other users' conversations.
+            This will also return a 404 (not found) if the conversation did not exist in the DB.
+
+    Returns:
+        ConversationPublicWithMessages: The conversation with the summary added.
+    """
+
+    existing_conversation : Conversation = await get_conversation(
+        id = id,
+        user = user,
+        session = session
+    )
+
+    update = data.model_dump(exclude_unset=False)
+
+    existing_conversation.sqlmodel_update(update)
+
+    session.add(existing_conversation)
+    session.commit()
+    session.refresh(existing_conversation)
+    
+    return existing_conversation
 
 @router.delete("/conversation/{id}", response_model=Literal[True])
 async def delete_conversation(
@@ -650,3 +692,70 @@ async def stream_llm_response_to_conversation(
     )
 
     return response
+
+@router.get("/conversation/{id}/summary", response_model=str)
+async def get_conversation_summary(
+    conversation_id : int,
+    create_if_not_exists : bool = True,
+    max_words : int = 50,
+    user : User = Depends(get_current_user),
+    session : Session = Depends(get_session)
+) -> str | None:
+    """
+    Generate a summary for a given conversation,
+    or obtain it from the database if it has already
+    been created.
+
+    Args:
+        conversation_id (int): ID of the conversation to obtain summary foor.
+        create_if_not_exists (bool, optional):
+            Create a new summary if one does not exist. If False, returns None if summary does not exist. Defaults to True.
+        max_words (int, optional): Conversation summary word limit. Defaults to 50.
+
+    Raises:
+        HTTPException:
+            Raises a 401 if the conversation was not created by the current user and the user is not an admin.
+            Raises a 404 if the conversation does not exist.
+
+    Returns:
+        str | None: The conversation summary, or None if it does not exist and create_if_not_exists is False.
+    """
+    conversation = await get_conversation(
+        id = conversation_id,
+        user = user,
+        session = session
+    )
+
+    # Return the conversation summary if it exists
+    if conversation.summary:
+        return conversation.summary
+    
+    elif not create_if_not_exists:
+        return None
+
+    # Create a summary if not exists
+    
+    # Obtain OpenAI-formatted list of messages for the conversation
+    messages : list[dict[str,str]] = get_message_list(
+        conversation_id=conversation_id,
+        user=user,
+        session=session
+    )
+
+    # Get LLM to summarise conversation text
+    summary : str = await summarise(
+        chat_message_log = messages,
+        max_words = max_words
+    )
+    
+    await update_conversation(
+        data = ConversationUpdate(
+            summary = summary
+        ),
+        id = conversation_id,
+        user = user,
+        session = session
+    )
+
+    return summary
+

@@ -40,6 +40,19 @@ def get_reminder_list(
 
     return reminders.strip()
 
+@router.get("/prompt_summarising")
+def get_summarising_prompt(
+    max_words : int
+) -> str:
+    return f"""
+You are Exemi, a study assistance chatbot.
+You are helping an undergraduate student from Swinburne University who has ADHD.
+
+Read a JSON-formatted conversation log between yourself and the
+student and summarise the conversation in {max_words} words or less.
+Return ONLY the conversation summary. Max of {max_words} words.
+""".strip()
+
 @router.get("/prompt")
 def get_system_prompt(
     user : User = Depends(get_current_user),

@@ -297,6 +297,9 @@ class ConversationPublic(ConversationBase, UTCModel):
     user_id : int
     created_at : datetime
 
+class ConversationUpdate(SQLModel):
+    summary : str | None
+
 class MessageBase(SQLModel):
     conversation_id : int = Field(foreign_key='conversation.id', ondelete="CASCADE")
     role : str = Field(max_length=30)
