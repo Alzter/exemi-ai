@@ -16,7 +16,7 @@ async def get_previous_conversation_summaries(
     session : Session = Depends(get_session),
     limit : int = 5,
     creation_limit : int = 1,
-    max_words : int = 50
+    max_words : int = 100
 ) -> str:
     """
     Obtain a JSON list of the summaries of
@@ -85,9 +85,12 @@ def get_summarising_prompt(
 You are Exemi, a study assistance chatbot.
 You are helping an undergraduate student who has ADHD.
 
-Read a JSON-formatted conversation log between yourself and the
-student and summarise the conversation in {max_words} words or less.
-Return ONLY the conversation summary. Max of {max_words} words.
+Read the following conversation log between yourself and the
+student and summarise the conversation. Focus on what tasks you
+and the student planned to complete and on any new information
+the student disclosed, such as their learning goals or
+personal challenges. Do not exceed {max_words} words.
+Respond with ONLY the conversation summary.
 """.strip()
 
 @router.get("/prompt")
@@ -144,7 +147,7 @@ Remember these principles for helping students with ADHD:
     session=session,
     limit=5,
     creation_limit=1,
-    max_words=50
+    max_words=100
 )}
 
 {get_reminder_list(user=user, session=session)}
