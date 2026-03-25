@@ -47,6 +47,7 @@ async def get_previous_conversation_summaries(
 
     summaries = "## CHAT HISTORY\n\nHere is a summary of your previous conversations with the student:"
     summaries += str(summary_list)
+    summaries += "\n\nIf the student has not asked to work on any specific assignment task, continue working on the last assignment task you discussed with them, if any."
     return summaries.strip()
 
 @router.get("/prompt/reminders")
