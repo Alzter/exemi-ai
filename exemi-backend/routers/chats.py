@@ -543,6 +543,31 @@ async def conversation_continue(
 
     return new_conversation
 
+
+def get_message_list_from_conversation_object(
+    conversation : Conversation
+) -> list[dict[str, str]]:
+    """
+    Obtains a list of mesasges from an
+    existing conversation in the OpenAI
+    chat message template format.
+
+    Args:
+        conversation (Conversation): The conversation to obtain the message list for.
+
+    Returns:
+        list[dict[str, str]]: The messages with "role" and "content" fields.
+    """
+
+    conversation = ConversationPublicWithMessages.model_validate(conversation)
+    messages = conversation.messages
+
+    message_dict = [{
+        "role": message.role, "content": message.content
+    } for message in messages]
+
+    return message_dict
+
 def get_message_list(
     conversation_id : int,
     user : User,
@@ -565,15 +590,9 @@ def get_message_list(
     if existing_conversation.user_id != user.id and not user.admin:
         raise HTTPException(status_code=401, detail="You are not authorised to add messages to another user's conversation")
 
-    existing_messages = session.exec(
-        select(Message).where(Message.conversation_id == existing_conversation.id)
-    ).all()
-
-    message_dict = [{
-        "role": message.role, "content": message.content
-    } for message in existing_messages]
-
-    return message_dict
+    return get_message_list_from_conversation_object(
+        conversation=existing_conversation
+    )
 
 
 @router.get("/conversation_reply/{conversation_id}", response_model=str)
@@ -693,53 +712,37 @@ async def stream_llm_response_to_conversation(
 
     return response
 
-@router.get("/conversation_summary/{id}", response_model=str|None)
-async def get_conversation_summary(
-    conversation_id : int,
-    create_if_not_exists : bool = True,
-    max_words : int = 50,
-    user : User = Depends(get_current_user),
-    session : Session = Depends(get_session)
-) -> str | None:
+async def create_conversation_summary(
+    conversation : Conversation,
+    user : User,
+    session : Session,
+    max_words : int = 50
+) -> Conversation:
     """
     Generate a summary for a given conversation,
     or obtain it from the database if it has already
     been created.
 
     Args:
-        conversation_id (int): ID of the conversation to obtain summary foor.
-        create_if_not_exists (bool, optional):
-            Create a new summary if one does not exist. If False, returns None if summary does not exist. Defaults to True.
+        conversation (Conversation): The conversation object to summarise.
+        user (User): The currently logged-in user.
+        session (Session): SQLModel connection with the database.
         max_words (int, optional): Conversation summary word limit. Defaults to 50.
 
-    Raises:
-        HTTPException:
-            Raises a 401 if the conversation was not created by the current user and the user is not an admin.
-            Raises a 404 if the conversation does not exist.
-
     Returns:
-        str | None: The conversation summary, or None if it does not exist and create_if_not_exists is False.
+        Conversation:
+            The conversation with the summary added.
     """
-    conversation = await get_conversation(
-        id = conversation_id,
-        user = user,
-        session = session
-    )
 
     # Return the conversation summary if it exists
     if conversation.summary:
-        return conversation.summary
-    
-    elif not create_if_not_exists:
-        return None
+        return conversation
 
     # Create a summary if not exists
     
     # Obtain OpenAI-formatted list of messages for the conversation
-    messages : list[dict[str,str]] = get_message_list(
-        conversation_id=conversation_id,
-        user=user,
-        session=session
+    messages : list[dict[str,str]] = get_message_list_from_conversation_object(
+        conversation=conversation
     )
 
     # Get LLM to summarise conversation text
@@ -748,14 +751,94 @@ async def get_conversation_summary(
         max_words = max_words
     )
     
-    await update_conversation(
-        data = ConversationUpdate(
-            summary = summary
-        ),
-        id = conversation_id,
+    conversation_pub = ConversationPublic.model_validate(conversation)
+
+    conversation = await update_conversation(
+        data = ConversationUpdate(summary = summary),
+        id = conversation_pub.id,
         user = user,
         session = session
     )
 
+    return conversation
+
+@router.get("/conversation_summary/{id}", response_model=ConversationPublic)
+async def get_conversation_summary(
+    id : int,
+    max_words : int = Query(default=50, le=500),
+    user : User = Depends(get_current_user),
+    session : Session = Depends(get_session)
+):
+    """
+    Generate a summary for a given conversation,
+    or obtain it from the database if it has already
+    been created.
+
+    Args:
+        id (int): ID of the conversation to summarise.
+        max_words (int, optional): Conversation summary word limit. Defaults to 50. Max of 500.
+
+    Raises:
+        HTTPException:
+            Raises a 401 if the conversation was not created by the current user and the user is not an admin.
+            Raises a 404 if the conversation does not exist.
+
+    Returns:
+        ConversationPublic:
+            The conversation with a summary added.
+    """
+    conversation = await get_conversation(
+        id = id,
+        user = user,
+        session = session
+    )
+
+    summary = await create_conversation_summary(
+        conversation = conversation,
+        user = user,
+        session = session,
+        max_words = max_words
+    )
+
     return summary
 
+@router.get("/conversation_summaries", response_model=list[ConversationPublic])
+async def get_conversation_summaries(
+    limit : int = Query(default=5, le=10),
+    creation_limit : int = Query(default=1, le=5),
+    user : User = Depends(get_current_user),
+    session : Session = Depends(get_session)
+) -> list[Conversation]:
+    """
+    Get the first *n* (``limit``) of the user's most recent conversations,
+    and create summaries for the first *m* (``creation_limit``)
+    of these *n* conversations. Return all *n* conversations in a list.
+
+    Args:
+        limit (int, optional):
+            Maximum number of summaries to retrieve. Defaults to 5. Max of 10.
+        creation_limit (int, optional):
+            Maximum number of new conversation summaries to create. Defaults to 1. Max of 5.
+
+    Returns:
+        list[Conversation]:
+        A list of conversations with summaries added.
+    """
+
+    conversations = await get_conversations_for_self(
+        offset=0,
+        limit=limit,
+        user=user,
+        session=session
+    )
+
+    conversations = list(conversations)
+
+    for i in range(creation_limit):
+        conversations[i] = await create_conversation_summary(
+            conversation=conversations[i],
+            user=user,
+            session=session
+        )
+    
+    return conversations
