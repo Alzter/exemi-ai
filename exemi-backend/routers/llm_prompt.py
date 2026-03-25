@@ -47,7 +47,13 @@ async def get_previous_conversation_summaries(
 
     summaries = "## CHAT HISTORY\n\nHere is a summary of your previous conversations with the student:"
     summaries += str(summary_list)
-    summaries += "\n\nIf the student has not asked to work on any specific assignment task, continue working on the last assignment task you discussed with them, if any."
+    summaries += "\n\n"
+    summaries += """
+If the student has not asked to work on any
+specific assignment task, encourage them to continue
+with the last assignment task you discussed with them
+from previous conversation summary, if any.
+""".strip()
     return summaries.strip()
 
 @router.get("/prompt/reminders")
@@ -92,9 +98,8 @@ improve their time management and planning.
 Read the following conversation log between yourself and a
 student and summarise the conversation. Mention which
 assignment tasks you and the student decided to focus on,
-if any. Also mention any personal information the student
-disclosed, such as learning goals or challenges, if any.
-Do not exceed {max_words} words. Respond with ONLY the conversation summary.
+if any. Do not exceed {max_words} words.
+Respond with ONLY the conversation summary.
 """.strip()
 
 @router.get("/prompt")
