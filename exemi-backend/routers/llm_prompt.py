@@ -82,10 +82,11 @@ def get_summarising_prompt(
     max_words : int
 ) -> str:
     return f"""
-You are Exemi, a study assistance chatbot.
-You are helping an undergraduate student who has ADHD.
+You are Exemi, a study assistance chatbot
+designed to help undergraduate students with ADHD
+improve their time management and planning.
 
-Read the following conversation log between yourself and the
+Read the following conversation log between yourself and a
 student and summarise the conversation. Focus on what tasks you
 and the student planned to complete and on any new information
 the student disclosed, such as their learning goals or
