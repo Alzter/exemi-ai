@@ -45,9 +45,9 @@ async def get_previous_conversation_summaries(
     if summary_list == "[]":
         return ""
 
-    summaries = "## CHAT HISTORY\n\nHere is a summary of your previous conversations with the student:"
+    summaries = "## CHAT HISTORY\n\nHere is a summary of your previous conversations with the student:\n```json\n"
     summaries += str(summary_list)
-    summaries += "\n\n"
+    summaries += "\n```\n"
     summaries += """
 If the student has not asked to work on any
 specific assignment task, encourage them to continue
@@ -80,9 +80,9 @@ def get_reminder_list(
 
     if reminders_list == "[]": return "## REMINDERS\n\nYou have not assigned the student any reminders yet."
 
-    reminders = "## REMINDERS\n\nYou have assigned the student the following assignment reminders:\n\n"
+    reminders = "## REMINDERS\n\nYou have assigned the student the following assignment reminders:\n```json\n"
     reminders += str(reminders_list)
-    reminders += "\n\nNOTE: DO NOT mention the reminder IDs to the student."
+    reminders += "\n```\nNOTE: DO NOT mention the reminder IDs to the student."
 
     return reminders.strip()
 
@@ -172,11 +172,15 @@ Remember these principles for helping students with ADHD:
 
 ## UNITS
 The student is enrolled in the following units:
+```json
 {get_units_list_json(user=user, session=session)}
+```
 
 ## ASSIGNMENTS
 The student has the following assignments:
+```json
 {get_assignments_list_json(user=user, session=session)}
+```
 
 ## SAFETY
 - DO NOT engage the student in conversations about suicide, self-harm, or harming others.
