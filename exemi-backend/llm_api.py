@@ -71,7 +71,9 @@ Please incorporate this existing information into the new biography:
     prompt += "\n\n"
     prompt += f"""
 Respond ONLY with the complete biography.
-Do not exceed {max_words} words.
+Do NOT include any information which isn't
+previously mentioned or mentioned by the user.
+Write a maximum of {max_words} words.
     """.strip()
     
     messages = [{"role":"system", "content":prompt}, {"role":"user","content":new_information}]

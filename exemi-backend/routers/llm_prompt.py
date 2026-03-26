@@ -115,7 +115,7 @@ improve their time management and planning.
 Read the following conversation log between yourself and a
 student and summarise the conversation. Mention which
 assignment tasks you and the student decided to focus on,
-if any. Do not exceed {max_words} words.
+if any. Write a maximum of {max_words} words.
 Respond with ONLY the conversation summary.
 """.strip()
 
