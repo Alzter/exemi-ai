@@ -25,7 +25,7 @@ def get_user_biography(
     )
 
     if not bio: return ""
-    return "## STUDENT INFORMATION\n\n" + bio.strip()
+    return "## STUDENT INFORMATION\n" + bio.strip()
 
 @router.get("/prompt/history")
 async def get_previous_conversation_summaries(
