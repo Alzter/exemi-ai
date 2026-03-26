@@ -1,15 +1,16 @@
 import os
+import json
 from .dependencies import get_current_user, get_current_magic, get_session
 from .models import User
 from typing import AsyncGenerator, Callable, Any
 from sqlmodel import Session
 from fastapi import HTTPException, Depends, BackgroundTasks
 from langchain.agents import create_agent
-from langchain_core.messages import BaseMessage
+from langchain_core.messages import BaseMessage, AIMessage
 from langchain.tools import BaseTool
 from langchain_ollama import ChatOllama
 from .llm_tools import create_tools
-from .routers.llm_prompt import get_system_prompt
+from .routers.llm_prompt import get_system_prompt, get_summarising_prompt
 from dotenv import load_dotenv
 import warnings
 load_dotenv()
@@ -23,10 +24,46 @@ try:
         base_url=LLM_API_URL,
         model=LLM_MODEL,
         validate_model_on_init=True,
-        streaming=True
+        # streaming=True
     )
 except:
     warnings.warn("Ollama server unreachable: AI functionality will not work")
+
+async def summarise(
+    chat_message_log : list[dict],
+    max_words : int = 200
+) -> str:
+    """
+    Summarise a conversation between
+    the user and the chatbot.
+
+    Args:
+        chat_message_log (list[dict]): List of messages to summarise.
+        max_words (int): Conversation summary word limit. Defaults to 200.
+
+    Raises:
+        HTTPException: If the LLM is offline, raises a 500.
+
+    Returns:
+        str: The conversation summary.
+    """
+    if not model: raise HTTPException(status_code=500, detail="Error reaching LLM: Ollama server offline")
+
+    # Parse conversation message dict into a string
+    messages_text = json.dumps(chat_message_log, ensure_ascii=False).encode("utf-8")
+
+    messages = [
+        {"role":"system", "content":get_summarising_prompt(
+            max_words=max_words
+        )},
+        {"role":"user", "content": messages_text}
+    ]
+
+    response : AIMessage = model.invoke(
+        messages
+    )
+    
+    return str(response.content)
 
 async def chat(
     messages : list[dict],
@@ -40,6 +77,9 @@ async def chat(
     
     Args:
         messages (list[dict]): List of messages in OpenAI format.
+
+    Raises:
+        HTTPException: If the LLM is offline, raises a 500.
     
     Returns:
         list[BaseMessage]: The LLM response messages.
@@ -51,7 +91,7 @@ async def chat(
 
     agent = create_agent(
         model=model,
-        system_prompt=get_system_prompt(user=user, session=session),
+        system_prompt=await get_system_prompt(user=user, session=session),
         tools=tools
     )
 
@@ -101,6 +141,9 @@ async def chat_stream(
             NOTE: A keyword argument "messages" (list[dict[str,str]]) is automatically added containing the LLM's response and any tool calls in OpenAI chat template format.
         include_tool_responses (bool, optional): Includes the LLM's tool call responses in the streamed response. The reponse is not included in the database.
     
+    Raises:
+        HTTPException: If the LLM is offline, raises a 500.
+
     Yields:
         str: The next chunk of the LLM response.
     """
@@ -111,7 +154,7 @@ async def chat_stream(
 
     agent = create_agent(
         model=model,
-        system_prompt=get_system_prompt(user=user, session=session),
+        system_prompt=await get_system_prompt(user=user, session=session),
         tools=tools
     )
     

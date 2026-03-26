@@ -10,6 +10,52 @@ from zoneinfo import ZoneInfo
 
 router = APIRouter()
 
+@router.get("/prompt/history")
+async def get_previous_conversation_summaries(
+    user : User = Depends(get_current_user),
+    session : Session = Depends(get_session),
+    offset : int = 1,
+    limit : int = 1,
+    creation_limit : int = 1,
+    max_words : int = 200
+) -> str:
+    """
+    Obtain a JSON list of the summaries of
+    the student's prior conversations.
+
+    Args:
+        user (User): The currently logged-in user.
+        session (Session): Connection to the database.
+
+    Returns:
+        str: The summary list.
+    """
+    # Imported lazily to avoid circular imports (chats → llm_api → this module → chats).
+    from ..routers import chats as chats_router
+
+    summary_list = await chats_router.get_conversation_summaries_json(
+        user=user,
+        session=session,
+        offset=offset,
+        limit=limit,
+        creation_limit=creation_limit,
+        max_words=max_words
+    )
+
+    if summary_list == "[]":
+        return ""
+
+    summaries = "## CHAT HISTORY\n\nHere is a summary of your previous conversations with the student:\n```json\n"
+    summaries += str(summary_list)
+    summaries += "\n```\n"
+    summaries += """
+If the student has not asked to work on any
+specific assignment task, encourage them to continue
+with the last assignment task you discussed with them
+from the previous conversation summary, if any.
+""".replace("\n", " ").strip()
+    return summaries.strip()
+
 @router.get("/prompt/reminders")
 def get_reminder_list(
     user : User = Depends(get_current_user),
@@ -34,14 +80,30 @@ def get_reminder_list(
 
     if reminders_list == "[]": return "## REMINDERS\n\nYou have not assigned the student any reminders yet."
 
-    reminders = "## REMINDERS\n\nYou have assigned the student the following assignment reminders:\n\n"
+    reminders = "## REMINDERS\n\nYou have assigned the student the following assignment reminders:\n```json\n"
     reminders += str(reminders_list)
-    reminders += "\n\nNOTE: DO NOT mention the reminder IDs to the student."
+    reminders += "\n```\nNOTE: DO NOT mention the reminder IDs to the student."
 
     return reminders.strip()
 
+@router.get("/prompt_summarising")
+def get_summarising_prompt(
+    max_words : int
+) -> str:
+    return f"""
+You are Exemi, a study assistance chatbot
+designed to help undergraduate students with ADHD
+improve their time management and planning.
+
+Read the following conversation log between yourself and a
+student and summarise the conversation. Mention which
+assignment tasks you and the student decided to focus on,
+if any. Do not exceed {max_words} words.
+Respond with ONLY the conversation summary.
+""".strip()
+
 @router.get("/prompt")
-def get_system_prompt(
+async def get_system_prompt(
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session)
 ) -> str:
@@ -89,8 +151,6 @@ Remember these principles for helping students with ADHD:
 - Break study sessions into 25 minute chunks, or less if the task is hard.
 - Replace depressive / anxious beliefs with more realistic ones.
 
-{get_reminder_list(user=user, session=session)}
-
 ## TOOL USAGE RULES
 - Tool dates must be in ISO 8601 format (YYYY-MM-DD).
 - If a tool fails, say: "I'm sorry, I could not complete <action>."
@@ -105,11 +165,22 @@ Remember these principles for helping students with ADHD:
 
 ## UNITS
 The student is enrolled in the following units:
+```json
 {get_units_list_json(user=user, session=session)}
+```
 
 ## ASSIGNMENTS
 The student has the following assignments:
+```json
 {get_assignments_list_json(user=user, session=session)}
+```
+
+{await get_previous_conversation_summaries(
+    user=user,
+    session=session
+)}
+
+{get_reminder_list(user=user, session=session)}
 
 ## SAFETY
 - DO NOT engage the student in conversations about suicide, self-harm, or harming others.
