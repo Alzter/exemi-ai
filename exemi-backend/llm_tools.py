@@ -2,7 +2,7 @@ from datetime import datetime
 from langchain.tools import tool, BaseTool
 from .routers.reminders import create_reminder, delete_reminder
 from sqlmodel import Session
-from .models import User, ReminderCreate
+from .models import User, UserBiographyCreate, UserBiography, ReminderCreate
 from .date_utils import parse_timestamp
 
 def create_tools(user : User, magic : str, session : Session) -> list[BaseTool]:
@@ -19,7 +19,7 @@ def create_tools(user : User, magic : str, session : Session) -> list[BaseTool]:
     #     return str(get_assignments_list_json(user=user, session=session))
     
     @tool
-    def add_to_bio(information : str) -> str:
+    async def add_to_bio(information : str) -> str:
         """
         When the user discloses information about
         themselves, such as their learning goals,
@@ -30,7 +30,16 @@ def create_tools(user : User, magic : str, session : Session) -> list[BaseTool]:
             str: Memory success message.
         """
         
-        
+        from .routers.users import update_user_biography
+
+        new_bio : UserBiography = await update_user_biography(
+            UserBiographyCreate(
+                content=information
+            ),
+            max_words=300
+        )
+
+        return f"User biography successfully updated. New biography text:\n```\n{new_bio.content}\n```"
 
     @tool
     def set_reminder(task_name : str, due_date : str, description : str) -> str:

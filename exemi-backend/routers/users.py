@@ -440,7 +440,7 @@ def delete_user(
     return True 
 
 @router.get("/bio/{username}", response_model=list[UserBiographyPublic])
-def get_user_biographies(
+def get_any_user_biographies(
     username : str,
     offset : int = 0,
     limit : int = Query(default=1, le=100),
@@ -479,7 +479,7 @@ def get_user_biographies(
     return bios
 
 @router.get("/bio", response_model=list[UserBiographyPublic])
-def get_self_biographies(
+def get_user_biographies(
     offset : int = 0,
     limit : int = Query(default=1, le=100),
     user : User = Depends(get_current_user),
@@ -502,7 +502,7 @@ def get_self_biographies(
             List of the user's biographies.
     """
 
-    return get_user_biographies(
+    return get_any_user_biographies(
         username=user.username,
         current_user=user,
         session=session,
@@ -522,7 +522,7 @@ def get_self_biographies(
     # return bios
 
 @router.get("/bio_text", response_model=str)
-def get_self_biography_text(
+def get_user_biography_text(
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session)
 ) -> str:
@@ -532,7 +532,7 @@ def get_self_biography_text(
     exist.
     """
 
-    bios = get_self_biographies(
+    bios = get_user_biographies(
         user=user,
         session=session,
         offset=0,
@@ -542,16 +542,60 @@ def get_self_biography_text(
     if not bios: return ""
     return bios[0].content
 
-@router.post("/bio/self", response_model=UserBiographyPublic)
-def create_user_biography(
-    data : UserBiographyCreate,
+@router.delete("/bio/{id}", response_model=Literal[True])
+async def delete_user_bio(
+    id : int,
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session)
 ):
+    existing_bio = session.get(UserBiography, id)
+    if not existing_bio: raise HTTPException(status_code=404, detail="Not found")
+    if existing_bio.user_id != user.id: raise HTTPException(status_code=401, detail="Unauthorised")
+
+    session.delete(existing_bio)
+    session.commit()
+    return True
+
+@router.post("/bio/self", response_model=UserBiographyPublic)
+async def update_user_biography(
+    new_information : UserBiographyCreate,
+    max_words : int = Query(default=300, limit=1000),
+    user : User = Depends(get_current_user),
+    session : Session = Depends(get_session)
+):
+    """
+    Create a new biography for the current user
+    which incorporates information from their
+    previous biography as well as any new information
+    using an LLM to combine the two into a single string.
+
+    Args:
+        new_information (UserBiographyCreate): New bio information to add.
+        max_words (int): Word limit for the user's biography. Defaults to 300. Max of 1000.
+
+    Returns:
+        UserBiographyPublic: The new, updated user biography.
+    """
+
+    from ..llm_api import update_user_bio
+
+    previous_biography = get_user_biography_text(
+        user=user,
+        session=session
+    )
+
+    new_biography = await update_user_bio(
+        new_information=new_information.content,
+        previous_biography=previous_biography,
+        max_words=max_words
+    )
+
     update = {
         "created_at" : datetime.now(timezone.utc),
         "user_id" : user.id
     }
+
+    data = UserBiographyCreate(content=new_biography)
 
     bio = UserBiography.model_validate(data, update=update)
 
