@@ -104,6 +104,7 @@ class UserBiographyBase(SQLModel):
     content : str = Field(sa_column=Column(TEXT),default="")
 
 class UserBiography(UserBiographyBase, table=True):
+    __tablename__ = "user_biography"
     id : int | None = Field(primary_key=True, default=None)
     user_id : int = Field(foreign_key="user.id")
     created_at : datetime
