@@ -12,7 +12,7 @@ from zoneinfo import ZoneInfo
 router = APIRouter()
 
 @router.get("/prompt/biography")
-async def get_user_biography(
+def get_user_biography(
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session)
 ) -> str:
