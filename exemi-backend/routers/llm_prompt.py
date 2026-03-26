@@ -2,6 +2,7 @@ from ..models import User
 from ..date_utils import timestamp_to_string
 from ..routers.curriculum import get_assignments_list_json, get_units_list_json
 from ..routers.reminders import get_reminders_list_json
+from ..routers.users import get_user_biography_text
 from ..dependencies import get_current_user, get_session
 from fastapi import APIRouter, Depends
 from sqlmodel import Session
@@ -9,6 +10,22 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 router = APIRouter()
+
+@router.get("/prompt/biography")
+async def get_user_biography(
+    user : User = Depends(get_current_user),
+    session : Session = Depends(get_session)
+) -> str:
+    """
+    Get personal information about the user.
+    """
+    bio = get_user_biography_text(
+        user=user,
+        session=session
+    )
+
+    if not bio: return ""
+    return "## STUDENT INFORMATION\n\n" + bio.strip()
 
 @router.get("/prompt/history")
 async def get_previous_conversation_summaries(
@@ -162,6 +179,8 @@ Remember these principles for helping students with ADHD:
 2. Rank each assignment by importance (HIGHEST grade contribution %).
 3. Mention assignments which have less time left and greater grade contributions FIRST.
 4. Ask the student which assignment they would like to prioritise first.
+
+{get_user_biography(user=user, session=session)}
 
 ## UNITS
 The student is enrolled in the following units:

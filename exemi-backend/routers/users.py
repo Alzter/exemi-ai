@@ -525,11 +525,10 @@ def get_user_biographies(
 def get_user_biography_text(
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session)
-) -> str:
+) -> str | None:
     """
     Obtain the content of the user's latest
-    biography, or an empty string if none
-    exist.
+    biography, or None if none exist.
     """
 
     bios = get_user_biographies(
@@ -539,7 +538,7 @@ def get_user_biography_text(
         limit=1
     )
 
-    if not bios: return ""
+    if not bios: return None
     return bios[0].content
 
 @router.delete("/bio/{id}", response_model=Literal[True])

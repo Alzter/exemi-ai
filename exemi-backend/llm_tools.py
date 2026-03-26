@@ -19,12 +19,14 @@ def create_tools(user : User, magic : str, session : Session) -> list[BaseTool]:
     #     return str(get_assignments_list_json(user=user, session=session))
     
     @tool
-    async def add_to_bio(information : str) -> str:
+    async def add_information_to_student_biography(information : str) -> str:
         """
-        When the user discloses information about
-        themselves, such as their learning goals,
-        personal strengths, or challenges, use
-        this tool to remember this information.
+        When the user discloses peronsal information
+        such as their learning goals, strengths,
+        or challenges, use this tool to remember this
+        information for later. DO NOT use this tool to
+        store the user's units, assignments, or assignment
+        tasks; focus only on PERSONAL information.
 
         Returns:
             str: Memory success message.
@@ -39,7 +41,7 @@ def create_tools(user : User, magic : str, session : Session) -> list[BaseTool]:
             max_words=300
         )
 
-        return f"User biography successfully updated. New biography text:\n```\n{new_bio.content}\n```"
+        return f"Student biography successfully updated."
 
     @tool
     def set_reminder(task_name : str, due_date : str, description : str) -> str:
@@ -83,4 +85,4 @@ def create_tools(user : User, magic : str, session : Session) -> list[BaseTool]:
         delete_reminder(id=id, user=user, session=session)
         return "Reminder deleted successfully!"
 
-    return [set_reminder, remove_reminder]
+    return [set_reminder, remove_reminder, add_information_to_student_biography]
