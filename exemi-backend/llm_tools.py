@@ -38,7 +38,9 @@ def create_tools(user : User, magic : str, session : Session) -> list[BaseTool]:
             UserBiographyCreate(
                 content=information
             ),
-            max_words=300
+            max_words=300,
+            user=user,
+            session=session
         )
 
         return f"Student biography successfully updated."
