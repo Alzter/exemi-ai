@@ -521,7 +521,7 @@ def get_user_biographies(
 
     # return bios
 
-@router.get("/bio_text", response_model=str)
+@router.get("/bio_text", response_model=str|None)
 def get_user_biography_text(
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session)
