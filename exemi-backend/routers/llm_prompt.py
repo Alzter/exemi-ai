@@ -15,7 +15,7 @@ async def get_previous_conversation_summaries(
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session),
     offset : int = 1,
-    limit : int = 3,
+    limit : int = 1,
     creation_limit : int = 1,
     max_words : int = 200
 ) -> str:
@@ -52,7 +52,7 @@ async def get_previous_conversation_summaries(
 If the student has not asked to work on any
 specific assignment task, encourage them to continue
 with the last assignment task you discussed with them
-from **most recent** (first) conversation summary, if any.
+from the previous conversation summary, if any.
 """.replace("\n", " ").strip()
     return summaries.strip()
 
