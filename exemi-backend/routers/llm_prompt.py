@@ -119,6 +119,37 @@ if any. Write a maximum of {max_words} words.
 Respond with ONLY the conversation summary.
 """.strip()
 
+@router.get("/prompt_bio")
+def get_update_user_bio_prompt(
+    max_words : int,
+    existing_information : str | None = None
+)-> str:
+    prompt = """
+You are an AI study assistant designed to help undergraduate students with ADHD improve their time management and planning.
+
+Your task is to create a short biography for the current student from any information they provide you so that you can remember them later.
+    """.strip()
+
+    if existing_information:
+        prompt += "\n\n"
+        prompt += f"""
+Please incorporate this information into the new biography:
+```
+{existing_information}
+```
+""".strip()
+
+    prompt += "\n\n"
+    prompt += f"""
+Respond ONLY with the complete biography.
+Do NOT include any information which isn't
+previously mentioned or provided by the student.
+Write in full sentences using clear and concise language.
+Write a maximum of {max_words} words.
+    """.strip()
+
+    return prompt
+
 @router.get("/prompt")
 async def get_system_prompt(
     user : User = Depends(get_current_user),

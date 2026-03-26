@@ -10,7 +10,7 @@ from langchain_core.messages import BaseMessage, AIMessage
 from langchain.tools import BaseTool
 from langchain_ollama import ChatOllama
 from .llm_tools import create_tools
-from .routers.llm_prompt import get_system_prompt, get_summarising_prompt
+from .routers.llm_prompt import get_system_prompt, get_summarising_prompt, get_update_user_bio_prompt
 from dotenv import load_dotenv
 import warnings
 load_dotenv()
@@ -47,35 +47,10 @@ async def update_user_bio(
     """
     if not model: raise HTTPException(status_code=500, detail="Error reaching LLM: Ollama server offline")
     
-    prompt = """
-You are an AI study assistant designed to help undergraduate students with ADHD improve their time management and planning.
-
-Your task is to create a short biography for the current student based on any information they provide you so that you can remember them later.'
-
-Focus on capturing personal information about the student, such as their:
-- Learning goals
-- Personal strengths
-- Personal challenges
-    """.strip()
-
-    if previous_biography:
-        prompt += "\n\n"
-        prompt += f"""
-Please incorporate this existing information into the new biography:
-
-```
-{previous_biography}
-```
-""".strip()
-
-    prompt += "\n\n"
-    prompt += f"""
-Respond ONLY with the complete biography.
-Do NOT include any information which isn't
-previously mentioned or mentioned by the user.
-Write in full sentences using clear and concise language.
-Write a maximum of {max_words} words.
-    """.strip()
+    prompt = get_update_user_bio_prompt(
+        max_words=max_words,
+        existing_information=previous_biography
+    )
     
     messages = [{"role":"system", "content":prompt}, {"role":"user","content":new_information}]
 
