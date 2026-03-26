@@ -71,8 +71,9 @@ Please incorporate this existing information into the new biography:
     prompt += "\n\n"
     prompt += f"""
 Respond ONLY with the complete biography.
-Do NOT include any information which isn't
+Don't include any information which isn't
 previously mentioned or mentioned by the user.
+Write in full sentences using clear and concise language.
 Write a maximum of {max_words} words.
     """.strip()
     
