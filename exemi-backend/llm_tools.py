@@ -19,6 +19,20 @@ def create_tools(user : User, magic : str, session : Session) -> list[BaseTool]:
     #     return str(get_assignments_list_json(user=user, session=session))
     
     @tool
+    def add_to_bio(information : str) -> str:
+        """
+        When the user discloses information about
+        themselves, such as their learning goals,
+        personal strengths, or challenges, use
+        this tool to remember this information.
+
+        Returns:
+            str: Memory success message.
+        """
+        
+        
+
+    @tool
     def set_reminder(task_name : str, due_date : str, description : str) -> str:
         """
         Create a reminder for the student to complete a task.

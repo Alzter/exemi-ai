@@ -80,6 +80,7 @@ class User(UserBase, table=True):
     assignments : list[UsersAssignments] = Relationship(back_populates="user", cascade_delete=True)
     reminders : list["Reminder"] = Relationship(back_populates="user", cascade_delete=True)
     university : University = Relationship(back_populates="users")
+    biographies : list["UserBiography"] = Relationship(back_populates="user", cascade_delete=True)
 
 class UserPublic(UserBase):
     id : int
@@ -98,6 +99,24 @@ class UserUpdate(SQLModel):
     magic : str | None = None
     university_name : str | None = None
     active_university_name : str | None = None
+
+class UserBiographyBase(SQLModel):
+    content : str = Field(sa_column=Column(TEXT),default="")
+
+class UserBiography(UserBiographyBase, table=True):
+    id : int | None = Field(primary_key=True, default=None)
+    user_id : int = Field(foreign_key="user.id")
+    created_at : datetime
+    user : User = Relationship(back_populates="biographies")
+
+class UserBiographyPublic(UserBiographyBase):
+    id : int
+    user_id : int
+    created_at : datetime
+    user : UserPublic
+
+class UserBiographyCreate(UserBiographyBase):
+    pass
 
 class TermBase(SQLModel):
     university_name : str = Field(max_length=255, index=True, foreign_key='university.name')

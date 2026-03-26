@@ -1,7 +1,8 @@
 from ..models import User, UserCreate, UserUpdate, UserPublic, UserPublicWithUnits
+from ..models import UserBiography, UserBiographyPublic, UserBiographyCreate
 from ..models import University, UniversityPublic
 from typing import Annotated, Literal
-from sqlmodel import Session, select
+from sqlmodel import Session, select, desc
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.security import OAuth2PasswordRequestForm
 import jwt
@@ -438,16 +439,124 @@ def delete_user(
     session.commit()
     return True 
 
-# @router.get("/test_get_fallback_providers_from_user")
-# def test_get_fallback_providers_from_user(
-#     user : User = Depends(get_current_user),
-#     session : Session = Depends(get_session)
-# ):
-#     return get_fallback_providers_from_user(user=user)
+@router.get("/bio/{username}", response_model=list[UserBiographyPublic])
+def get_user_biographies(
+    username : str,
+    offset : int = 0,
+    limit : int = Query(default=1, le=100),
+    current_user : User = Depends(get_current_user),
+    session : Session = Depends(get_session)
+):
+    """
+    Obtain a list of biographies for a given user
+    ordered by creation date (most recent first).
 
-# @router.get("/test_get_fallback_providers/{university_name}")
-# def test_get_fallback_providers(
-#     university_name : str,
-#     session : Session = Depends(get_session)
-# ):
-#     return get_fallback_providers(university_name=university_name, session=session)
+    Args:
+        username (str): Username of the user to obtain biographies for
+        offset (int, optional): Pagination start index. Defaults to 0.
+        limit (int, optional): Number of items to return. Defaults to 1. Max of 100.
+
+    Raises:
+        HTTPException:
+            Raises a 401 when attempting to obtain other users' biographies if the current user is not an admin.
+
+    Returns:
+        list[UserBiographyPublic]:
+            List of the user's biographies.
+    """
+    if username != current_user.username and not current_user.admin:
+        raise HTTPException(status_code=401, detail="Unauthorised")
+
+    bios = session.exec(
+        select(UserBiography)
+        .join(User)
+        .where(
+            User.username == username 
+        ).order_by(desc(UserBiography.created_at))
+        .offset(offset).limit(limit)
+    ).all()
+
+    return bios
+
+@router.get("/bio", response_model=list[UserBiographyPublic])
+def get_self_biographies(
+    offset : int = 0,
+    limit : int = Query(default=1, le=100),
+    user : User = Depends(get_current_user),
+    session : Session = Depends(get_session)
+):
+    """
+    Obtain a list of biographies for the current user
+    ordered by creation date (most recent first).
+
+    Args:
+        offset (int, optional): Pagination start index. Defaults to 0.
+        limit (int, optional): Number of items to return. Defaults to 1. Max of 100.
+
+    Raises:
+        HTTPException:
+            Raises a 401 when attempting to obtain other users' biographies if the current user is not an admin.
+
+    Returns:
+        list[UserBiographyPublic]:
+            List of the user's biographies.
+    """
+
+    return get_user_biographies(
+        username=user.username,
+        current_user=user,
+        session=session,
+        offset=offset,
+        limit=limit
+    )
+
+    # bios = session.exec(
+    #     select(UserBiography)
+    #     .join(User)
+    #     .where(
+    #         User.username == user.username 
+    #     ).order_by(desc(UserBiography.created_at))
+    #     .offset(offset).limit(limit)
+    # ).all()
+
+    # return bios
+
+@router.get("/bio_text", response_model=str)
+def get_self_biography_text(
+    user : User = Depends(get_current_user),
+    session : Session = Depends(get_session)
+) -> str:
+    """
+    Obtain the content of the user's latest
+    biography, or an empty string if none
+    exist.
+    """
+
+    bios = get_self_biographies(
+        user=user,
+        session=session,
+        offset=0,
+        limit=1
+    )
+
+    if not bios: return ""
+    return bios[0].content
+
+@router.post("/bio/self", response_model=UserBiographyPublic)
+def create_user_biography(
+    data : UserBiographyCreate,
+    user : User = Depends(get_current_user),
+    session : Session = Depends(get_session)
+):
+    update = {
+        "created_at" : datetime.now(timezone.utc),
+        "user_id" : user.id
+    }
+
+    bio = UserBiography.model_validate(data, update=update)
+
+    session.add(bio)
+    session.commit()
+    session.refresh(bio)
+
+    return bio
