@@ -26,7 +26,10 @@ def create_tools(user : User, magic : str, session : Session) -> list[BaseTool]:
         or challenges, use this tool to remember this
         information for later. DO NOT use this tool to
         store the user's units, assignments, or assignment
-        tasks; focus only on PERSONAL information.
+        tasks; focus only on PERSONAL information. DO use
+        this tool to remember the user's name, comorbidities,
+        learning disorders, preferred study venues,
+        effective study strategies, etc.
 
         Returns:
             str: Memory success message.
