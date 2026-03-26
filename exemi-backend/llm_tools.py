@@ -2,7 +2,7 @@ from datetime import datetime
 from langchain.tools import tool, BaseTool
 from .routers.reminders import create_reminder, delete_reminder
 from sqlmodel import Session
-from .models import User, ReminderCreate
+from .models import User, UserBiographyCreate, UserBiography, ReminderCreate
 from .date_utils import parse_timestamp
 
 def create_tools(user : User, magic : str, session : Session) -> list[BaseTool]:
@@ -18,6 +18,36 @@ def create_tools(user : User, magic : str, session : Session) -> list[BaseTool]:
 
     #     return str(get_assignments_list_json(user=user, session=session))
     
+    @tool
+    async def add_information_to_student_biography(information : str) -> str:
+        """
+        When the user discloses peronsal information
+        such as their learning goals, strengths,
+        or challenges, use this tool to remember this
+        information for later. DO NOT use this tool to
+        store the user's units, assignments, or assignment
+        tasks; focus only on PERSONAL information. DO use
+        this tool to remember the user's name, comorbidities,
+        learning disorders, preferred study venues,
+        effective study strategies, etc.
+
+        Returns:
+            str: Memory success message.
+        """
+        
+        from .routers.users import update_user_biography
+
+        new_bio : UserBiography = await update_user_biography(
+            UserBiographyCreate(
+                content=information
+            ),
+            max_words=300,
+            user=user,
+            session=session
+        )
+
+        return f"Student biography successfully updated."
+
     @tool
     def set_reminder(task_name : str, due_date : str, description : str) -> str:
         """
@@ -60,4 +90,4 @@ def create_tools(user : User, magic : str, session : Session) -> list[BaseTool]:
         delete_reminder(id=id, user=user, session=session)
         return "Reminder deleted successfully!"
 
-    return [set_reminder, remove_reminder]
+    return [set_reminder, remove_reminder, add_information_to_student_biography]

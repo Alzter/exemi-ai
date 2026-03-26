@@ -29,6 +29,59 @@ try:
 except:
     warnings.warn("Ollama server unreachable: AI functionality will not work")
 
+async def update_user_bio(
+    new_information : str,
+    previous_biography : str | None,
+    max_words : int = 300
+) -> str:
+    """
+    Update the user's biography string to contain new information.
+
+    Args:
+        new_information (str): The new information to include in the biography string.
+        previous_biography (str | None): The user's past biography, if exists.
+        max_words (int, optional): Biography word limit. Defaults to 300.
+    
+    Returns:
+        str: The updated biography text.
+    """
+    if not model: raise HTTPException(status_code=500, detail="Error reaching LLM: Ollama server offline")
+    
+    prompt = """
+You are an AI study assistant designed to help undergraduate students with ADHD improve their time management and planning.
+
+Your task is to create a short biography for the current student based on any information they provide you so that you can remember them later.'
+
+Focus on capturing personal information about the student, such as their:
+- Learning goals
+- Personal strengths
+- Personal challenges
+    """.strip()
+
+    if previous_biography:
+        prompt += "\n\n"
+        prompt += f"""
+Please incorporate this existing information into the new biography:
+
+```
+{previous_biography}
+```
+""".strip()
+
+    prompt += "\n\n"
+    prompt += f"""
+Respond ONLY with the complete biography.
+Don't include any information which isn't
+previously mentioned or mentioned by the user.
+Write in full sentences using clear and concise language.
+Write a maximum of {max_words} words.
+    """.strip()
+    
+    messages = [{"role":"system", "content":prompt}, {"role":"user","content":new_information}]
+
+    response : AIMessage = model.invoke(messages)
+    return str(response.content)
+
 async def summarise(
     chat_message_log : list[dict],
     max_words : int = 200
@@ -59,10 +112,7 @@ async def summarise(
         {"role":"user", "content": messages_text}
     ]
 
-    response : AIMessage = model.invoke(
-        messages
-    )
-    
+    response : AIMessage = model.invoke(messages)
     return str(response.content)
 
 async def chat(
@@ -207,10 +257,10 @@ async def chat_stream(
                         tool_name = tool_name.replace("_", " ")
 
                         # Add the chunk: "I am calling the function: <tool name>"
-                        chunk = f"\n\nI am calling the function: **{tool_name}**. Please wait...\n\n"
+                        # chunk = f"\n\nI am calling the function: **{tool_name}**. Please wait...\n\n"
 
                         # Consider the LLM calling a tool as its own message.
-                        response_messages.append({"role":"assistant", "content":chunk.strip()})
+                        # response_messages.append({"role":"assistant", "content":chunk.strip()})
 
                 case "text":
                     chunk = content.get("text")
