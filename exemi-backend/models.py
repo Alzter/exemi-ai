@@ -49,10 +49,16 @@ class UniversityPublicWithAliases(UniversityPublic):
     aliases : list[UniversityAliasPublic] = []
 
 # Users to Units junction table (many to many)
-class UsersUnits(SQLModel, table=True):
+class UsersUnitsBase(SQLModel):
     __tablename__ = "users_units"
     unit_id : int = Field(primary_key = True, foreign_key="unit.id")
     user_id : int = Field(primary_key = True, foreign_key="user.id", ondelete="CASCADE")
+    nickname : str = Field(max_length=255)
+    colour : str = Field(max_length=6)
+
+class UsersUnits(UsersUnitsBase, table=True):
+    user : "User" = Relationship(back_populates="units")
+    unit : "Unit" = Relationship(back_populates="users")
 
 class UsersAssignments(SQLModel, UTCModel, table=True):
     __tablename__ = "users_assignments"
@@ -76,7 +82,7 @@ class User(UserBase, table=True):
     password_hash : str = Field(max_length=255)
     magic_hash : str | None = Field(default=None, max_length=255)
     conversations : list["Conversation"] = Relationship(back_populates="user", cascade_delete=True)
-    units : list["Unit"] = Relationship(back_populates="users", link_model=UsersUnits)
+    units : list[UsersUnits] = Relationship(back_populates="user", cascade_delete=True)
     assignments : list[UsersAssignments] = Relationship(back_populates="user", cascade_delete=True)
     reminders : list["Reminder"] = Relationship(back_populates="user", cascade_delete=True)
     university : University = Relationship(back_populates="users")
@@ -172,7 +178,7 @@ class Unit(UnitBase, table=True):
     id : int | None = Field(primary_key=True, default=None)
     assignment_groups : list["AssignmentGroup"] = Relationship(back_populates="unit")
     term : Term = Relationship(back_populates="units")
-    users : list[User] = Relationship(back_populates="units", link_model=UsersUnits)
+    users : list[UsersUnits] = Relationship(back_populates="unit")
 
 class UnitCreate(UnitBase): pass
 
@@ -187,6 +193,10 @@ class TermPublicWithUnits(TermPublic):
 
 class UnitPublicWithTerm(UnitPublic):
     term : TermPublic | None = None
+
+class UsersUnitsPublic(UsersUnitsBase):
+    user : UserPublic
+    unit : UnitPublic
 
 class UserPublicWithUnits(UserPublic):
     units : list[UnitPublicWithTerm] = []

@@ -1,5 +1,5 @@
 from pydantic import TypeAdapter
-from ..models import User, UserUpdate, UserPublic, UserPublicWithUnits, UsersAssignments, UniversityAliasPublic
+from ..models import User, UserUpdate, UserPublic, UserPublicWithUnits, UsersUnits, UsersAssignments, UniversityAliasPublic, UsersUnitsPublic
 from ..models import Term, TermCreate, TermPublic, TermUpdate
 from ..models import Unit, UnitCreate, UnitPublicWithTerm, UnitUpdate
 from ..models import Assignment, AssignmentCreate, AssignmentPublicWithGroup, AssignmentUpdate
@@ -12,6 +12,8 @@ from ..canvas_api import query_canvas
 from pydantic import BaseModel
 from typing import Literal
 import asyncio
+import json
+import re
 
 router = APIRouter()
 
@@ -78,7 +80,11 @@ def parse_canvas_term(data : CanvasTerm) -> dict | None:
     """
 
     if (not data.start_at or not data.end_at):
-        return None
+    #    return None
+        from datetime import datetime
+        data.start_at = datetime.now()
+        data.end_at = datetime.now()
+
     return {
         "canvas_id" : data.id,
         "name" : data.name,
@@ -120,8 +126,8 @@ async def commit_canvas_terms(
     """
 
     result : CanvasTermsResult = await canvas_get_terms(
-        exclude_organisation_units=True,
-        exclude_complete_units=True,
+        exclude_organisation_units=False,#True,
+        exclude_complete_units=False,#True,
         user=user,
         magic=magic
     )
@@ -190,7 +196,6 @@ async def canvas_get_units(
     magic : str = Depends(get_current_magic)
 ) -> CanvasUnitsResult:#tuple[list[CanvasUnit], str]:
 
-
     params = {"include":"term"}
     if exclude_complete_units: params["enrollment_state"] = "active"
     raw_units, active_university_name = await query_canvas(
@@ -212,13 +217,44 @@ async def canvas_get_units(
 
     return CanvasUnitsResult(units=units, university_name=active_university_name)
 
+@router.get("/canvas/units/colours", response_model=dict[int, str])
+async def canvas_get_unit_colours(
+    user : User = Depends(get_current_user),
+    magic : str = Depends(get_current_magic)
+):
+    """
+    Obtain the hex codes of the colours
+    for the user's Canvas units.
+
+    Each colour is a 3 or 6 character long
+    string representing a hex colour, e.g.:
+    F00, AA00AA, 0B9BE3.
+
+    Colours are NOT preceded with a hashtag
+    and are ALWAYS in uppercase.
+    """
+    colours, _ = await query_canvas(path="users/self/colors", magic=magic, provider="swinburne")
+    colours = json.loads(colours)["custom_colors"]
+    
+    colours_dict = {} 
+    colour_extractor = re.compile(r"course_(\d+)")
+    
+    for course, colour in colours.items():
+        match = colour_extractor.search(course)
+        if match:
+            course_id = int(match[1])
+            colour = colour[1:].upper()
+            colours_dict[course_id] = colour
+
+    return colours_dict 
+
 def parse_canvas_unit(data : CanvasUnit) -> dict | None:
     """
-    Map CanvasTerm objects to dicts or None
+    Map CanvasUnit objects to dicts or None
     if they are not mappable.
 
     Args:
-        data (CanvasTerm): The term to parse.
+        data (CanvasTerm): The unit to parse.
     
     Returns:
         (dict | None): The data dictionary if the Term parsed correctly, else None if the term should be ignored.
@@ -250,14 +286,24 @@ async def commit_canvas_units(
     """
 
     result : CanvasUnitsResult = await canvas_get_units(
-        exclude_organisation_units=True,
-        exclude_complete_units=True,
+        exclude_organisation_units=False,#True,
+        exclude_complete_units=False,#True,
         user=user,
         magic=magic
     )
 
     canvas_units : list[CanvasUnit] = result.units
     active_university_name : str = result.university_name
+
+    canvas_unit_colours : dict[int,str] = await canvas_get_unit_colours(
+        user=user,
+        magic=magic
+    )
+
+    canvas_unit_nicknames : dict[int,str | None] = {}
+    for unit in canvas_units:
+        if unit.name != unit.original_name:
+            canvas_unit_nicknames[unit.id] = unit.name
     
     update_user_active_university_name(
         active_university_name=active_university_name,
@@ -336,6 +382,8 @@ async def commit_canvas_units(
 
     enrol_user_in_units(
         units=modified_units,
+        nickname_map=canvas_unit_nicknames,
+        colour_map=canvas_unit_colours,
         session=session,
         user=user
     )
@@ -344,23 +392,76 @@ async def commit_canvas_units(
 
 def enrol_user_in_units(
     units : list[Unit],
+    nickname_map : dict[int,str|None],
+    colour_map : dict[int,str],
     session : Session,
     user : User
 ):
-
     session.refresh(user)
 
+# ---- Track which assignments user SHOULD have ----
+    valid_unit_ids = {u.id for u in units}
+
+    # ---- Existing junction rows ----
+    existing_rows = session.exec(
+            select(UsersUnits).where(UsersUnits.user_id == user.id)
+    ).all()
+
+    existing_by_unit = {
+        u.unit_id: u for u in existing_rows
+    }
+
+    # ---- Create / Update ----
     for unit in units:
-        if unit not in user.units:
-            user.units.append(unit)
+        # canvas_assignment = canvas_by_id.get(assignment.canvas_id)
+        # if not canvas_assignment:
+        #     continue
+
+        # update = parse_canvas_submission(
+        #     canvas_assignment.submission
+        # )
+        
+        if not unit.id: continue
+        u = existing_by_unit.get(unit.id)
+        
+        unit_nickname = nickname_map.get(unit.canvas_id)
+
+        unit_colour = colour_map.get(unit.canvas_id)
+        if not unit_colour:
+            unit_colour = "FFF" # Default to white unit colour :P
+            #raise HTTPException(status_code=500, detail=f"Could not find colour for unit {unit.id} - {unit.name}")
+        
+        update = {
+            "nickname" : unit_nickname,
+            "colour" : unit_colour
+        }
+
+        if not u:
+            u = UsersUnits(
+                user_id=user.id,
+                unit_id=unit.id,
+                **update
+            )
+            session.add(u)
+        else:
+            u.sqlmodel_update(update)
+
+    # ---- Remove stale assignments ----
+    for unit_id, u in existing_by_unit.items():
+        if unit_id not in valid_unit_ids:
+            session.delete(u)
+
+    # for unit in units:
+    #     if unit not in user.units:
+    #         user.units.append(unit)
+    # 
+    # # Unenrol the user from any units
+    # # they are no longer taking
+    # for existing_unit in list(user.units):
+    #     if existing_unit not in units:
+    #         user.units.remove(existing_unit)
     
-    # Unenrol the user from any units
-    # they are no longer taking
-    for existing_unit in list(user.units):
-        if existing_unit not in units:
-            user.units.remove(existing_unit)
-    
-    session.add(user)
+    # session.add(user)
     session.commit()
  
 @router.get("/canvas/units/{unit_id}/assignment_groups", response_model = CanvasAssignmentGroupsResult)#tuple[list[CanvasAssignmentGroup], str])
@@ -480,9 +581,22 @@ async def commit_canvas_groups_and_assignments(
     - POST /canvas/units
     - POST /canvas/terms
     """
+    
+    user_units = session.exec(
+        select(UsersUnits)
+        .join(User)
+        .where(User.id == user.id)
+    ).all()
 
-    user_with_units = UserPublicWithUnits.model_validate(user)
-    units = user_with_units.units
+    unit_ids = [u.unit_id for u in user_units]
+
+    units = session.exec(
+        select(Unit)
+        .where(Unit.id.in_(unit_ids))
+    ).all()
+
+    #user_with_units = UserPublicWithUnits.model_validate(user)
+    #units = user_with_units.units
 
     # --------------------------------------------------
     # 1. Fetch Canvas groups WITH assignments

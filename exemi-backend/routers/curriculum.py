@@ -1,5 +1,5 @@
 from pydantic import BaseModel, TypeAdapter
-from ..models import User, UserPublicWithUnits, UsersAssignments, UsersUnits
+from ..models import User, UserPublicWithUnits, UsersAssignments, UsersUnits, UsersUnitsPublic
 from ..models import University, UniversityPublic, UniversityPublicWithAliases, UniversityAlias, UniversityAliasPublic, UniversityAliasCreate, UniversityAliasUpdate
 from ..models import Term, TermPublic, TermPublicWithUnits
 from ..models import Unit,  UnitPublic, UnitPublicWithAssignmentGroups
@@ -213,6 +213,49 @@ def get_term(
     if not term: raise HTTPException(status_code=404, detail="Term not found")
     return term
 
+@router.get("/user_units", response_model=list[UsersUnitsPublic])
+def get_user_units(
+    date : datetime = datetime.now(timezone.utc),
+    offset : int = 0,
+    limit : int = Query(default=100, le=100),
+    user : User = Depends(get_current_user),
+    session : Session = Depends(get_session)
+):
+    """
+    Obtain the user's current units, including
+    the user-assigned unit colour and nickname
+    for each unit.
+
+    Args:
+        date (datetime, optional):
+            Only obtain units which are active during this date. Defaults to datetime.now().
+        offset (int, optional):
+            Pagination start index. Defaults to 0.
+        limit (int, optional):
+            Pagination length. Defaults to 100. Max of 100.
+        user (User):
+            The currently logged-in user.
+        session (Session, optional):
+            Active connection with the SQLModel database.
+
+    Returns:
+        list[UsersUnitsPublic]: The user's units.
+    """
+
+    user_units = session.exec(
+        select(UsersUnits)
+        .join(Unit)
+        .join(Term)
+        .join(User)
+        .where(User.id == user.id)
+        .where(Term.start_at < date)
+        .where(Term.end_at > date)
+        .offset(offset)
+        .limit(limit)
+    ).all()
+    
+    return user_units
+
 @router.get("/units", response_model=list[UnitPublic])
 def get_units(
     date : datetime = datetime.now(timezone.utc),
@@ -240,18 +283,16 @@ def get_units(
         list[UnitPublic]: The user's units.
     """
 
-    user_units = session.exec(
-        select(UsersUnits)
-        .join(Unit)
-        .join(Term)
-        .join(User)
-        .where(User.id == user.id)
-        .where(Term.start_at < date)
-        .where(Term.end_at > date)
-    ).all()
+    user_units = get_user_units(
+        date=date,
+        offset=offset,
+        limit=limit,
+        user=user,
+        session=session
+    ) 
 
     unit_ids = [u.unit_id for u in user_units]
-
+    
     units = session.exec(
         select(Unit)
         .where(Unit.id.in_(unit_ids))
