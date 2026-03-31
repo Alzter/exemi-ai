@@ -53,12 +53,22 @@ class UsersUnitsBase(SQLModel):
     __tablename__ = "users_units"
     unit_id : int = Field(primary_key = True, foreign_key="unit.id")
     user_id : int = Field(primary_key = True, foreign_key="user.id", ondelete="CASCADE")
-    nickname : str = Field(max_length=255)
-    colour : str = Field(max_length=6)
+    nickname : str | None = Field(max_length=255, default=None)
+    colour : str | None = Field(max_length=6, default=None)
 
 class UsersUnits(UsersUnitsBase, table=True):
     user : "User" = Relationship(back_populates="units")
     unit : "Unit" = Relationship(back_populates="users")
+    @property
+    def readable_name(self) -> str:
+        """
+        Returns the nickname of this unit,
+        if assigned, otherwise the readable
+        name of the unit.
+        """
+        if self.unit.name == self.nickname or not self.nickname:
+            return self.unit.readable_name# or self.unit.name
+        else: return self.nickname
 
 class UsersAssignments(SQLModel, UTCModel, table=True):
     __tablename__ = "users_assignments"
@@ -197,6 +207,7 @@ class UnitPublicWithTerm(UnitPublic):
 class UsersUnitsPublic(UsersUnitsBase):
     user : UserPublic
     unit : UnitPublic
+    readable_name : str
 
 class UserPublicWithUnits(UserPublic):
     units : list[UnitPublicWithTerm] = []
