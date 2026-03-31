@@ -302,20 +302,45 @@ def get_units(
     # user_with_units = UserPublicWithUnits.model_validate(user)
     # return user_with_units.units
 
+class UnitJSON(BaseModel):
+    id : int
+    name: str
+    nickname : str | None
+    url: str
+
+units_list_adapter = TypeAdapter(list[UnitJSON])
+
 @router.get("/tool/units_json", response_model=str)
 def get_units_list_json(
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session)
 ) -> str:
     """
-    Returns a list of human-readable unit names as a JSON string.
+    Returns the student's units in JSON format.
     """
-    units = get_units(offset=0, limit=100, user=user, session=session)
-    units = [UnitPublic.model_validate(u) for u in units]
+    university_name = user.active_university_name or user.university_name
 
-    units_list = [unit.readable_name for unit in units]
+    user_units = get_user_units(offset=0, limit=100, user=user, session=session)
+    user_units = [UsersUnitsPublic.model_validate(u) for u in user_units]
 
-    return json.dumps(units_list)
+    unit_list : list[UnitJSON] = []
+
+    for user_unit in user_units:
+        url = f"https://www.{university_name}.instructure.com/"
+        url += f"courses/{user_unit.unit.canvas_id}/"
+
+        unit_list.append(
+            UnitJSON(
+                id = user_unit.unit.id,
+                name = user_unit.unit.readable_name,
+                nickname = user_unit.nickname,
+                url = url
+            )
+        )
+
+    # units_list = [unit.readable_name for unit in units]
+
+    return units_list_adapter.dump_json(unit_list).decode("utf-8")
 
 @router.get("/units/{id}", response_model=UnitPublicWithAssignmentGroups)
 def get_unit(
@@ -568,6 +593,7 @@ class AssignmentJSON(BaseModel):
     url: str
 
 class UnitAssignmentsJSON(BaseModel):
+    unit_id : int
     unit_name: str
     assignments: list[AssignmentJSON]
 
@@ -620,6 +646,7 @@ def get_assignments_list_json(
         if assignment_list:
             units_assignments_json.append(
                 UnitAssignmentsJSON(
+                    unit_id=unit.id,
                     unit_name=unit.readable_name,
                     assignments=assignment_list
                 )
