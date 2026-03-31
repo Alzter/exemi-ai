@@ -146,7 +146,7 @@ def login(
         "user" : user
     }
 
-@router.get("/users/self", response_model=UserPublic)
+@router.get("/users/self", response_model = UserPublicWithUnits)
 async def get_current_user(current_user : User = Depends(root_get_current_user)):
     """
     Obtain a UserPublic object representing the logged in user.

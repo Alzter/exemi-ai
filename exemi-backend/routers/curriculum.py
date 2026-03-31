@@ -1,5 +1,5 @@
 from pydantic import BaseModel, TypeAdapter
-from ..models import User, UserPublicWithUnits, UsersAssignments, UsersUnits, UsersUnitsPublic
+from ..models import User, UsersAssignments, UsersUnits, UsersUnitsPublic
 from ..models import University, UniversityPublic, UniversityPublicWithAliases, UniversityAlias, UniversityAliasPublic, UniversityAliasCreate, UniversityAliasUpdate
 from ..models import Term, TermPublic, TermPublicWithUnits
 from ..models import Unit,  UnitPublic, UnitPublicWithAssignmentGroups
@@ -299,8 +299,6 @@ def get_units(
     )
 
     return units
-    # user_with_units = UserPublicWithUnits.model_validate(user)
-    # return user_with_units.units
 
 class UnitJSON(BaseModel):
     id : int
