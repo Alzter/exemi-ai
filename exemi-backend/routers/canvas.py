@@ -126,8 +126,8 @@ async def commit_canvas_terms(
     """
 
     result : CanvasTermsResult = await canvas_get_terms(
-        exclude_organisation_units=False,#True,
-        exclude_complete_units=False,#True,
+        exclude_organisation_units=True,
+        exclude_complete_units=True,
         user=user,
         magic=magic
     )
@@ -286,8 +286,8 @@ async def commit_canvas_units(
     """
 
     result : CanvasUnitsResult = await canvas_get_units(
-        exclude_organisation_units=False,#True,
-        exclude_complete_units=False,#True,
+        exclude_organisation_units=True,
+        exclude_complete_units=True,
         user=user,
         magic=magic
     )
@@ -300,9 +300,9 @@ async def commit_canvas_units(
         magic=magic
     )
 
-    canvas_unit_nicknames : dict[int,str | None] = {}
+    canvas_unit_nicknames : dict[int,str] = {}
     for unit in canvas_units:
-        if unit.name != unit.original_name:
+        if unit.original_name is not None:
             canvas_unit_nicknames[unit.id] = unit.name
     
     update_user_active_university_name(
@@ -392,7 +392,7 @@ async def commit_canvas_units(
 
 def enrol_user_in_units(
     units : list[Unit],
-    nickname_map : dict[int,str|None],
+    nickname_map : dict[int,str],
     colour_map : dict[int,str],
     session : Session,
     user : User
@@ -425,11 +425,7 @@ def enrol_user_in_units(
         u = existing_by_unit.get(unit.id)
         
         unit_nickname = nickname_map.get(unit.canvas_id)
-
         unit_colour = colour_map.get(unit.canvas_id)
-        if not unit_colour:
-            unit_colour = "FFF" # Default to white unit colour :P
-            #raise HTTPException(status_code=500, detail=f"Could not find colour for unit {unit.id} - {unit.name}")
         
         update = {
             "nickname" : unit_nickname,
