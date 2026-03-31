@@ -1,5 +1,5 @@
 from pydantic import TypeAdapter
-from ..models import User, UserUpdate, UserPublic, UserPublicWithUnits, UsersUnits, UsersAssignments, UniversityAliasPublic, UsersUnitsPublic
+from ..models import User, UserUpdate, UserPublic, UsersUnits, UsersAssignments, UniversityAliasPublic, UsersUnitsPublic
 from ..models import Term, TermCreate, TermPublic, TermUpdate
 from ..models import Unit, UnitCreate, UnitPublicWithTerm, UnitUpdate
 from ..models import Assignment, AssignmentCreate, AssignmentPublicWithGroup, AssignmentUpdate
@@ -590,9 +590,6 @@ async def commit_canvas_groups_and_assignments(
         select(Unit)
         .where(Unit.id.in_(unit_ids))
     ).all()
-
-    #user_with_units = UserPublicWithUnits.model_validate(user)
-    #units = user_with_units.units
 
     # --------------------------------------------------
     # 1. Fetch Canvas groups WITH assignments

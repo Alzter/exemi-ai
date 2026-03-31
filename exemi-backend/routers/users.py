@@ -1,4 +1,4 @@
-from ..models import User, UserCreate, UserUpdate, UserPublic, UserPublicWithUnits
+from ..models import User, UserCreate, UserUpdate, UserPublic
 from ..models import UserBiography, UserBiographyPublic, UserBiographyCreate
 from ..models import University, UniversityPublic
 from typing import Annotated, Literal
@@ -146,7 +146,7 @@ def login(
         "user" : user
     }
 
-@router.get("/users/self", response_model=UserPublic)
+@router.get("/users/self", response_model = UserPublic)
 async def get_current_user(current_user : User = Depends(root_get_current_user)):
     """
     Obtain a UserPublic object representing the logged in user.
@@ -203,7 +203,7 @@ async def test_is_magic_valid(
     if not valid: raise HTTPException(status_code=401, detail="The current user's magic is not valid")
     return True
 
-@router.get("/users/{username}", response_model = UserPublicWithUnits)
+@router.get("/users/{username}", response_model = UserPublic)
 async def get_user_safe(
     username : str,
     current_user : User = Depends(root_get_current_user),

@@ -1,4 +1,5 @@
-import React, {useState, useEffect, useRef} from 'react'
+import React, {useState, useEffect, useRef, type ChangeEvent} from 'react';
+import {type UserUnit} from '../../models';
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 import MessageBox from './message_box';
 
@@ -26,12 +27,24 @@ type Conversation = {
 
 export default function ChatMessagesUI({session, isViewing, conversationID, setConversationID, loading, setLoading, error, setError} : ChatUIProps){
 
+    const [units, setUnits] = useState<UserUnit[]>([]);
+    // const units : UserUnit[] = session.user.units;
+
     const [awaitingLLMResponse, setAwaitingLLMResponse] = useState<boolean>(false);
 
     const [messages, setMessages] = useState<Message[]>([]);
 
+    const [unitSelected, setUnitSelected] = useState<UserUnit|null>(null);
+
+    const unitID : number | null = (unitSelected && !conversationID) ? unitSelected.unit_id : null;
+
     // The user's current message text.
     const [userText, setUserText] = useState<string>("");
+
+    // Obtain the list of the user's units when first loading
+    useEffect(() => {
+        getUserUnits();
+    }, []);
 
     // Auto-update the height of the chat box
     // when the user message text changes
@@ -70,6 +83,49 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
         )
     }
 
+    async function getUserUnits(){
+        const URL = backendURL + "/user_units"
+
+        const response = await fetch(URL, {
+            headers:{
+                "Authorization" : "Bearer " + session.token,
+                accept:"application/json"
+            },
+            method:"GET"
+        });
+        
+        if (!response.ok) {
+            setError("Error obtaining user units!");
+            return;
+        };
+
+        const data = await response.json();
+        const units : UserUnit[] = data as UserUnit[];
+
+        // Sort units alphabetically
+        units.sort((a, b) => a.readable_name.localeCompare(b.readable_name));
+
+        setUnits(units);
+    };
+
+    async function handleUnitSelected(event : ChangeEvent<HTMLSelectElement>){
+        const unit : UserUnit | undefined = units.find(unit => unit.readable_name === event.target.value);
+
+        if (unit){
+            setUnitSelected(unit);
+        } else {
+            setUnitSelected(null);
+        };
+    };
+
+    // useEffect(() => {
+    //     if (unitID){
+    //         console.log(unitID);
+    //     } else {
+    //         console.log("No unit");
+    //     }
+    // }, [unitID]);
+
     // If we're waiting for the LLM to respond, add a message with the text "Thinking..." to the end of the list
     const messageBoxes = [...messages.map(
         message => <MessageBox role={message.role} content={message.content} key={message.id}/>
@@ -79,7 +135,7 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
 
     function handleTextUpdate(event : React.ChangeEvent<HTMLTextAreaElement>){
         setUserText(event.target.value);
-    }
+    };
 
     function handleTextKeyDown(event : React.KeyboardEvent<HTMLTextAreaElement>){
         // Manually intercept the HTML text area
@@ -96,8 +152,8 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
             if (chatbox){
                 chatbox.requestSubmit();
             };
-        }
-    }
+        };
+    };
     
     async function getInitialMessage() {
         // Obtain the LLM's conversation starter
@@ -117,14 +173,14 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
         if (!response.ok) {
             setError("Error obtaining LLM initial message.");
             return;
-        }
+        };
 
         let initial_message = await response.json();
         setMessages(prev => [
             ...prev,
             {"role":"assistant","content":initial_message,"id":0}
         ]);
-    }
+    };
 
     async function handleLLMResponse(conversationID : number) {
         // Stream the LLM's response from the server.
@@ -206,7 +262,7 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
         // Show a placeholder "Thinking..." message before the LLM responds properly
         setAwaitingLLMResponse(true);
         
-        let body = {"message_text" : userText};
+        let body = {"message_text" : userText, "unit_id" : unitID};
 
         let URL = backendURL + "/conversation" + (conversationID ? "/" + conversationID : "")
         // console.log(body);
@@ -350,18 +406,29 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
                 <button disabled={loading || !conversationID} onClick={deleteConversation}>Delete Chat</button>
               </div>
             ) : (
-              <form className="chatbox" ref={chatboxRef} onSubmit={sendMessage}>
-                  <textarea
-                    autoFocus
-                    placeholder="Ask anything"
-                    ref={chatboxTextRef}
-                    rows={1}
-                    onChange={handleTextUpdate}
-                    onKeyDown={handleTextKeyDown}
-                    value={userText}
-                />
-                  <button type="submit" disabled={loading}>Send</button>
-              </form>
+                <form className="chatbox" ref={chatboxRef} onSubmit={sendMessage}>
+                    { conversationID ? (null) : (
+                        <select name="unit" id="unit" value={unitSelected?.readable_name} onChange={handleUnitSelected}>
+                            <option value="all">All Units</option>
+                            {units.map((unit) => <option
+                                value={unit.readable_name}
+                                key={unit.unit_id}
+                            >
+                                {unit.readable_name}
+                            </option>)}
+                        </select>
+                    ) }
+                    <textarea
+                        autoFocus
+                        placeholder="Ask anything"
+                        ref={chatboxTextRef}
+                        rows={1}
+                        onChange={handleTextUpdate}
+                        onKeyDown={handleTextKeyDown}
+                        value={userText}
+                    />
+                    <button type="submit" disabled={loading}>Send</button>
+                </form>
             )}
         </div>
     )

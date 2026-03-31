@@ -365,6 +365,23 @@ form.magic{
   flex-direction: column;
 }
 
+.chatbox_container{
+  display:flex;
+  flex-direction: column;
+  align-items:stretch;
+  width:100%;
+  padding:32px;
+  max-width: 42em;
+  margin:auto;
+  gap:1em;
+}
+
+.chatbox select{
+  min-width:12em;
+  max-width:12em;
+  height:auto;
+}
+
 .chatbox{
   display:flex;
   flex-direction: row;
@@ -373,14 +390,14 @@ form.magic{
   padding:32px;
   max-width: 42em;
   margin:auto;
-  /* background-color: aqua; */
+  gap:1em;
 }
 
-form.chatbox *{
+.chatbox *{
   height: 4em;
 }
 
-form.chatbox textarea{
+.chatbox textarea{
   display: flex;
   margin:0;
   padding: 1.25em 0.5em;
@@ -399,7 +416,7 @@ wrapping the text */
   }
 }
 
-form.chatbox button{
+.chatbox button{
   max-width: fit-content;
   padding: 0.5em 1em;
   height:auto;
