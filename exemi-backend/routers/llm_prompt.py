@@ -214,6 +214,7 @@ Remember these principles for helping students with ADHD:
 {get_user_biography(user=user, session=session)}
 
 ## UNITS
+You have access to the student's curriculum and assessment information from their Canvas account, including their units and assignments.
 The student is enrolled in the following units:
 ```json
 {get_units_list_json(user=user, session=session)}
