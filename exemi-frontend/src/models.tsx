@@ -1,3 +1,11 @@
+export type UserUnit = {
+    readable_name : string,
+    nickname : string | null,
+    colour : string | null,
+    unit_id : number,
+    user_id : number
+}
+
 export type User = {
     username : string,
     university_name : string,
@@ -6,7 +14,8 @@ export type User = {
     admin : boolean,
     disabled : boolean,
     password_hash : string,
-    magic_hash : string
+    magic_hash : string,
+    units : UserUnit[]
 }
 
 export type Session = {

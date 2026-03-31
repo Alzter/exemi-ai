@@ -325,6 +325,7 @@ class ConversationBase(SQLModel):
 class Conversation(ConversationBase, table=True):
     id : int | None = Field(primary_key=True, default=None)
     user_id : int = Field(foreign_key='user.id', ondelete="CASCADE")
+    unit_id : int | None = Field(default=None, foreign_key='unit.id', ondelete="SET NULL")
     messages : list["Message"] = Relationship(back_populates="conversation", cascade_delete=True)
     user : User = Relationship(back_populates="conversations")
     created_at : datetime
@@ -332,15 +333,17 @@ class Conversation(ConversationBase, table=True):
 
 class NewMessage(SQLModel):
     message_text : str = Field(sa_column=Column(TEXT))
+    unit_id : int | None = Field(default=None, foreign_key='unit.id')
 
 class ConversationPublic(ConversationBase, UTCModel):
     id : int
     user_id : int
+    unit_id : int | None
     created_at : datetime
     summary : str | None
 
 class ConversationUpdate(SQLModel):
-    summary : str | None
+    summary : str | None = None
 
 class MessageBase(SQLModel):
     conversation_id : int = Field(foreign_key='conversation.id', ondelete="CASCADE")

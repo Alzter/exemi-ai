@@ -452,6 +452,7 @@ async def conversation_start(
 
     conversation_data = {
         "user_id" : user.id,
+        "unit_id" : new_message.unit_id,
         "user" : user,
         "created_at" : datetime.now(timezone.utc)
     }
