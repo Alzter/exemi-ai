@@ -679,11 +679,16 @@ async def stream_llm_response_to_conversation(
     Returns:
         StreamingResponse: The LLM's response text in chunks.
     """
+
+    conversation : Conversation = session.get(Conversation, conversation_id)
+    if not conversation:
+        raise HTTPException(status_code=500, detail="Error responding to conversation: Could not obtain conversation object!")
+
     messages = get_message_list(conversation_id=conversation_id, user=user, session=session)
     if not messages:
-        raise HTTPException(status_code=400, detail="Error responding to conversation: conversation is empty!")
+        raise HTTPException(status_code=500, detail="Error responding to conversation: Conversation is empty!")
     if messages[-1]["role"] != "user":
-        raise HTTPException(status_code=400, detail="Error responding to conversation: last message must be created by the user!")
+        raise HTTPException(status_code=500, detail="Error responding to conversation: Last message must be created by the user!")
     
 
     # Declare a function to add the LLM's response to
@@ -702,6 +707,7 @@ async def stream_llm_response_to_conversation(
             magic=magic,
             session=session,
             messages=messages,
+            unit_id=conversation.unit_id,
             background_tasks=background_tasks,
             end_function=end_function,
             end_function_kwargs=end_function_kwargs

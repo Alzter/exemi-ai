@@ -524,62 +524,62 @@ def get_assignment(
     if not assignment: raise HTTPException(status_code=404, detail="Assignment not found")
     return assignment 
 
-@router.get("/tool/assignments")
-def get_assignments_list(
-    user : User = Depends(get_current_user),
-    session : Session = Depends(get_session)
-) -> str:
-    """
-    Create a markdown-formatted list of
-    the student's incomplete assignments
-    organised by unit, sorted by due date.
+# @router.get("/tool/assignments")
+# def get_assignments_list(
+#     user : User = Depends(get_current_user),
+#     session : Session = Depends(get_session)
+# ) -> str:
+#     """
+#     Create a markdown-formatted list of
+#     the student's incomplete assignments
+#     organised by unit, sorted by due date.
 
-    Returns:
-        str: List of the student's incomplete assignments.
-    """
+#     Returns:
+#         str: List of the student's incomplete assignments.
+#     """
 
-    message : list[str] = ["# Assignments:\n"]
+#     message : list[str] = ["# Assignments:\n"]
 
-    units = get_units(user=user, session=session, offset=0, limit=100)
-    units = [UnitPublic.model_validate(u) for u in units]
+#     units = get_units(user=user, session=session, offset=0, limit=100)
+#     units = [UnitPublic.model_validate(u) for u in units]
 
-    units_by_id : dict[int, Unit] = {u.id : u for u in units}
-    units_assignments : dict[int, list[AssignmentPublic]] = {}
+#     units_by_id : dict[int, Unit] = {u.id : u for u in units}
+#     units_assignments : dict[int, list[AssignmentPublic]] = {}
 
-    university_name = user.active_university_name or user.university_name
+#     university_name = user.active_university_name or user.university_name
 
-    for unit in units:
+#     for unit in units:
 
-        assignments = get_assignments(user=user, session=session, unit_id=unit.id, offset=0, limit=100)
-        assignments = [AssignmentPublic.model_validate(a) for a in assignments]
+#         assignments = get_assignments(user=user, session=session, unit_id=unit.id, offset=0, limit=100)
+#         assignments = [AssignmentPublic.model_validate(a) for a in assignments]
 
-        units_assignments[unit.id] = assignments
+#         units_assignments[unit.id] = assignments
 
-    for unit_id, assignments in units_assignments.items():
-        if not assignments: continue
+#     for unit_id, assignments in units_assignments.items():
+#         if not assignments: continue
 
-        unit = units_by_id.get(unit_id)
-        if not unit: raise HTTPException(status_code=404, detail=f"Unit not found: {unit_id}")
+#         unit = units_by_id.get(unit_id)
+#         if not unit: raise HTTPException(status_code=404, detail=f"Unit not found: {unit_id}")
         
-        message.append(f"## Unit: {unit.readable_name}\n")
+#         message.append(f"## Unit: {unit.readable_name}\n")
 
-        for assignment in assignments:
-            url = f"https://www.{university_name}.instructure.com/"
-            url += f"courses/{unit.canvas_id}/"
-            url += f"assignments/{assignment.canvas_id}"
+#         for assignment in assignments:
+#             url = f"https://www.{university_name}.instructure.com/"
+#             url += f"courses/{unit.canvas_id}/"
+#             url += f"assignments/{assignment.canvas_id}"
 
-            due_date_string = timestamp_to_string(parse_timestamp(assignment.due_at))
+#             due_date_string = timestamp_to_string(parse_timestamp(assignment.due_at))
 
-            message.append(f"### {assignment.name}")
-            if assignment.description:
-                message.append(f"Description:\n```html\n{assignment.description}\n```")
-            message.append(f"- **Due date:** {due_date_string}")
-            message.append(f"- **Grade contribution:** {int(assignment.grade_contribution * 100)}%")
-            message.append(f"- **Requires group work:** {"YES" if assignment.is_group else "NO"}")
-            message.append(f"- **URL**: {url}")
-            message.append("\n")
+#             message.append(f"### {assignment.name}")
+#             if assignment.description:
+#                 message.append(f"Description:\n```html\n{assignment.description}\n```")
+#             message.append(f"- **Due date:** {due_date_string}")
+#             message.append(f"- **Grade contribution:** {int(assignment.grade_contribution * 100)}%")
+#             message.append(f"- **Requires group work:** {"YES" if assignment.is_group else "NO"}")
+#             message.append(f"- **URL**: {url}")
+#             message.append("\n")
 
-    return "\n".join(message).strip()
+#     return "\n".join(message).strip()
 
 class AssignmentJSON(BaseModel):
     name: str
@@ -599,12 +599,16 @@ assignments_list_adapter = TypeAdapter(list[UnitAssignmentsJSON])
 
 @router.get("/tool/assignments_json", response_model=str)#list[UnitAssignmentsJSON])
 def get_assignments_list_json(
+    unit_id : int | None = None,
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session)
 ):
     """
     Return the student's incomplete assignments in JSON format,
     organized by unit and sorted by due date.
+
+    Args:
+        unit_id (int | None, optional): Which unit to obtain assignment information for. If not given, returns assignments for all units. Defaults to None.
     """
 
     # Fetch units
@@ -617,6 +621,9 @@ def get_assignments_list_json(
     university_name = user.active_university_name or user.university_name
 
     for unit in units:
+        if unit_id is not None and unit.id != unit_id:
+            continue
+        
         assignments = get_assignments(user=user, session=session, unit_id=unit.id, offset=0, limit=100)
         assignments = [AssignmentPublic.model_validate(a) for a in assignments]
 

@@ -94,7 +94,8 @@ async def chat(
     messages : list[dict],
     user : User,
     magic : str,
-    session : Session
+    session : Session,
+    unit_id : int | None = None
 ) -> list[BaseMessage]:
     """
     Call the LLM to respond to the user's message(s).
@@ -102,6 +103,7 @@ async def chat(
     
     Args:
         messages (list[dict]): List of messages in OpenAI format.
+        unit_id (int | None, optional): Which unit to focus on. If not given, provides information for all units. Defaults to None.
 
     Raises:
         HTTPException: If the LLM is offline, raises a 500.
@@ -116,7 +118,7 @@ async def chat(
 
     agent = create_agent(
         model=model,
-        system_prompt=await get_system_prompt(user=user, session=session),
+        system_prompt=await get_system_prompt(user=user, session=session, unit_id=unit_id),
         tools=tools
     )
 
@@ -140,6 +142,7 @@ async def chat_stream(
     user : User,
     magic : str,
     session : Session,
+    unit_id : int | None = None,
     end_function : Callable | None = None,
     end_function_kwargs : dict[str, Any] | None = None,
     include_tool_responses : bool = False
@@ -160,6 +163,7 @@ async def chat_stream(
     
     Args:
         messages (list[dict]): List of messages in OpenAI format.
+        unit_id (int | None, optional): Which unit to focus on. If not given, provides information for all units. Defaults to None.
         end_function (Callable | None, optional): Arbitrary function to execute after the LLM response is complete. Defaults to None.
         end_function_kwargs (dict[str, Any], optional):
             Keyword arguments to use when calling end_function. Defaults to None.
@@ -179,7 +183,7 @@ async def chat_stream(
 
     agent = create_agent(
         model=model,
-        system_prompt=await get_system_prompt(user=user, session=session),
+        system_prompt=await get_system_prompt(user=user, session=session, unit_id=unit_id),
         tools=tools
     )
     

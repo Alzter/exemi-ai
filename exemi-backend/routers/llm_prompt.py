@@ -1,10 +1,10 @@
-from ..models import User 
+from ..models import User, Unit, UnitPublic
 from ..date_utils import timestamp_to_string
 from ..routers.curriculum import get_assignments_list_json, get_units_list_json
 from ..routers.reminders import get_reminders_list_json
 from ..routers.users import get_user_biography_text
 from ..dependencies import get_current_user, get_session
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -152,6 +152,7 @@ Write a maximum of {max_words} words.
 
 @router.get("/prompt")
 async def get_system_prompt(
+    unit_id : int | None = None,
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session)
 ) -> str:
@@ -168,6 +169,14 @@ async def get_system_prompt(
         if now.hour > 9 and now.hour < 17:
             is_business_hours = True
 
+    unit_name : str | None = None
+    unit = session.get(Unit, unit_id)
+    if unit:
+        unit = UnitPublic.model_validate(unit)
+        unit_name = unit.readable_name
+    if unit_id and not unit_name:
+        raise HTTPException(status_code=500, detail=f"Error obtaining unit name for unit {unit_id}")
+    
     return f"""
 You are Exemi, a study assistance chatbot.
 You are helping an undergraduate student from Swinburne University who has ADHD.
@@ -219,12 +228,13 @@ The student is enrolled in the following units:
 ```json
 {get_units_list_json(user=user, session=session)}
 ```
-
+{f"\nFor this conversation, the student is ONLY needing assistance with the unit: {unit_name}.\n" if unit_name else ""}
 ## ASSIGNMENTS
 The student has the following assignments:
 ```json
-{get_assignments_list_json(user=user, session=session)}
+{get_assignments_list_json(user=user, session=session, unit_id=unit_id)}
 ```
+NOTE: Do NOT mention unit or assignment IDs in your response to the student. The IDs are only needed for tool calling.
 
 {await get_previous_conversation_summaries(
     user=user,

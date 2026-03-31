@@ -209,8 +209,8 @@ class UsersUnitsPublic(UsersUnitsBase):
     unit : UnitPublicWithTerm
     readable_name : str
 
-class UserPublicWithUnits(UserPublic):
-    units : list[UsersUnitsPublic] = []
+# class UserPublicWithUnits(UserPublic):
+#     units : list[UsersUnitsPublic] = []
 
 class AssignmentGroupBase(SQLModel):
     unit_id : int = Field(foreign_key="unit.id")

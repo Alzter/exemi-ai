@@ -27,7 +27,8 @@ type Conversation = {
 
 export default function ChatMessagesUI({session, isViewing, conversationID, setConversationID, loading, setLoading, error, setError} : ChatUIProps){
 
-    const units : UserUnit[] = session.user.units;
+    const [units, setUnits] = useState<UserUnit[]>([]);
+    // const units : UserUnit[] = session.user.units;
 
     const [awaitingLLMResponse, setAwaitingLLMResponse] = useState<boolean>(false);
 
@@ -39,6 +40,11 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
 
     // The user's current message text.
     const [userText, setUserText] = useState<string>("");
+
+    // Obtain the list of the user's units when first loading
+    useEffect(() => {
+        getUserUnits();
+    }, []);
 
     // Auto-update the height of the chat box
     // when the user message text changes
@@ -77,6 +83,31 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
         )
     }
 
+    async function getUserUnits(){
+        const URL = backendURL + "/user_units"
+
+        const response = await fetch(URL, {
+            headers:{
+                "Authorization" : "Bearer " + session.token,
+                accept:"application/json"
+            },
+            method:"GET"
+        });
+        
+        if (!response.ok) {
+            setError("Error obtaining user units!");
+            return;
+        };
+
+        const data = await response.json();
+        const units : UserUnit[] = data as UserUnit[];
+
+        // Sort units alphabetically
+        units.sort((a, b) => a.readable_name.localeCompare(b.readable_name));
+
+        setUnits(units);
+    };
+
     async function handleUnitSelected(event : ChangeEvent<HTMLSelectElement>){
         const unit : UserUnit | undefined = units.find(unit => unit.readable_name === event.target.value);
 
@@ -104,7 +135,7 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
 
     function handleTextUpdate(event : React.ChangeEvent<HTMLTextAreaElement>){
         setUserText(event.target.value);
-    }
+    };
 
     function handleTextKeyDown(event : React.KeyboardEvent<HTMLTextAreaElement>){
         // Manually intercept the HTML text area
@@ -121,8 +152,8 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
             if (chatbox){
                 chatbox.requestSubmit();
             };
-        }
-    }
+        };
+    };
     
     async function getInitialMessage() {
         // Obtain the LLM's conversation starter
@@ -142,14 +173,14 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
         if (!response.ok) {
             setError("Error obtaining LLM initial message.");
             return;
-        }
+        };
 
         let initial_message = await response.json();
         setMessages(prev => [
             ...prev,
             {"role":"assistant","content":initial_message,"id":0}
         ]);
-    }
+    };
 
     async function handleLLMResponse(conversationID : number) {
         // Stream the LLM's response from the server.
