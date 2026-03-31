@@ -1,5 +1,5 @@
 from pydantic import BaseModel, TypeAdapter
-from ..models import User, UserPublicWithUnits, UsersAssignments, UsersUnits
+from ..models import User, UserPublicWithUnits, UsersAssignments, UsersUnits, UsersUnitsPublic
 from ..models import University, UniversityPublic, UniversityPublicWithAliases, UniversityAlias, UniversityAliasPublic, UniversityAliasCreate, UniversityAliasUpdate
 from ..models import Term, TermPublic, TermPublicWithUnits
 from ..models import Unit,  UnitPublic, UnitPublicWithAssignmentGroups
@@ -213,6 +213,49 @@ def get_term(
     if not term: raise HTTPException(status_code=404, detail="Term not found")
     return term
 
+@router.get("/user_units", response_model=list[UsersUnitsPublic])
+def get_user_units(
+    date : datetime = datetime.now(timezone.utc),
+    offset : int = 0,
+    limit : int = Query(default=100, le=100),
+    user : User = Depends(get_current_user),
+    session : Session = Depends(get_session)
+):
+    """
+    Obtain the user's current units, including
+    the user-assigned unit colour and nickname
+    for each unit.
+
+    Args:
+        date (datetime, optional):
+            Only obtain units which are active during this date. Defaults to datetime.now().
+        offset (int, optional):
+            Pagination start index. Defaults to 0.
+        limit (int, optional):
+            Pagination length. Defaults to 100. Max of 100.
+        user (User):
+            The currently logged-in user.
+        session (Session, optional):
+            Active connection with the SQLModel database.
+
+    Returns:
+        list[UsersUnitsPublic]: The user's units.
+    """
+
+    user_units = session.exec(
+        select(UsersUnits)
+        .join(Unit)
+        .join(Term)
+        .join(User)
+        .where(User.id == user.id)
+        .where(Term.start_at < date)
+        .where(Term.end_at > date)
+        .offset(offset)
+        .limit(limit)
+    ).all()
+    
+    return user_units
+
 @router.get("/units", response_model=list[UnitPublic])
 def get_units(
     date : datetime = datetime.now(timezone.utc),
@@ -240,18 +283,16 @@ def get_units(
         list[UnitPublic]: The user's units.
     """
 
-    user_units = session.exec(
-        select(UsersUnits)
-        .join(Unit)
-        .join(Term)
-        .join(User)
-        .where(User.id == user.id)
-        .where(Term.start_at < date)
-        .where(Term.end_at > date)
-    ).all()
+    user_units = get_user_units(
+        date=date,
+        offset=offset,
+        limit=limit,
+        user=user,
+        session=session
+    ) 
 
     unit_ids = [u.unit_id for u in user_units]
-
+    
     units = session.exec(
         select(Unit)
         .where(Unit.id.in_(unit_ids))
@@ -261,20 +302,45 @@ def get_units(
     # user_with_units = UserPublicWithUnits.model_validate(user)
     # return user_with_units.units
 
+class UnitJSON(BaseModel):
+    id : int
+    name: str
+    nickname : str | None
+    url: str
+
+units_list_adapter = TypeAdapter(list[UnitJSON])
+
 @router.get("/tool/units_json", response_model=str)
 def get_units_list_json(
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session)
 ) -> str:
     """
-    Returns a list of human-readable unit names as a JSON string.
+    Returns the student's units in JSON format.
     """
-    units = get_units(offset=0, limit=100, user=user, session=session)
-    units = [UnitPublic.model_validate(u) for u in units]
+    university_name = user.active_university_name or user.university_name
 
-    units_list = [unit.readable_name for unit in units]
+    user_units = get_user_units(offset=0, limit=100, user=user, session=session)
+    user_units = [UsersUnitsPublic.model_validate(u) for u in user_units]
 
-    return json.dumps(units_list)
+    unit_list : list[UnitJSON] = []
+
+    for user_unit in user_units:
+        url = f"https://www.{university_name}.instructure.com/"
+        url += f"courses/{user_unit.unit.canvas_id}/"
+
+        unit_list.append(
+            UnitJSON(
+                id = user_unit.unit.id,
+                name = user_unit.unit.readable_name,
+                nickname = user_unit.nickname,
+                url = url
+            )
+        )
+
+    # units_list = [unit.readable_name for unit in units]
+
+    return units_list_adapter.dump_json(unit_list).decode("utf-8")
 
 @router.get("/units/{id}", response_model=UnitPublicWithAssignmentGroups)
 def get_unit(
@@ -527,6 +593,7 @@ class AssignmentJSON(BaseModel):
     url: str
 
 class UnitAssignmentsJSON(BaseModel):
+    unit_id : int
     unit_name: str
     assignments: list[AssignmentJSON]
 
@@ -579,6 +646,7 @@ def get_assignments_list_json(
         if assignment_list:
             units_assignments_json.append(
                 UnitAssignmentsJSON(
+                    unit_id=unit.id,
                     unit_name=unit.readable_name,
                     assignments=assignment_list
                 )
