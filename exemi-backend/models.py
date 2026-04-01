@@ -100,10 +100,44 @@ class User(UserBase, table=True):
 
     @property
     def actual_university_name(self) -> str | None:
+        """
+        Returns the name of the university alias
+        which allows access to the user's Canvas account if set,
+        otherwise the user's default university name.
+
+        The user has two fields which refer to which university
+        they belong to: ``university_name`` and ``active_university_name``.
+
+        ``university_name`` is the original name of the university the
+        user is assigned to.
+
+        ``active_university_name`` is the name of the particular
+        alias of the university which was used to authenticate
+        the user's Canvas account, if any.
+
+        For example, if a student is registered under
+        the university_name "swinburne" but is actually a
+        "swinburneonline" student, their active_university_name
+        field will be "swinburneonline".
+
+        Returns:
+            str | None: The user's university alias if set, otherwise the default university name.
+        """
         return self.active_university_name or self.university_name
 
     @property
     def fallback_university_names(self) -> list[str]:
+        """
+        Returns all alias names of the user's university.
+        If the user's active_university_name is set - a
+        field which determines which university alias the user
+        is currently using - the list of alias names will have
+        this particular alias removed and the *original*
+        university name added at the beginning of the list.
+
+        Returns:
+            list[str]: List of university alias names.
+        """
         if not self.university: return []
 
         university_public = UniversityPublicWithAliases.model_validate(self.university)
