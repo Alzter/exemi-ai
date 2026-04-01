@@ -282,6 +282,15 @@ async def commit_canvas_units(
 
     Preconditions (call these functions first):
     - POST /canvas/terms
+
+    Raises:
+        HTTPException:
+            If NO units are detected from the user's Canvas
+            account, assume that something has gone wrong,
+            delete the user's Canvas token from the system,
+            log the user out of the system by raising a
+            HTTPException, and force the user to regenerate
+            a Canvas token to (hopefully) fix the issue.
     """
 
     result : CanvasUnitsResult = await canvas_get_units(
@@ -293,6 +302,22 @@ async def commit_canvas_units(
 
     canvas_units : list[CanvasUnit] = result.units
     active_university_name : str = result.university_name
+
+    # If the system was NOT able to pick up any
+    # units from the user's Canvas page, assume
+    # something has gone wrong and raise an exception.
+    # Also wipe the user's magic hash.
+    if not canvas_units:
+
+        user.sqlmodel_update(
+            {"magic_hash" : None}
+        )
+        session.add(user)
+        session.commit()
+
+        raise HTTPException(status_code=500, detail="Please log in again. If you have trouble accessing the system, please contact Alexander Small.")
+        return []
+
 
     canvas_unit_colours : dict[int,str] = await canvas_get_unit_colours(
         user=user,
@@ -310,8 +335,6 @@ async def commit_canvas_units(
         user=user,
         session=session
     )
-
-    if not canvas_units: return []
 
     canvas_ids = [t.id for t in canvas_units]
     
@@ -870,6 +893,9 @@ async def sync_canvas_to_db(
     
     try:
         await commit_canvas_units(user=user, session=session, magic=magic)
+    except HTTPException as e:
+        session.rollback()
+        raise e
     except Exception as e:
         session.rollback()
         raise HTTPException(status_code=500, detail=f"Error downloading units from Canvas! Error message: {str(e)}")
