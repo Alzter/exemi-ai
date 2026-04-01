@@ -16,9 +16,18 @@ interface Slide {
 
 export default function Onboarding({session, setSession, setMagicValid, logOut} : any) {
 
+  const [isSwinburneOnlineStudent, setIsSwinburneOnlineStudent] = useState<boolean|null>(null);
+
   const UNIVERSITY = session.user.university_name
   const ctx = useExemiCanvasPageContext()
   const canvasSubdomain = instructureSubdomainFromCanvasHref(ctx.href)
+  const institutionForLinks =
+    isSwinburneOnlineStudent ? "swinburneonline" : (typeof UNIVERSITY === 'string' && UNIVERSITY.trim()) || canvasSubdomain || '';
+  const CANVAS_SETTINGS_LINK = institutionForLinks
+    ? `https://${institutionForLinks}.instructure.com/profile/settings`
+    : '';
+  
+  const isSwinburneStudent = UNIVERSITY.trim() == "swinburne" || canvasSubdomain == "swinburne";
 
   useEffect(() => {
     if (!isExemiExtensionIframe()) return
@@ -36,7 +45,7 @@ export default function Onboarding({session, setSession, setMagicValid, logOut} 
     }
   }, [])
 
-  const slides : Slide[] = [
+  let slides : Slide[] = [
     {
       photoURL: "",
       text:(<p style={{fontSize:"1.5em"}}>
@@ -45,7 +54,15 @@ export default function Onboarding({session, setSession, setMagicValid, logOut} 
     },
     {
       photoURL: "/assets/onboarding_slides/1.png",
-      text: (
+      text: institutionForLinks ? (
+        <p>
+          Click{' '}
+          <a href={CANVAS_SETTINGS_LINK} target="_blank" rel="noopener noreferrer">
+            here
+          </a>{' '}
+          to open your Canvas account settings page.
+        </p>
+      ) : (
         <p>First, open your Canvas account settings page.</p>
       ),
     },
@@ -74,6 +91,32 @@ export default function Onboarding({session, setSession, setMagicValid, logOut} 
       ),
     }
   ]
+
+  // IF the student is from Swinburne, ask them FIRST
+  // if they are a Swinburne Online student BEFORE
+  // proceeding.
+  if (isSwinburneStudent && !isExemiExtensionIframe()){
+    slides = [
+    {
+      photoURL: "",
+      text:(
+        <div>
+          <p style={{fontSize:"1.5em"}}>
+          Are you a Swinburne Online student?
+          </p>
+          <div className="input-row" style={{minHeight:"4em"}}>
+            <button onClick={() => {
+              setIsSwinburneOnlineStudent(false);
+              next();
+            }}>No</button>
+            <button onClick={() => {
+              setIsSwinburneOnlineStudent(true);
+              next();
+            }}>Yes</button>
+          </div>
+        </div>)
+    }, ...slides];
+  };
 
   const [progress, setProgress] = useState<number>(0)
   const [automationPrefill, setAutomationPrefill] = useState<{
@@ -119,6 +162,14 @@ export default function Onboarding({session, setSession, setMagicValid, logOut} 
     setProgress((prev) => prev + 1);
   }
   
+  const awaitingUserConfirmDialog : boolean = (isSwinburneStudent && !isExemiExtensionIframe() && isSwinburneOnlineStudent == null);
+  const disableNextButton : boolean = (progress >= slides.length - 1) || awaitingUserConfirmDialog;
+
+  useEffect(() => {console.log("Awaiting confirm dialog: " + awaitingUserConfirmDialog);});
+  useEffect(() => {console.log("Disable Next Button: " + disableNextButton);});
+  useEffect(() => {console.log("Is Online Student: " + isSwinburneOnlineStudent);});
+  useEffect(() => {console.log(isSwinburneOnlineStudent == null);});
+
   const {photoURL, text} = slides[progress];
 
   const progress_bar_width : string = ((progress / (slides.length - 1)) * 100).toString() + "%";
@@ -158,7 +209,7 @@ export default function Onboarding({session, setSession, setMagicValid, logOut} 
         ) : null}
 
         <button className="back" onClick={back}>{"<"} Back</button>
-        {progress < slides.length - 1 ? (
+        {!disableNextButton ? (
           <button className="next" onClick={next}>Next {">"}</button>
         ) : null}
       </div>
