@@ -95,6 +95,7 @@ async def chat(
     user : User,
     magic : str,
     session : Session,
+    system_prompt : str | None = None,
     unit_id : int | None = None
 ) -> list[BaseMessage]:
     """
@@ -103,6 +104,10 @@ async def chat(
     
     Args:
         messages (list[dict]): List of messages in OpenAI format.
+        system_prompt (str):
+            System prompt to use for the model.
+            If not given, uses the user's system prompt (routers/llm_prompt.get_system_prompt).
+            Defaults to None.
         unit_id (int | None, optional): Which unit to focus on. If not given, provides information for all units. Defaults to None.
 
     Raises:
@@ -114,11 +119,14 @@ async def chat(
 
     if not model: raise HTTPException(status_code=500, detail="Error reaching LLM: Ollama server offline")
 
+    if not system_prompt:
+        system_prompt = await get_system_prompt(user=user, session=session, unit_id=unit_id)
+
     tools : list[BaseTool] = create_tools(user=user, magic=magic, session=session)
 
     agent = create_agent(
         model=model,
-        system_prompt=await get_system_prompt(user=user, session=session, unit_id=unit_id),
+        system_prompt=system_prompt,
         tools=tools
     )
 
@@ -130,7 +138,7 @@ async def chat(
     
     try:
         response_messages : list[BaseMessage] = response["messages"]
-        response_text = str(response_messages[-1].content)
+        # response_text = str(response_messages[-1].content)
     except:
         raise HTTPException(status_code=500, detail=f"LLM message not found in response.\nLLM response: {response}")
     
@@ -142,6 +150,7 @@ async def chat_stream(
     user : User,
     magic : str,
     session : Session,
+    system_prompt : str | None = None,
     unit_id : int | None = None,
     end_function : Callable | None = None,
     end_function_kwargs : dict[str, Any] | None = None,
@@ -163,6 +172,10 @@ async def chat_stream(
     
     Args:
         messages (list[dict]): List of messages in OpenAI format.
+        system_prompt (str):
+            System prompt to use for the model.
+            If not given, uses the user's system prompt (routers/llm_prompt.get_system_prompt).
+            Defaults to None.
         unit_id (int | None, optional): Which unit to focus on. If not given, provides information for all units. Defaults to None.
         end_function (Callable | None, optional): Arbitrary function to execute after the LLM response is complete. Defaults to None.
         end_function_kwargs (dict[str, Any], optional):
@@ -179,11 +192,14 @@ async def chat_stream(
     
     if not model: raise HTTPException(status_code=500, detail="Error reaching LLM: Ollama server offline")
 
+    if not system_prompt:
+        system_prompt = await get_system_prompt(user=user, session=session, unit_id=unit_id)
+
     tools : list[BaseTool] = create_tools(user=user, magic=magic, session=session)
 
     agent = create_agent(
         model=model,
-        system_prompt=await get_system_prompt(user=user, session=session, unit_id=unit_id),
+        system_prompt=system_prompt,
         tools=tools
     )
     
