@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router"
-import {type User} from '../../models';
 import UniversitySelector from "../../components/admin/university_selector";
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
-import { MdAdd, MdDelete } from "react-icons/md";
+import { MdAdd, MdDelete, MdSave } from "react-icons/md";
 
-export default function EditUniAliases({session} : any){
+export default function ConfigureUniversities({session} : any){
 
     type UniversityAlias = {
         id : number,
@@ -30,6 +29,8 @@ export default function EditUniAliases({session} : any){
     };
 
     const [universityName, setUniversityName] = useState<string>("");
+    const [universityCanvasUrl, setUniversityCanvasUrl] = useState<string>("");
+    const [savedUniversityCanvasUrl, setSavedUniversityCanvasUrl] = useState<string>("");
     const [universityAliases, setUniversityAliases] = useState<UniversityAlias[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
@@ -81,7 +82,51 @@ export default function EditUniAliases({session} : any){
         };
 
         let data = await response.json();
+        setUniversityCanvasUrl(data.canvas_url ?? "");
+        setSavedUniversityCanvasUrl(data.canvas_url ?? "");
         parseAliases(data.aliases);
+    };
+
+    async function saveUniversityUrl(event : React.FormEvent<HTMLFormElement>){
+        event.preventDefault();
+        if (!universityName) return;
+
+        setLoading(true);
+        setError(null);
+
+        const trimmedCanvasUrl = universityCanvasUrl.trim();
+        const response = await fetch(backendURL + "/university/" + encodeURIComponent(universityName), {
+            headers:{
+                "Authorization" : "Bearer " + session.token,
+                "Content-Type":"application/json",
+                accept:"application/json"
+            },
+            method: "PATCH",
+            body: JSON.stringify({
+                canvas_url: trimmedCanvasUrl.length > 0 ? trimmedCanvasUrl : null
+            })
+        });
+
+        if (!response.ok){
+            let message = "Error updating university URL!";
+            try{
+                let data = await response.json();
+                if (typeof data.detail === "string"){
+                    message = data.detail;
+                }
+            } finally {
+                setError(message);
+                setLoading(false);
+                return;
+            };
+        };
+
+        const data = await response.json();
+        const updatedCanvasUrl = data.canvas_url ?? "";
+        setUniversityCanvasUrl(updatedCanvasUrl);
+        setSavedUniversityCanvasUrl(updatedCanvasUrl);
+        await getAliases(universityName);
+        setLoading(false);
     };
 
     async function addAlias(event : React.SubmitEvent<HTMLFormElement>){
@@ -164,15 +209,27 @@ export default function EditUniAliases({session} : any){
                     disabled={loading}
                 />
             </div>
-            <div className="input-row">
-                <label
-                    htmlFor="url"
-                >Canvas URL:</label>
-                <input
-                    id="url"
-                    name="url"
-                />
-            </div>
+            <form onSubmit={saveUniversityUrl} className="input-row">
+                    <label
+                        htmlFor="canvas_url"
+                    >Canvas URL:</label>
+                    <input
+                        id="canvas_url"
+                        name="canvas_url"
+                        type="url"
+                        placeholder="https://example.instructure.com"
+                        value={universityCanvasUrl}
+                        onChange={(event) => setUniversityCanvasUrl(event.target.value)}
+                        disabled={loading || !universityName}
+                    />
+                    <button
+                        type="submit"
+                        disabled={loading || !universityName || universityCanvasUrl.trim() === savedUniversityCanvasUrl.trim()}
+                    >
+                        <MdSave/>
+                        Save URL
+                    </button>
+            </form>
             <h2>Manage Aliases</h2>
             <p>
                 Each university name references a Canvas provider URL.

@@ -454,7 +454,7 @@ div.double-column-buttons button{
   justify-content: center;
 }
 
-div.input-row {
+.input-row {
   display: flex;
   flex-direction: row;
   gap:1em;
@@ -464,31 +464,31 @@ div.input-row {
   height:2.5em;
 }
 
-div.input-row *{
+.input-row *{
   display:flex;
   height:100%;
   align-items: center;
   text-align: left;
 }
 
-div.input-row label{
+.input-row label{
   width:10em;
   overflow-x:hidden;
   white-space: nowrap;
 }
 
-div.input-row input, div.input-row select{
+.input-row input, .input-row select{
   margin: 0;
   padding: 0em 0.5em;
   height:100%;
 }
 
-div.input-row button{
+.input-row button{
   max-width: fit-content;
   padding: 0.5rem 1rem;
 }
 
-div.input-row p{
+.input-row p{
   width:100%;
   border: 2px solid #999;
   background-color: #ccc;
