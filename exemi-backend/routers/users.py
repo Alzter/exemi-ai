@@ -9,7 +9,7 @@ import jwt
 from ..dependencies import get_current_magic, get_session, get_secret_key, encrypt_magic
 from ..dependencies import get_current_user as root_get_current_user
 from ..dependencies import is_magic_valid as root_is_magic_valid
-from ..dependencies import create_university_if_not_exists, get_fallback_providers, get_fallback_providers_from_user
+from ..dependencies import create_university_if_not_exists, get_fallback_providers
 from datetime import datetime, timedelta, timezone
 from pwdlib import PasswordHash
 PasswordHasher = PasswordHash.recommended()
@@ -168,9 +168,11 @@ async def is_magic_valid(
     Returns:
         Literal[True]: If magic is valid, returns True.
     """
-    university = current_user.university_name
+    user_public = UserPublic.model_validate(current_user)
 
-    fallback_universities = get_fallback_providers_from_user(current_user)
+    university = user_public.actual_university_name
+
+    fallback_universities = user_public.fallback_university_names
 
     if not university: raise HTTPException(status_code=401, detail="The current user must have a university assigned")
     valid = await root_is_magic_valid(magic=current_magic, provider=university, fallback_providers=fallback_universities)
@@ -294,7 +296,7 @@ async def create_admin_user(
         fallback_providers = get_fallback_providers(data.university_name, session=session)
 
     if data.magic is not None:
-        extra_data["magic_hash"] = await encrypt_magic(
+        extra_data["magic_hash"], extra_data["active_university_name"] = await encrypt_magic(
             data.magic,
             data.university_name,
             fallback_providers=fallback_providers
@@ -355,7 +357,7 @@ async def create_user(
     fallback_providers = get_fallback_providers(data.university_name, session=session)
 
     if data.magic is not None:
-        extra_data["magic_hash"] = await encrypt_magic(
+        extra_data["magic_hash"], extra_data["active_university_name"] = await encrypt_magic(
             data.magic,
             data.university_name,
             fallback_providers=fallback_providers
@@ -403,7 +405,7 @@ async def update_user(
     fallback_providers = get_fallback_providers(university_name, session=session)
 
     if new_data.magic is not None:
-        extra_data["magic_hash"] = await encrypt_magic(
+        extra_data["magic_hash"], extra_data["active_university_name"] = await encrypt_magic(
             new_data.magic,
             university_name,
             fallback_providers=fallback_providers

@@ -83,7 +83,6 @@ class UsersAssignments(SQLModel, UTCModel, table=True):
 class UserBase(SQLModel):
     username : str = Field(max_length=255, unique=True)
     university_name : str | None = Field(default=None, max_length=255, index=True, foreign_key='university.name', ondelete="SET NULL")
-    active_university_name : str | None = Field(default=None, max_length=255, index=True)
 
 class User(UserBase, table=True):
     id : int | None = Field(primary_key=True, default=None)
@@ -97,6 +96,28 @@ class User(UserBase, table=True):
     reminders : list["Reminder"] = Relationship(back_populates="user", cascade_delete=True)
     university : University = Relationship(back_populates="users")
     biographies : list["UserBiography"] = Relationship(back_populates="user", cascade_delete=True)
+    active_university_name : str | None = Field(default=None, max_length=255, index=True)
+
+    @property
+    def actual_university_name(self) -> str | None:
+        return self.active_university_name or self.university_name
+
+    @property
+    def fallback_university_names(self) -> list[str]:
+        if not self.university: return []
+
+        university_public = UniversityPublicWithAliases.model_validate(self.university)
+        
+        aliases : list[UniversityAliasPublic] = university_public.aliases
+        alias_names : list[str] = [a.name for a in aliases]
+
+        if self.active_university_name != self.university_name and self.active_university_name is not None:
+            if self.active_university_name in alias_names:
+                alias_names.remove(self.active_university_name)
+            
+            alias_names.insert(0, self.university_name)
+        
+        return alias_names
 
 class UserPublic(UserBase):
     id : int
@@ -105,6 +126,9 @@ class UserPublic(UserBase):
     password_hash : str
     magic_hash : str | None = None
     university : UniversityPublicWithAliases | None = None
+    active_university_name : str | None
+    actual_university_name : str | None
+    fallback_university_names : list[str]
 
 class UserCreate(UserBase):
     password : str
