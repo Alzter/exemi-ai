@@ -82,6 +82,85 @@ async def test_chat_stream(
         }
     )
 
+
+@router.post("/test_chat/")
+async def test_chat_with_messages(
+    messages : list[dict[str,str]],
+    system_prompt : str | None = None,
+    user : User = Depends(get_current_user),
+    magic : str = Depends(get_current_magic),
+    session : Session = Depends(get_session)
+) -> list[BaseMessage]:
+    """
+    Test the chat functionality of the LLM (ADMIN ONLY).
+
+    Args:
+        messages (list[dict[str,str]]):
+            List of OpenAI chat messages to send to the model
+            in the format {"role":(user/assistant), "content":...}
+        system_prompt (str):
+            System prompt to use for the model.
+            If not given, uses the user's system prompt.
+
+    Raises:
+        HTTPException: Raises a 401 if the current user is not an admin.
+
+    Returns:
+        str: The LLM's response.
+    """
+    if not user.admin: raise HTTPException(status_code=401, detail="Unauthorised")
+    # messages = [{"role":"user","content":message}]
+    response_messages : list[BaseMessage] = await chat(
+        user=user,
+        magic=magic,
+        session=session,
+        messages=messages,
+        system_prompt=system_prompt
+    )
+    return response_messages
+
+@router.post("/test_stream_chat/")
+async def test_chat_stream_with_messages(
+    messages : list[dict[str,str]],
+    background_tasks : BackgroundTasks,
+    end_function = None,
+    user : User = Depends(get_current_user),
+    magic : str = Depends(get_current_magic),
+    session : Session = Depends(get_session)
+) -> StreamingResponse:
+    """
+    Test the chat functionality of the LLM using a streaming response (ADMIN ONLY).
+
+    Args:
+        messages (list[dict[str,str]]):
+            List of OpenAI chat messages to send to the model
+            in the format {"role":(user/assistant), "content":...}
+
+    Raises:
+        HTTPException: Raises a 401 if the current user is not an admin.
+
+    Yields:
+        str: The LLM's response as chunks.
+    """
+    if not user.admin: raise HTTPException(status_code=401, detail="Unauthorised")
+    # messages = [{"role":"user","content":message}]
+
+    return StreamingResponse(
+        chat_stream(
+            user=user,
+            magic=magic,
+            session=session,
+            messages=messages,
+            background_tasks=background_tasks
+        ),
+        media_type="text/plain",
+        headers={
+            "Cache-Control": "no-cache, no-transform",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
+
 @router.get("/conversation/{id}", response_model=ConversationPublicWithMessages)
 async def get_conversation(id : int, user : User = Depends(get_current_user), session : Session = Depends(get_session)):
     """

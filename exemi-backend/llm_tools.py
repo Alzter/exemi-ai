@@ -4,6 +4,7 @@ from .routers.reminders import create_reminder, delete_reminder
 from sqlmodel import Session
 from .models import User, UserBiographyCreate, UserBiography, ReminderCreate
 from .date_utils import parse_timestamp
+from .dependencies import get_engine
 
 def create_tools(user : User, magic : str, session : Session) -> list[BaseTool]:
 
@@ -64,15 +65,27 @@ def create_tools(user : User, magic : str, session : Session) -> list[BaseTool]:
         """
         
         # Convert due date into an Australian timestamp
-        due_at = datetime.fromisoformat(due_date)
+        try:
+            due_at = datetime.fromisoformat(due_date)
+        except ValueError:
+            return "Error creating reminder, please do NOT try again"
+
         due_at = parse_timestamp(due_at)
 
         if not due_at: return "Error creating reminder, please do NOT try again"
 
         data = ReminderCreate(assignment_name=task_name, due_at=due_at, description=description)
 
-        create_reminder(data, user=user, session=session)
-        return "Reminder created successfully!"
+        try:
+            # Use an isolated DB session for tool-side writes.
+            # LangChain tool execution can re-enter request code paths, and
+            # sharing the request-scoped session can trigger transaction-state
+            # conflicts when commit() is called from inside a tool.
+            with Session(get_engine()) as tool_session:
+                create_reminder(data, user=user, session=tool_session)
+            return "Reminder created successfully!"
+        except Exception:
+            return "Error creating reminder, please do NOT try again"
     
     @tool
     def remove_reminder(id : int) -> str:
@@ -87,7 +100,11 @@ def create_tools(user : User, magic : str, session : Session) -> list[BaseTool]:
         Returns:
             str: Reminder deletion success or failure message.
         """
-        delete_reminder(id=id, user=user, session=session)
-        return "Reminder deleted successfully!"
+        try:
+            with Session(get_engine()) as tool_session:
+                delete_reminder(id=id, user=user, session=tool_session)
+            return "Reminder deleted successfully!"
+        except Exception:
+            return "Error deleting reminder, please do NOT try again"
 
     return [set_reminder, remove_reminder, add_information_to_student_biography]
