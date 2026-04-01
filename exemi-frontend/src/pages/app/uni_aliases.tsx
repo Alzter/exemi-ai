@@ -295,6 +295,11 @@ export default function ConfigureUniversities({session} : any){
         setLoading(true);
         setError(null);
 
+        if (!window.confirm("Are you sure you want to delete this university? This is IRREVERSIBLE!")){
+            setLoading(false);
+            return;
+        };
+
         const response = await fetch(backendURL + "/university/" + encodeURIComponent(universityName), {
             headers:{
                 "Authorization" : "Bearer " + session.token,
