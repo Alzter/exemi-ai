@@ -1,5 +1,5 @@
 from pydantic import BaseModel, TypeAdapter
-from ..models import User, UsersAssignments, UsersUnits, UsersUnitsPublic
+from ..models import User, UserPublic, UsersAssignments, UsersUnits, UsersUnitsPublic
 from ..models import University, UniversityPublic, UniversityPublicWithAliases, UniversityAlias, UniversityAliasPublic, UniversityAliasCreate, UniversityAliasUpdate
 from ..models import Term, TermPublic, TermPublicWithUnits
 from ..models import Unit,  UnitPublic, UnitPublicWithAssignmentGroups
@@ -15,7 +15,7 @@ import json
 
 router = APIRouter()
 
-@router.get("/university", response_model=list[UniversityPublic])
+@router.get("/university", response_model=list[UniversityPublicWithAliases])
 def get_universities(
     session : Session = Depends(get_session),
     current_user : User = Depends(get_current_user)
@@ -316,7 +316,8 @@ def get_units_list_json(
     """
     Returns the student's units in JSON format.
     """
-    university_name = user.active_university_name or user.university_name
+    user_public = UserPublic.model_validate(user)
+    university_name = user_public.actual_university_name
 
     user_units = get_user_units(offset=0, limit=100, user=user, session=session)
     user_units = [UsersUnitsPublic.model_validate(u) for u in user_units]
@@ -546,7 +547,8 @@ def get_assignment(
 #     units_by_id : dict[int, Unit] = {u.id : u for u in units}
 #     units_assignments : dict[int, list[AssignmentPublic]] = {}
 
-#     university_name = user.active_university_name or user.university_name
+#     user_public = UserPublic.model_validate(user)
+#     university_name = user_public.actual_university_name
 
 #     for unit in units:
 
@@ -618,7 +620,8 @@ def get_assignments_list_json(
     #units_by_id: dict[int, Unit] = {u.id: u for u in units}
     units_assignments_json: list[UnitAssignmentsJSON] = []
 
-    university_name = user.active_university_name or user.university_name
+    user_public = UserPublic.model_validate(user)
+    university_name = user_public.actual_university_name
 
     for unit in units:
         if unit_id is not None and unit.id != unit_id:

@@ -42,6 +42,10 @@ div.error{
   border: 2px solid #cc4444;
   text-align: center;
   padding: 1em;
+  max-height: 10em;
+  overflow-y: scroll;
+  overflow-x: hidden;
+  overflow-wrap: break-word;
 }
 
 div.error p{

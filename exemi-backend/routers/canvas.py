@@ -7,7 +7,7 @@ from ..models import AssignmentGroup, AssignmentGroupCreate, AssignmentGroupPubl
 from ..models_canvas import CanvasTerm, CanvasUnit, CanvasAssignment, CanvasSubmission, CanvasAssignmentWithSubmission, CanvasAssignmentGroup
 from sqlmodel import Session, select
 from fastapi import APIRouter, Depends, HTTPException
-from ..dependencies import get_session, get_current_user, get_current_magic, get_fallback_providers_from_user
+from ..dependencies import get_session, get_current_user, get_current_magic
 from ..canvas_api import query_canvas
 from pydantic import BaseModel
 from typing import Literal
@@ -192,14 +192,15 @@ async def canvas_get_units(
     user : User = Depends(get_current_user),
     magic : str = Depends(get_current_magic)
 ) -> CanvasUnitsResult:#tuple[list[CanvasUnit], str]:
+    user_public = UserPublic.model_validate(user)
 
     params = {"include":"term"}
     if exclude_complete_units: params["enrollment_state"] = "active"
     raw_units, active_university_name = await query_canvas(
         path="courses",
         magic=magic,
-        provider=user.university_name,
-        fallback_providers=get_fallback_providers_from_user(user),
+        provider=user_public.actual_university_name,
+        fallback_providers=user_public.fallback_university_names,
         max_items=50,
         params=params
     )
@@ -465,14 +466,16 @@ async def canvas_get_assignment_groups(
     user : User = Depends(get_current_user),
     magic : str = Depends(get_current_magic),
 ) -> CanvasAssignmentGroupsResult:#tuple[list[CanvasAssignmentGroup], str]:
+    user_public = UserPublic.model_validate(user)
+
     path = f"courses/{unit_id}/assignment_groups"
     params = {"include":["submission", "assignments"]}
 
     raw_assignment_groups, active_university_name = await query_canvas(
         path=path,
         magic=magic,
-        provider=user.university_name,
-        fallback_providers=get_fallback_providers_from_user(user),
+        provider=user_public.actual_university_name,
+        fallback_providers=user_public.fallback_university_names,
         max_items=50,
         params=params
     )
@@ -487,14 +490,16 @@ async def canvas_get_assignments(
     user : User = Depends(get_current_user),
     magic : str = Depends(get_current_magic)
 ) -> CanvasAssignmentsResult:#tuple[list[CanvasAssignmentWithSubmission], str]:
+    user_public = UserPublic.model_validate(user)
+
     path = f"courses/{unit_id}/assignments"
     params = {"include":"submission"}
-
+    
     raw_assignments, active_university_name = await query_canvas(
         path=path,
         magic=magic,
-        provider=user.university_name,
-        fallback_providers=get_fallback_providers_from_user(user),
+        provider=user_public.actual_university_name,
+        fallback_providers=user_public.fallback_university_names,
         max_items=50,
         params=params
     )
