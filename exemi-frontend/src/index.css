@@ -398,6 +398,7 @@ form.magic{
 }
 
 .chatbox *{
+  min-height: 4em;
   height: 4em;
 }
 
@@ -420,8 +421,12 @@ wrapping the text */
   }
 }
 
-.chatbox button{
+.chatbox textarea+button{
   max-width: fit-content;
+}
+
+.chatbox button{
+  /* max-width: fit-content; */
   padding: 0.5em 1em;
   height:auto;
 }
@@ -461,6 +466,7 @@ div.input-row {
   width:100%;
   text-align: left;
   /* padding:0.4em 0em; */
+  min-height:2.5em;
   height:2.5em;
 }
 
@@ -484,8 +490,17 @@ div.input-row input, div.input-row select{
 }
 
 div.input-row button{
-  max-width: fit-content;
+  /* max-width: fit-content; */
   padding: 0.5rem 1rem;
+}
+
+div.input-row button{
+  /* max-width: fit-content; */
+  padding: 0.5rem 1rem;
+}
+
+div.input-row :not(button)+ button{
+  max-width: fit-content;
 }
 
 div.input-row p{
