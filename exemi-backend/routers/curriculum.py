@@ -1,6 +1,6 @@
 from pydantic import BaseModel, TypeAdapter
 from ..models import User, UserPublic, UsersAssignments, UsersUnits, UsersUnitsPublic
-from ..models import University, UniversityPublic, UniversityPublicWithAliases, UniversityAlias, UniversityAliasPublic, UniversityAliasCreate, UniversityAliasUpdate
+from ..models import University, UniversityCreate, UniversityUpdate, UniversityPublic, UniversityPublicWithAliases, UniversityAlias, UniversityAliasPublic, UniversityAliasCreate, UniversityAliasUpdate
 from ..models import Term, TermPublic, TermPublicWithUnits
 from ..models import Unit,  UnitPublic, UnitPublicWithAssignmentGroups
 from ..models import AssignmentGroup, AssignmentGroupPublicWithUnit, AssignmentGroupPublicWithAssignments
@@ -15,6 +15,64 @@ import json
 
 router = APIRouter()
 
+@router.post("/university", response_model=UniversityPublic)
+def create_university(
+    data : UniversityCreate,
+    session : Session = Depends(get_session),
+    current_user : User = Depends(get_current_user)
+):
+    """
+    Create a new university object (ADMIN ONLY).
+
+    Args:
+        data (UniversityCreate): The university object to create.
+
+    Raises:
+        HTTPException: Raises a 401 if the user is not an administrator.
+
+    Returns:
+        UniversityPublic: The university object.
+    """
+    if not current_user.admin: raise HTTPException(status_code=401, detail="Unauthorised")
+    
+    university = University.model_validate(data)
+    session.add(university)
+    session.commit()
+    session.refresh(university)
+    return university
+
+@router.patch("/university/{name}", response_model=UniversityPublic)
+def update_university(
+    name : str,
+    new_data : UniversityUpdate,
+    session : Session = Depends(get_session),
+    current_user : User = Depends(get_current_user)
+):
+    """
+    Update a new university object (ADMIN ONLY).
+
+    Args:
+        name (str): The name of the university to update.
+        new_data (UniversityUpdate): The university update data.
+
+    Raises:
+        HTTPException: Raises a 401 if the user is not an administrator.
+        HTTPException: Raises a 404 if the university does not exist.
+
+    Returns:
+        UniversityPublic: The university object.
+    """
+    if not current_user.admin: raise HTTPException(status_code=401, detail="Unauthorised")
+    existing_university = session.get(University, name)
+    if not existing_university: raise HTTPException(status_code=404, detail="University not found")
+
+    new_data_dict = new_data.model_dump(exclude_unset=False)
+    existing_university.sqlmodel_update(new_data_dict)
+    session.add(existing_university)
+    session.commit()
+    session.refresh(existing_university)
+    return existing_university    
+
 @router.get("/university", response_model=list[UniversityPublicWithAliases])
 def get_universities(
     session : Session = Depends(get_session),
@@ -22,6 +80,9 @@ def get_universities(
 ):
     """
     Obtain all universities (ADMIN ONLY).
+
+    Raises:
+        HTTPException: Raises a 401 if the user is not an administrator.
 
     Returns:
         List[University]: The universities.

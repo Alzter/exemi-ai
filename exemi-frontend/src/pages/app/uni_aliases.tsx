@@ -150,12 +150,7 @@ export default function EditUniAliases({session} : any){
 
     return (
         <div className="form wide">
-            <h1>Manage University Aliases</h1>
-            <p>
-                Each university name references a Canvas provider URL.
-                However, you may want to add additional providers
-                (aliases) in case the original one fails.
-            </p>
+            <h1>Configure Universities</h1>
             <div className="input-row">
                 <label
                 htmlFor="university_name">
@@ -169,6 +164,21 @@ export default function EditUniAliases({session} : any){
                     disabled={loading}
                 />
             </div>
+            <div className="input-row">
+                <label
+                    htmlFor="url"
+                >Canvas URL:</label>
+                <input
+                    id="url"
+                    name="url"
+                />
+            </div>
+            <h2>Manage Aliases</h2>
+            <p>
+                Each university name references a Canvas provider URL.
+                However, you may want to add additional providers
+                (aliases) in case the original one fails.
+            </p>
             <div className="conditional">
                 <form onSubmit={addAlias}>
                     <div className="input-row">

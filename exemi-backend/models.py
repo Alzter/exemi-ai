@@ -18,12 +18,16 @@ class UTCModel(BaseModel):
 
 class UniversityBase(SQLModel):
     name : str = Field(primary_key=True, index=True, max_length=255)
+    canvas_url : str | None = Field(default=None, max_length = 255)
 
 class University(UniversityBase, table=True):
     aliases : list["UniversityAlias"] = Relationship(back_populates="university", cascade_delete=True)
     users : list["User"] = Relationship(back_populates="university")
 
 class UniversityCreate(UniversityBase): pass
+
+class UniversityUpdate(SQLModel):
+    canvas_url : str | None = None
 
 class UniversityAliasBase(SQLModel):
     name : str = Field(max_length=255)

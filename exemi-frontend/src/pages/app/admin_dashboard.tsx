@@ -35,7 +35,7 @@ export default function AdminDashboard({session, setSession, logOut} : any) {
         </button>
         <button onClick={() => navigate("/uni_aliases")}>
           <MdEdit/>
-          Configure University Aliases
+          Configure Universities
         </button>
       </div>
 
