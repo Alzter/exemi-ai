@@ -377,8 +377,8 @@ form.magic{
 }
 
 .chatbox select{
-  min-width:12em;
-  max-width:12em;
+  min-width:8em;
+  max-width:8em;
   height:auto;
 }
 
@@ -390,7 +390,7 @@ form.magic{
   padding:32px;
   max-width: 42em;
   margin:auto;
-  gap:1em;
+  /* gap:1em; */
 }
 
 .chatbox *{
