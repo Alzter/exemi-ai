@@ -80,10 +80,7 @@ def parse_canvas_term(data : CanvasTerm) -> dict | None:
     """
 
     if (not data.start_at or not data.end_at):
-    #    return None
-        from datetime import datetime
-        data.start_at = datetime.now()
-        data.end_at = datetime.now()
+        return None
 
     return {
         "canvas_id" : data.id,
@@ -219,6 +216,7 @@ async def canvas_get_units(
 
 @router.get("/canvas/units/colours", response_model=dict[int, str])
 async def canvas_get_unit_colours(
+    university_name : str,
     user : User = Depends(get_current_user),
     magic : str = Depends(get_current_magic)
 ):
@@ -233,7 +231,7 @@ async def canvas_get_unit_colours(
     Colours are NOT preceded with a hashtag
     and are ALWAYS in uppercase.
     """
-    colours, _ = await query_canvas(path="users/self/colors", magic=magic, provider="swinburne")
+    colours, _ = await query_canvas(path="users/self/colors", magic=magic, provider=university_name)
     colours = json.loads(colours)["custom_colors"]
     
     colours_dict = {} 
@@ -297,7 +295,8 @@ async def commit_canvas_units(
 
     canvas_unit_colours : dict[int,str] = await canvas_get_unit_colours(
         user=user,
-        magic=magic
+        magic=magic,
+        university_name=active_university_name
     )
 
     canvas_unit_nicknames : dict[int,str] = {}
