@@ -98,7 +98,7 @@ async def encrypt_magic(
     magic : str,
     university_name : str | None,
     fallback_providers : list[str] = [],
-    expiry : timedelta | None = timedelta(weeks=4)
+    expiry : timedelta | None = timedelta(days=365)
 ) -> [str, str]:
     """
     Encrypts a given Canvas access token using a
@@ -120,7 +120,7 @@ async def encrypt_magic(
         fallback_providers (list[str], optional):
             A list of backup Canvas providers incase the first one fails. Defaults to [].
         expiry (timedelta | None, optional):
-            How long the encrypted Canvas access token should be valid for. Defaults to timedelta(weeks=4).
+            How long the encrypted Canvas access token should be valid for. Defaults to timedelta(days=365).
 
     Raises:
         HTTPException:
