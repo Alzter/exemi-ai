@@ -19,11 +19,6 @@ export default function Onboarding({session, setSession, setMagicValid, logOut} 
   const UNIVERSITY = session.user.university_name
   const ctx = useExemiCanvasPageContext()
   const canvasSubdomain = instructureSubdomainFromCanvasHref(ctx.href)
-  const institutionForLinks =
-    (typeof UNIVERSITY === 'string' && UNIVERSITY.trim()) || canvasSubdomain || ''
-  const CANVAS_SETTINGS_LINK = institutionForLinks
-    ? `https://${institutionForLinks}.instructure.com/profile/settings`
-    : ''
 
   useEffect(() => {
     if (!isExemiExtensionIframe()) return
@@ -50,15 +45,7 @@ export default function Onboarding({session, setSession, setMagicValid, logOut} 
     },
     {
       photoURL: "/assets/onboarding_slides/1.png",
-      text: institutionForLinks ? (
-        <p>
-          Click{' '}
-          <a href={CANVAS_SETTINGS_LINK} target="_blank" rel="noopener noreferrer">
-            here
-          </a>{' '}
-          to open your Canvas account settings page.
-        </p>
-      ) : (
+      text: (
         <p>First, open your Canvas account settings page.</p>
       ),
     },
