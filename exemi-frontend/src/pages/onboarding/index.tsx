@@ -19,11 +19,17 @@ export default function Onboarding({session, setSession, setMagicValid, logOut} 
   const UNIVERSITY = session.user.university_name
   const ctx = useExemiCanvasPageContext()
   const canvasSubdomain = instructureSubdomainFromCanvasHref(ctx.href)
+  const customCanvasUrl =
+    typeof session.user.university?.canvas_url === 'string' && session.user.university.canvas_url.trim()
+      ? session.user.university.canvas_url.trim().replace(/\/+$/, '')
+      : ''
   const institutionForLinks =
     (typeof UNIVERSITY === 'string' && UNIVERSITY.trim()) || canvasSubdomain || ''
-  const CANVAS_SETTINGS_LINK = institutionForLinks
-    ? `https://${institutionForLinks}.instructure.com/profile/settings`
-    : ''
+  const CANVAS_SETTINGS_LINK = customCanvasUrl
+    ? `${customCanvasUrl}/profile/settings`
+    : institutionForLinks
+      ? `https://${institutionForLinks}.instructure.com/profile/settings`
+      : ''
 
   useEffect(() => {
     if (!isExemiExtensionIframe()) return

@@ -16,6 +16,14 @@ PasswordHasher = PasswordHash.recommended()
 LOGIN_SESSION_EXPIRY = timedelta(weeks=4)
 router = APIRouter()
 
+def get_university_canvas_url(university_name: str | None, session: Session) -> str | None:
+    if university_name is None:
+        return None
+    university = session.get(University, university_name)
+    if not university:
+        return None
+    return university.canvas_url
+
 @router.get("/users", response_model = list[UserPublic])
 def get_users(
     offset : int = 0,
@@ -172,10 +180,15 @@ async def is_magic_valid(
 
     university = user_public.actual_university_name
 
-    fallback_universities = user_public.fallback_university_names
+    fallback_universities = user_public.fallback_universities
 
     if not university: raise HTTPException(status_code=401, detail="The current user must have a university assigned")
-    valid = await root_is_magic_valid(magic=current_magic, provider=university, fallback_providers=fallback_universities)
+    valid = await root_is_magic_valid(
+        magic=current_magic,
+        provider=university,
+        fallback_providers=[(alias.name, alias.canvas_url) for alias in fallback_universities],
+        provider_canvas_url=current_user.university.canvas_url if current_user.university else None
+    )
     if not valid: raise HTTPException(status_code=401, detail="The current user's magic is not valid")
     return True
 
@@ -201,7 +214,11 @@ async def test_is_magic_valid(
         Literal[True]: If magic is valid, returns True.
     """
     if not current_user.admin: raise HTTPException(status_code=401, detail="Unauthorised")
-    valid = await root_is_magic_valid(magic=magic, provider=university, fallback_providers=fallback_universities)
+    valid = await root_is_magic_valid(
+        magic=magic,
+        provider=university,
+        fallback_providers=[(name, None) for name in fallback_universities]
+    )
     if not valid: raise HTTPException(status_code=401, detail="The current user's magic is not valid")
     return True
 
@@ -299,7 +316,8 @@ async def create_admin_user(
         extra_data["magic_hash"], extra_data["active_university_name"] = await encrypt_magic(
             data.magic,
             data.university_name,
-            fallback_providers=fallback_providers
+            fallback_providers=fallback_providers,
+            university_canvas_url=get_university_canvas_url(data.university_name, session=session)
         ) 
 
     user = User.model_validate(data, update = extra_data)
@@ -360,7 +378,8 @@ async def create_user(
         extra_data["magic_hash"], extra_data["active_university_name"] = await encrypt_magic(
             data.magic,
             data.university_name,
-            fallback_providers=fallback_providers
+            fallback_providers=fallback_providers,
+            university_canvas_url=get_university_canvas_url(data.university_name, session=session)
         )
     
     user = User.model_validate(data, update = extra_data)
@@ -408,7 +427,8 @@ async def update_user(
         extra_data["magic_hash"], extra_data["active_university_name"] = await encrypt_magic(
             new_data.magic,
             university_name,
-            fallback_providers=fallback_providers
+            fallback_providers=fallback_providers,
+            university_canvas_url=get_university_canvas_url(university_name, session=session)
         ) 
     
     user.sqlmodel_update(new_data_dict, update=extra_data)

@@ -35,7 +35,7 @@ export default function UniversitySelector({
         if (response.ok){
             let data = await response.json();
             // console.log(data);
-            let universities = data.map(d => d.name);
+            let universities = data.map((d: {name: string}) => d.name);
             // let userObjects = data as User[];
             setUniversityNames(universities);
             return;
@@ -59,6 +59,15 @@ export default function UniversitySelector({
     }, [refreshTrigger]);
 
     useEffect(() => {
+        if (universityNames.length === 0){
+            setUniversityName("");
+            return;
+        }
+
+        if (universityName && universityNames.includes(universityName)){
+            return;
+        }
+
         setUniversityName(universityNames[0]);
     }, [universityNames]);
 

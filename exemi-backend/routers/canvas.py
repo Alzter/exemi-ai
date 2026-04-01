@@ -17,6 +17,9 @@ import re
 
 router = APIRouter()
 
+def to_provider_candidates(fallback_aliases: list[UniversityAliasPublic]) -> list[tuple[str, str | None]]:
+    return [(a.name, a.canvas_url) for a in fallback_aliases]
+
 canvas_terms_adapter = TypeAdapter(list[CanvasTerm])
 canvas_units_adapter = TypeAdapter(list[CanvasUnit])
 canvas_assignment_group_adapter = TypeAdapter(list[CanvasAssignmentGroup])
@@ -200,7 +203,8 @@ async def canvas_get_units(
         path="courses",
         magic=magic,
         provider=user_public.actual_university_name,
-        fallback_providers=user_public.fallback_university_names,
+        provider_canvas_url=user_public.university.canvas_url if user_public.university else None,
+        fallback_providers=to_provider_candidates(user_public.fallback_universities),
         max_items=50,
         params=params
     )
@@ -232,7 +236,13 @@ async def canvas_get_unit_colours(
     Colours are NOT preceded with a hashtag
     and are ALWAYS in uppercase.
     """
-    colours, _ = await query_canvas(path="users/self/colors", magic=magic, provider=university_name)
+    university = user.university if user.university_name == university_name else None
+    colours, _ = await query_canvas(
+        path="users/self/colors",
+        magic=magic,
+        provider=university_name,
+        provider_canvas_url=university.canvas_url if university else None
+    )
     colours = json.loads(colours)["custom_colors"]
     
     colours_dict = {} 
@@ -475,7 +485,8 @@ async def canvas_get_assignment_groups(
         path=path,
         magic=magic,
         provider=user_public.actual_university_name,
-        fallback_providers=user_public.fallback_university_names,
+        provider_canvas_url=user_public.university.canvas_url if user_public.university else None,
+        fallback_providers=to_provider_candidates(user_public.fallback_universities),
         max_items=50,
         params=params
     )
@@ -499,7 +510,8 @@ async def canvas_get_assignments(
         path=path,
         magic=magic,
         provider=user_public.actual_university_name,
-        fallback_providers=user_public.fallback_university_names,
+        provider_canvas_url=user_public.university.canvas_url if user_public.university else None,
+        fallback_providers=to_provider_candidates(user_public.fallback_universities),
         max_items=50,
         params=params
     )

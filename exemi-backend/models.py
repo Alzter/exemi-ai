@@ -32,6 +32,7 @@ class UniversityUpdate(SQLModel):
 class UniversityAliasBase(SQLModel):
     name : str = Field(max_length=255)
     university_name : str | None = Field(default=None, max_length=255, index=True, foreign_key='university.name')
+    canvas_url : str | None = Field(default=None, max_length=255)
 
 class UniversityAlias(UniversityAliasBase, table=True):
     __tablename__="university_alias"
@@ -45,6 +46,7 @@ class UniversityAliasCreate(UniversityAliasBase): pass
 
 class UniversityAliasUpdate(SQLModel):
     name : str | None = None
+    canvas_url : str | None = None
 
 class UniversityPublic(UniversityBase):
     pass
@@ -157,6 +159,32 @@ class User(UserBase, table=True):
         
         return alias_names
 
+    @property
+    def fallback_universities(self) -> list[UniversityAliasPublic]:
+        """
+        Returns fallback alias objects in priority order.
+        """
+        if not self.university:
+            return []
+
+        university_public = UniversityPublicWithAliases.model_validate(self.university)
+        aliases : list[UniversityAliasPublic] = list(university_public.aliases)
+
+        if self.active_university_name != self.university_name and self.active_university_name is not None:
+            aliases = [a for a in aliases if a.name != self.active_university_name]
+            if self.university_name is not None:
+                aliases.insert(
+                    0,
+                    UniversityAliasPublic(
+                        id=-1,
+                        name=self.university_name,
+                        university_name=self.university_name,
+                        canvas_url=university_public.canvas_url
+                    )
+                )
+
+        return aliases
+
 class UserPublic(UserBase):
     id : int
     admin : bool = False
@@ -167,6 +195,7 @@ class UserPublic(UserBase):
     active_university_name : str | None
     actual_university_name : str | None
     fallback_university_names : list[str]
+    fallback_universities : list[UniversityAliasPublic]
 
 class UserCreate(UserBase):
     password : str

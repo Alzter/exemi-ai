@@ -4,6 +4,7 @@ import json
 import pandas as pd
 from datetime import datetime, timezone
 from fastapi import HTTPException
+from .dependencies import get_canvas_provider_base_url
 
 """
 Decodes Canvas API responses into strings for downstream use.
@@ -13,7 +14,8 @@ async def query_canvas(
     path : str,
     magic : str,
     provider : str | None,
-    fallback_providers : list[str] = [],
+    fallback_providers : list[tuple[str, str | None]] = [],
+    provider_canvas_url : str | None = None,
     params : dict = {},
     max_items : int = 100,
     timeout : int = 60,
@@ -46,17 +48,19 @@ async def query_canvas(
             'fallback_providers' list may have been used instead.
     """
 
-    providers = [provider, *fallback_providers]
+    providers: list[tuple[str | None, str | None]] = [(provider, provider_canvas_url), *fallback_providers]
     
     if not providers: raise HTTPException(status_code=400, detail="To query canvas, you must have a university assigned")
     
     params["access_token"] = magic
     params["per_page"] = max_items
 
-    for i, provider in enumerate(providers):
+    for i, (provider, candidate_canvas_url) in enumerate(providers):
         is_last_provider = i == len(providers) - 1
-        
-        url = f"https://{provider}.instructure.com/api/v1/{path}"
+        if provider is None:
+            continue
+        base_url = get_canvas_provider_base_url(candidate_canvas_url if candidate_canvas_url else provider)
+        url = f"{base_url}/api/v1/{path}"
 
         transport = httpx.AsyncHTTPTransport(retries=retries)
     

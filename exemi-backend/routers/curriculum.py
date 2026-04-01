@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from ..date_utils import parse_timestamp, timestamp_to_string, get_days_remaining
 from typing import Literal
 import json
+from sqlalchemy.exc import IntegrityError
 
 router = APIRouter()
 
@@ -72,6 +73,39 @@ def update_university(
     session.commit()
     session.refresh(existing_university)
     return existing_university    
+
+@router.delete("/university/{name}", response_model=Literal[True])
+def delete_university(
+    name : str,
+    session : Session = Depends(get_session),
+    current_user : User = Depends(get_current_user)
+):
+    """
+    Delete a university object (ADMIN ONLY).
+
+    Args:
+        name (str): The name of the university to delete.
+
+    Raises:
+        HTTPException:
+            Raises a 401 if the user is not an administrator.
+            Raises a 404 if the university does not exist.
+            Raises a 400 if the university cannot be deleted.
+
+    Returns:
+        Literal[True]: Returns True if deletion succeeded.
+    """
+    if not current_user.admin: raise HTTPException(status_code=401, detail="Unauthorised")
+    existing_university = session.get(University, name)
+    if not existing_university: raise HTTPException(status_code=404, detail="University not found")
+
+    try:
+        session.delete(existing_university)
+        session.commit()
+    except IntegrityError:
+        session.rollback()
+        raise HTTPException(status_code=400, detail="University cannot be deleted because it is currently in use")
+    return True
 
 @router.get("/university", response_model=list[UniversityPublicWithAliases])
 def get_universities(
@@ -369,6 +403,13 @@ class UnitJSON(BaseModel):
 
 units_list_adapter = TypeAdapter(list[UnitJSON])
 
+def get_university_canvas_base_url(university: University | None, university_name: str | None) -> str:
+    if university and university.canvas_url:
+        return university.canvas_url.rstrip("/")
+    if university_name is None:
+        raise HTTPException(status_code=404, detail="University not found")
+    return f"https://www.{university_name}.instructure.com"
+
 @router.get("/tool/units_json", response_model=str)
 def get_units_list_json(
     user : User = Depends(get_current_user),
@@ -379,6 +420,8 @@ def get_units_list_json(
     """
     user_public = UserPublic.model_validate(user)
     university_name = user_public.actual_university_name
+    primary_university = session.get(University, user.university_name) if user.university_name else None
+    canvas_base_url = get_university_canvas_base_url(primary_university, university_name)
 
     user_units = get_user_units(offset=0, limit=100, user=user, session=session)
     user_units = [UsersUnitsPublic.model_validate(u) for u in user_units]
@@ -386,8 +429,7 @@ def get_units_list_json(
     unit_list : list[UnitJSON] = []
 
     for user_unit in user_units:
-        url = f"https://www.{university_name}.instructure.com/"
-        url += f"courses/{user_unit.unit.canvas_id}/"
+        url = f"{canvas_base_url}/courses/{user_unit.unit.canvas_id}/"
 
         unit_list.append(
             UnitJSON(
@@ -683,6 +725,8 @@ def get_assignments_list_json(
 
     user_public = UserPublic.model_validate(user)
     university_name = user_public.actual_university_name
+    primary_university = session.get(University, user.university_name) if user.university_name else None
+    canvas_base_url = get_university_canvas_base_url(primary_university, university_name)
 
     for unit in units:
         if unit_id is not None and unit.id != unit_id:
@@ -693,8 +737,7 @@ def get_assignments_list_json(
 
         assignment_list: list[AssignmentJSON] = []
         for assignment in assignments:
-            url = f"https://www.{university_name}.instructure.com/"
-            url += f"courses/{unit.canvas_id}/assignments/{assignment.canvas_id}"
+            url = f"{canvas_base_url}/courses/{unit.canvas_id}/assignments/{assignment.canvas_id}"
 
             # due_date_string = timestamp_to_string(parse_timestamp(assignment.due_at))
             days_remaining = get_days_remaining(assignment.due_at)
