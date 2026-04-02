@@ -94,6 +94,7 @@ class User(UserBase, table=True):
     units : list[UsersUnits] = Relationship(back_populates="user", cascade_delete=True)
     assignments : list[UsersAssignments] = Relationship(back_populates="user", cascade_delete=True)
     reminders : list["Reminder"] = Relationship(back_populates="user", cascade_delete=True)
+    tasks : list["Task"] = Relationship(back_populates="user", cascade_delete=True)
     university : University = Relationship(back_populates="users")
     biographies : list["UserBiography"] = Relationship(back_populates="user", cascade_delete=True)
     active_university_name : str | None = Field(default=None, max_length=255, index=True)
@@ -315,6 +316,7 @@ class Assignment(AssignmentBase, table=True):
     id : int | None = Field(primary_key=True, default=None)
     group : AssignmentGroup | None = Relationship(back_populates="assignments")
     users : list[UsersAssignments] = Relationship(back_populates="assignment")
+    tasks : list["Task"] = Relationship(back_populates="assignment")
 
     @property
     def readable_description(self) -> str:
@@ -424,6 +426,47 @@ class MessageUpdate(SQLModel):
 
 class ConversationPublicWithMessages(ConversationPublic):
     messages : list[Message] = []
+
+class TaskBase(SQLModel):
+    description : str = Field(default="", sa_column=Column(TEXT))
+    time_minutes : int = Field(default=15)
+    assignment_id : int | None = Field(default=None, foreign_key='assignment.id', ondelete="CASCADE")
+    due_at : datetime
+
+class Task(TaskBase, table=True):
+    id : int | None = Field(primary_key=True, default=None)
+    created_at : datetime
+    user_id : int = Field(foreign_key="user.id", ondelete="CASCADE")
+    user : User = Relationship(back_populates="tasks")
+    assignment : Assignment = Relationship(back_populates="tasks")
+    completed : bool
+    in_progress : bool
+
+    @property
+    def colour(self) -> str:
+        return "Not implemented"
+        # assignment_public = AssignmentPublicWithGroup.model_validate(self.assignment)
+        # assignment_group = assignment_public.group
+        # assignment_group_public = AssignmentGroupPublicWithUnit.model_validate(assignment_group)
+        # unit = assignment_group_public.unit
+
+class TaskCreate(TaskBase): pass
+
+class TaskUpdate(SQLModel):
+    description : str | None = None
+    time_minutes : int | None = None
+    assignment_id : int | None = None
+    due_at : datetime | None = None
+    completed : bool | None = None
+    in_progress : bool | None = None
+
+class TaskPublic(TaskBase, UTCModel):
+    id : int
+    created_at : datetime
+    user_id : int
+    user : UserPublic
+    assignment : AssignmentPublic
+    colour : str
 
 class ReminderBase(SQLModel):
     # canvas_assignment_id : int

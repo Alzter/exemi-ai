@@ -395,7 +395,7 @@ def get_assignment_groups(
     Returns:
         list[AssignmentGroupPublicWithUnit]: The assignment groups with unit information included.
     """
-    user_units = get_units(user=user, session=session)
+    user_units = get_units(user=user, session=session, limit=100, offset=0)
     user_unit_ids = [u.id for u in user_units]
 
     query = (
