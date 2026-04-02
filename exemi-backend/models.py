@@ -269,8 +269,8 @@ class UsersUnitsPublic(UsersUnitsBase):
     unit : UnitPublicWithTerm
     readable_name : str
 
-# class UserPublicWithUnits(UserPublic):
-#     units : list[UsersUnitsPublic] = []
+class UserPublicWithUnits(UserPublic):
+    units : list[UsersUnitsPublic] = []
 
 class AssignmentGroupBase(SQLModel):
     unit_id : int = Field(foreign_key="unit.id")
@@ -444,45 +444,35 @@ class Task(TaskBase, table=True):
     in_progress : bool
 
     @property
-    def colour(self) -> str | None:
+    def colour_raw(self) -> str | None:
         """
-        User-specific unit colour from ``UsersUnits`` for the unit this task's
-        assignment belongs to. Empty string if there is no assignment, no unit,
-        or the user has no ``UsersUnits`` row (or no colour) for that unit.
+        Obtain the colour of the task
+        by obtaining the colour of the
+        Unit which contains the task
+        for the given User which is
+        enrolled in the unit. If the
+        task does not have an assignment
+        given, or the Unit lacks a
+        colour assigned to it by the
+        user, returns None.
+
+        Returns:
+            str | None: The assignment's colour if given.
         """
-        if not self.assignment_id:
-            return None
-        assignment = self.assignment
-        if assignment is None:
-            return None
-        group = assignment.group
-        if group is None:
-            return None
-        unit_id = group.unit_id
+        if not self.assignment: return None
 
-        sess = object_session(self)
-        if sess is not None:
-            uu = sess.exec(
-                select(UsersUnits).where(
-                    UsersUnits.user_id == self.user_id,
-                    UsersUnits.unit_id == unit_id,
-                )
-            ).first()
-            if uu is not None:
-                return uu.colour
+        unit = self.assignment.group.unit
 
-        user = self.user
-        if user is not None:
-            for row in user.units:
-                if row.unit_id == unit_id:
-                    return row.colour
+        session = object_session(self)
 
-        unit = group.unit
-        if unit is not None:
-            for row in unit.users:
-                if row.user_id == self.user_id:
-                    return row.colour
+        user_unit = session.exec(
+            select(UsersUnits)
+            .where(UsersUnits.unit_id == unit.id)
+        ).first()
 
+        if user_unit:
+            return user_unit.colour
+        
         return None
 
 class TaskCreate(TaskBase): pass
@@ -501,7 +491,7 @@ class TaskPublic(TaskBase, UTCModel):
     user_id : int
     user : UserPublic
     assignment : AssignmentPublic | None = None
-    colour : str | None = None
+    colour_raw : str | None = None
 
 class ReminderBase(SQLModel):
     # canvas_assignment_id : int
