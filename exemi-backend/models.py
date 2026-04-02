@@ -438,7 +438,7 @@ class Task(TaskBase, table=True):
     created_at : datetime
     user_id : int = Field(foreign_key="user.id", ondelete="CASCADE")
     user : User = Relationship(back_populates="tasks")
-    assignment : Assignment = Relationship(back_populates="tasks")
+    assignment : Assignment | None = Relationship(back_populates="tasks")
     completed : bool
     in_progress : bool
 

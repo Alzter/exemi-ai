@@ -1,5 +1,5 @@
 from pydantic import BaseModel, TypeAdapter
-from ..models import User, UserPublic
+from ..models import User, UserPublic, Assignment
 from ..models import Task, TaskCreate, TaskUpdate, TaskPublic
 from typing import Annotated, Literal
 from sqlmodel import Session, select, desc
@@ -100,8 +100,8 @@ def get_tasks_for_user(
     # Parse the dates into the local timezone so
     # we can compare the day each task is due
     # with the current day
-    current_date = parse_timestamp(current_date, australia_tz=timezone)
-    date = parse_timestamp(current_date, australia_tz=timezone)
+    current_date = parse_timestamp(current_date, australia_tz=timezone_name)
+    date = parse_timestamp(current_date, australia_tz=timezone_name)
 
     is_present = current_date.day == date.day
     is_future = date.day > current_date.day
@@ -229,6 +229,11 @@ def create_task_for_user(
 
         if not existing_user:
             raise HTTPException(status_code=404, detail=f"User not found: {username}")
+
+    if data.assignment_id is not None:
+        existing_assignment = session.get(Assignment, data.assignment_id)
+        if not existing_assignment:
+            raise HTTPException(status_code=400, detail=f"Assignment not found with ID {data.assignment_id}")
 
     task = Task.model_validate(data, update={
         "user_id" : existing_user.id,
