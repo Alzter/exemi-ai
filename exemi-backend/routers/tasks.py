@@ -2,16 +2,33 @@ from ..models import User, Assignment
 from ..models import Task, TaskCreate, TaskUpdate, TaskPublic
 from typing import Literal
 from sqlmodel import Session, select
-from sqlalchemy import and_, func, or_
+from sqlalchemy import and_, or_
 from sqlalchemy.orm import selectinload
 from fastapi import APIRouter, Depends, HTTPException, Query
 from ..dependencies import get_session
 from ..dependencies import get_current_user
 from ..date_utils import parse_timestamp
-from datetime import datetime, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 router = APIRouter()
+
+
+def _utc_naive_bounds_for_local_calendar_day(
+    d: date, timezone_name: str
+) -> tuple[datetime, datetime]:
+    """
+    Inclusive start and exclusive end of calendar day ``d`` in ``timezone_name``,
+    as naive UTC datetimes for comparison with ``Task.due_at`` (stored as UTC wall time).
+    Avoids MariaDB ``CONVERT_TZ``, which returns NULL when named time zone tables are missing.
+    """
+    tz = ZoneInfo(timezone_name)
+    start_local = datetime.combine(d, time.min, tzinfo=tz)
+    end_local = start_local + timedelta(days=1)
+    return (
+        start_local.astimezone(timezone.utc).replace(tzinfo=None),
+        end_local.astimezone(timezone.utc).replace(tzinfo=None),
+    )
 
 
 def _require_valid_timezone(timezone_name: str) -> None:
@@ -180,11 +197,6 @@ def get_tasks_for_user(
     is_future = target_date > today_date
     is_past = target_date < today_date
 
-    # Calendar day of due_at in the user's timezone (DB stores UTC; CONVERT_TZ needs MariaDB time zone tables).
-    due_local_date = func.date(
-        func.convert_tz(Task.due_at, "+00:00", timezone_name)
-    )
-
     query = (
         select(Task)
         .join(User)
@@ -193,19 +205,28 @@ def get_tasks_for_user(
     )
 
     if is_present:
+        today_start, today_end = _utc_naive_bounds_for_local_calendar_day(
+            today_date, timezone_name
+        )
         query = query.where(
             or_(
-                and_(Task.completed == False, due_local_date <= today_date),
-                and_(Task.completed == True, due_local_date == target_date),
+                and_(Task.completed == False, Task.due_at < today_end),
+                and_(
+                    Task.completed == True,
+                    Task.due_at >= today_start,
+                    Task.due_at < today_end,
+                ),
             )
         )
     elif is_future:
+        ts, te = _utc_naive_bounds_for_local_calendar_day(target_date, timezone_name)
         query = query.where(
-            and_(Task.completed == False, due_local_date == target_date)
+            and_(Task.completed == False, Task.due_at >= ts, Task.due_at < te)
         )
     elif is_past:
+        ts, te = _utc_naive_bounds_for_local_calendar_day(target_date, timezone_name)
         query = query.where(
-            and_(Task.completed == True, due_local_date == target_date)
+            and_(Task.completed == True, Task.due_at >= ts, Task.due_at < te)
         )
 
     query = query.order_by(Task.due_at).offset(offset).limit(limit)

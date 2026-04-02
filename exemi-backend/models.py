@@ -1,5 +1,6 @@
 from pydantic import BaseModel, field_validator
-from sqlmodel import SQLModel, Field, Relationship, Column
+from sqlalchemy.orm import object_session
+from sqlmodel import SQLModel, Field, Relationship, Column, select
 from datetime import datetime, timezone
 from sqlalchemy.dialects.mysql import TEXT
 from bs4 import BeautifulSoup
@@ -443,12 +444,46 @@ class Task(TaskBase, table=True):
     in_progress : bool
 
     @property
-    def colour(self) -> str:
-        return "Not implemented"
-        # assignment_public = AssignmentPublicWithGroup.model_validate(self.assignment)
-        # assignment_group = assignment_public.group
-        # assignment_group_public = AssignmentGroupPublicWithUnit.model_validate(assignment_group)
-        # unit = assignment_group_public.unit
+    def colour(self) -> str | None:
+        """
+        User-specific unit colour from ``UsersUnits`` for the unit this task's
+        assignment belongs to. Empty string if there is no assignment, no unit,
+        or the user has no ``UsersUnits`` row (or no colour) for that unit.
+        """
+        if not self.assignment_id:
+            return None
+        assignment = self.assignment
+        if assignment is None:
+            return None
+        group = assignment.group
+        if group is None:
+            return None
+        unit_id = group.unit_id
+
+        sess = object_session(self)
+        if sess is not None:
+            uu = sess.exec(
+                select(UsersUnits).where(
+                    UsersUnits.user_id == self.user_id,
+                    UsersUnits.unit_id == unit_id,
+                )
+            ).first()
+            if uu is not None:
+                return uu.colour
+
+        user = self.user
+        if user is not None:
+            for row in user.units:
+                if row.unit_id == unit_id:
+                    return row.colour
+
+        unit = group.unit
+        if unit is not None:
+            for row in unit.users:
+                if row.user_id == self.user_id:
+                    return row.colour
+
+        return None
 
 class TaskCreate(TaskBase): pass
 
@@ -466,7 +501,7 @@ class TaskPublic(TaskBase, UTCModel):
     user_id : int
     user : UserPublic
     assignment : AssignmentPublic | None = None
-    colour : str
+    colour : str | None = None
 
 class ReminderBase(SQLModel):
     # canvas_assignment_id : int
