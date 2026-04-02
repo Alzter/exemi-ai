@@ -465,7 +465,7 @@ class TaskPublic(TaskBase, UTCModel):
     created_at : datetime
     user_id : int
     user : UserPublic
-    assignment : AssignmentPublic
+    assignment : AssignmentPublic | None = None
     colour : str
 
 class ReminderBase(SQLModel):
