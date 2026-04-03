@@ -1,9 +1,9 @@
 import { Routes, Route, useNavigate } from "react-router-dom";
-import AdminDashboard from "./admin_dashboard";
-import ChatUI from "./chat";
-import UserCreate from "./user_create";
-import UserDelete from "./user_delete";
-import EditUniAliases from "./uni_aliases";
+import AdminDashboard from "./AdminDashboard";
+import ChatUI from "./ChatUI";
+import UserCreate from "./UserCreate";
+import UserDelete from "./UserDelete";
+import EditUniAliases from "./EditUniAliases";
 import { useEffect, useState } from "react";
 import Loading from "../loading";
 import Onboarding from '../../pages/onboarding';
