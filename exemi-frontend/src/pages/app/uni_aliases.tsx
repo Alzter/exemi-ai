@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router"
 import {type User} from '../../models';
-import UniversitySelector from "../../components/admin/university_selector";
+import UniversitySelector from "../../components/admin/UniversitySelector";
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 import { MdAdd, MdDelete } from "react-icons/md";
 

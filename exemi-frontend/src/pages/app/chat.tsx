@@ -2,8 +2,8 @@ import {useState, useEffect} from 'react'
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 import { useNavigate } from 'react-router-dom';
 import {type User, type Session} from '../../models';
-import ChatSidebar from '../../components/chat/sidebar';
-import ChatMessages from '../../components/chat/messages';
+import ChatSidebar from '../../components/chat/Sidebar';
+import ChatMessages from '../../components/chat/Messages';
 
 type ChatUIParams = {
   session : Session,

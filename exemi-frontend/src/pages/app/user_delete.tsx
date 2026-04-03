@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router"
-import UserSelector from "../../components/admin/user_selector";
+import UserSelector from "../../components/admin/UserSelector";
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 
 export default function UserDelete({session} : any){
