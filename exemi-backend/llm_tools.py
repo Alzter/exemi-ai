@@ -1,8 +1,10 @@
 from datetime import datetime
 from langchain.tools import tool, BaseTool
 from .routers.reminders import create_reminder, delete_reminder
-from sqlmodel import Session
+from .routers.tasks import create_task_for_self, update_task, delete_task
+from sqlmodel import Session, select
 from .models import User, UserBiographyCreate, UserBiography, ReminderCreate
+from .models import Task, TaskPublic, TaskCreate, TaskUpdate, UsersAssignments
 from .date_utils import parse_timestamp
 from .dependencies import get_engine
 
@@ -37,17 +39,150 @@ def create_tools(user : User, magic : str, session : Session) -> list[BaseTool]:
         """
         
         from .routers.users import update_user_biography
+        
+        with Session(get_engine()) as tool_session:
+            await update_user_biography(
+                UserBiographyCreate(
+                    content=information
+                ),
+                max_words=300,
+                user=user,
+                session=tool_session
+            )
 
-        new_bio : UserBiography = await update_user_biography(
-            UserBiographyCreate(
-                content=information
-            ),
-            max_words=300,
-            user=user,
-            session=session
+        return "Student biography successfully updated."
+
+    @tool
+    def create_assignment_task_for_student(
+        assignment_id : int,
+        name : str,
+        description : str,
+        duration_mins : int,
+        due_date : str
+    ) -> str:
+        """
+        Create a task representing a small chunk
+        of one of the student's assignments and
+        assign this task to the student to complete
+        on a specific date.
+
+        Args:
+            assignment_id (int): The ID number of the student's assignment which this task references.
+            name (str): The name of the task in the format "<Shortened assignment name>: <Task name>".
+            description (str): Summary of what steps are needed to complete the task.
+            duration_mins (int): An estimation of how many minutes the student will need to complete this task.
+            due_date (str): Which date the student must work on this task in ISO 8601 format (YYYY-MM-DD).
+
+        Returns:
+            str: Task creation success or failure message.
+        """
+        
+        # Check the assignment given exists and that the user has it
+        user_assignment = session.exec(
+            select(UsersAssignments)
+            .where(UsersAssignments.user_id == user.id)
+            .where(UsersAssignments.assignment_id == assignment_id)
         )
 
-        return f"Student biography successfully updated."
+        if not user_assignment:
+            return f"Error creating task: the student does not have the assignment with ID {assignment_id}."
+
+        # Convert due date into an Australian timestamp
+        try:
+            due_at = datetime.fromisoformat(due_date)
+        except ValueError:
+            return f"Error creating task: your due date {due_date} was not in the format YYYY-MM-DD."
+        
+        due_at = parse_timestamp(due_at)
+        if not due_at:
+            return f"Error creating task: your due date {due_date} was not in the format YYYY-MM-DD."
+
+        data = TaskCreate(
+            assignment_id = assignment_id,
+            description = description,
+            due_at = due_at,
+            duration_mins = duration_mins
+        )
+
+        try:
+            with Session(get_engine()) as tool_session:
+                create_task_for_self(
+                    data=data,
+                    user=user,
+                    session=tool_session
+                )
+            return "Task created successfully!"
+        except Exception:
+            return "Error creating task: database error. Do NOT try again."
+
+    @tool
+    def update_assignment_task_for_student(
+        task_id : int,
+        name : str | None = None,
+        description : str | None = None,
+        duration_mins : int | None = None,
+        due_at : str | None = None
+    ) -> str:
+        """
+        Update one of the student's tasks
+        by replacing the values of one or
+        more of the task's fields.
+
+        Args:
+            task_id (int): ID of the task to modify.
+            name (str | None, optional): New name for the task. Defaults to None.
+            description (str | None, optional): New description for the task. Defaults to None.
+            duration_mins (int | None, optional): New duration for the task. Defaults to None.
+            due_at (str | None, optional): New due date for the task in ISO 8601 format (YYYY-MM-DD). Defaults to None.
+
+        Returns:
+            str: Task update success or failure message.
+        """
+        
+        new_data = TaskUpdate(
+            name=name,
+            description=description,
+            duration_mins=duration_mins,
+            due_at=due_at
+        )
+
+        try:
+            with Session(get_engine()) as tool_session:
+                update_task(
+                    id=task_id,
+                    new_data=new_data,
+                    user=user,
+                    session=tool_session
+                )
+            return "Task updated successfully!"
+        except Exception:
+            return "Error updating task. Do NOT try again."
+
+
+    @tool
+    def delete_assignment_task_for_student(
+        task_id : int
+    ) -> str:
+        """
+        Delete one of the student's assignment
+        tasks if it is no longer necessary.
+
+        Args:
+            task_id (int): ID of the task to delete.
+
+        Returns:
+            str: Task deletion success or failure message.
+        """
+        try:
+            with Session(get_engine()) as tool_session:
+                delete_task(
+                    id=task_id,
+                    user=user,
+                    session=tool_session
+                )
+            return "Task deleted successfully!"
+        except Exception:
+            return "Error deleting task. Do NOT try again."
 
     @tool
     def set_reminder(task_name : str, due_date : str, description : str) -> str:
@@ -102,7 +237,7 @@ def create_tools(user : User, magic : str, session : Session) -> list[BaseTool]:
         """
         try:
             with Session(get_engine()) as tool_session:
-                delete_reminder(id=id, user=user, session=tool_session)
+                delete_task(id=id, user=user, session=tool_session)
             return "Reminder deleted successfully!"
         except Exception:
             return "Error deleting reminder, please do NOT try again"

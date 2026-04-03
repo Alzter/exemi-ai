@@ -269,8 +269,8 @@ class UsersUnitsPublic(UsersUnitsBase):
     unit : UnitPublicWithTerm
     readable_name : str
 
-class UserPublicWithUnits(UserPublic):
-    units : list[UsersUnitsPublic] = []
+# class UserPublicWithUnits(UserPublic):
+#     units : list[UsersUnitsPublic] = []
 
 class AssignmentGroupBase(SQLModel):
     unit_id : int = Field(foreign_key="unit.id")
@@ -429,19 +429,20 @@ class ConversationPublicWithMessages(ConversationPublic):
     messages : list[Message] = []
 
 class TaskBase(SQLModel):
+    name : str = Field(max_length=255)
     description : str = Field(default="", sa_column=Column(TEXT))
-    time_minutes : int = Field(default=15)
+    duration_mins : int = Field(default=15)
     assignment_id : int | None = Field(default=None, foreign_key='assignment.id', ondelete="CASCADE")
     due_at : datetime
 
 class Task(TaskBase, table=True):
     id : int | None = Field(primary_key=True, default=None)
     created_at : datetime
+    progress_mins : int = 0
     user_id : int = Field(foreign_key="user.id", ondelete="CASCADE")
     user : User = Relationship(back_populates="tasks")
     assignment : Assignment | None = Relationship(back_populates="tasks")
     completed : bool
-    in_progress : bool
 
     @property
     def colour_raw(self) -> str | None:
@@ -478,12 +479,13 @@ class Task(TaskBase, table=True):
 class TaskCreate(TaskBase): pass
 
 class TaskUpdate(SQLModel):
+    name : str | None = None
     description : str | None = None
-    time_minutes : int | None = None
+    duration_mins : int | None = None
+    progress_mins : int | None = None
     assignment_id : int | None = None
     due_at : datetime | None = None
     completed : bool | None = None
-    in_progress : bool | None = None
 
 class TaskPublic(TaskBase, UTCModel):
     id : int
@@ -491,6 +493,7 @@ class TaskPublic(TaskBase, UTCModel):
     user_id : int
     user : UserPublic
     assignment : AssignmentPublic | None = None
+    progress_mins : int
     colour_raw : str | None = None
 
 class ReminderBase(SQLModel):

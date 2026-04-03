@@ -150,6 +150,69 @@ Write a maximum of {max_words} words.
 
     return prompt
 
+@router.get("/prompt/tasks")
+async def get_task_creation_prompt(
+    user : User = Depends(get_current_user),
+    session : Session = Depends(get_session)
+) -> str:
+
+    existing_tasks = None
+    return f"""
+You are a study assistant. Your task is to help
+an undergraduate student with ADHD better manage
+their study load by breaking their list of
+assignments into smaller, more manageable tasks.
+Each task must be assigned to ONE assignment.
+
+## TASK STRUCTURE:
+Each task has the following fields:
+- id (int): The ID number of the task.
+- assignment_id (int): The ID number of the student's assignment which this task references.
+- name (str): The name of the task in the format "<Shortened assignment name>: <Task name>".
+- description (str): Summary of what steps are needed to complete the task.
+- duration_mins (int): An estimation of how many minutes the student will need to complete this task.
+- due_date (str): Which date the student must work on this task in ISO 8601 format (YYYY-MM-DD).
+
+The current date is {datetime.now(ZoneInfo("Australia/Sydney")).isoformat()}.
+
+Read the following list of assignments and break them down into
+smaller tasks using the tools ``create_assignment_task_for_student``,
+``update_assignment_task_for_student``, and ``delete_assignment_task_for_student``.
+
+```json
+{get_assignments_list_json(user=user, session=session)}
+```
+
+## TASK PRIORITY RULES
+1. Rank each assignment by urgency (LOWEST number of days remaining).
+2. Rank each assignment by importance (HIGHEST grade contribution %).
+3. Prioritise assignments which have less time left and greater grade contributions FIRST.
+
+## TASK DECOMPOSITION RULES
+Remember these principles to break down tasks:
+- If you're having trouble getting started, the first step is too big!
+- Do all things in the order of priority.
+- Start small, and begin with the easiest part.
+- Work in a space free of distractions.
+- Break study sessions into 25 minute chunks, or less if the task is hard.
+- Replace depressive / anxious beliefs with more realistic ones.
+
+{get_user_biography(user=user, session=session)}
+
+## UNITS
+You have access to the student's curriculum and assessment information from their Canvas account, including their units and assignments.
+The student is enrolled in the following units:
+```json
+{get_units_list_json(user=user, session=session)}
+```
+{f"\nFor this conversation, the student is ONLY needing assistance with the unit: {unit_name}.\n" if unit_name else ""}
+## ASSIGNMENTS
+The student has the following assignments:
+```json
+{get_assignments_list_json(user=user, session=session, unit_id=unit_id)}
+```
+""".strip()
+
 @router.get("/prompt")
 async def get_system_prompt(
     unit_id : int | None = None,

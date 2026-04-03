@@ -68,6 +68,67 @@ def get_task(
 
     return task
 
+@router.get("/tasks_all/self", response_model=list[TaskPublic])
+def get_all_tasks_for_self(
+    offset: int = 0,
+    limit: int = Query(default=100, le=100),
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+) -> list[Task]:
+    """
+    Obtain all incomplete and complete tasks for the current user.
+
+    Args:
+        offset (int, optional): Pagination start index. Defaults to 0.
+        limit (int, optional): Maximum number of tasks to obtain. Defaults to 100. Max of 100.
+        user (User, optional): The currently logged in user.
+        session (Session, optional): Connection to SQL database.
+
+    Returns:
+        list[Task]: The list of tasks.
+    """
+    return get_all_tasks_for_user(
+        username=user.username,
+        offset=offset,
+        limit=limit,
+        user=user,
+        session=session,
+    )
+
+@router.get("/tasks_all/{username}", response_model=list[TaskPublic])
+def get_all_tasks_for_user(
+    username : str,
+    offset: int = 0,
+    limit: int = Query(default=100, le=100),
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+) -> list[Task]:
+    """
+    Obtain all incomplete and complete tasks for an arbitrary user.
+
+    Args:
+        username (str): Which user to obtain task list for.
+        offset (int, optional): Pagination start index. Defaults to 0.
+        limit (int, optional): Maximum number of tasks to obtain. Defaults to 100. Max of 100.
+        user (User, optional): The currently logged in user.
+        session (Session, optional): Connection to SQL database.
+
+    Returns:
+        list[Task]: The list of tasks.
+    """
+    if user.username != username and not user.admin:
+        raise HTTPException(status_code=401, detail="Unauthorised")
+    
+    tasks = session.exec(
+        select(Task)
+        .join(User)
+        .where(User.username==username)
+        .order_by(Task.due_at)
+        .offset(offset)
+        .limit(limit)
+    )
+
+    return tasks
 
 @router.get("/tasks/self", response_model=list[TaskPublic])
 def get_tasks_for_self(
