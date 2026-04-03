@@ -5,9 +5,9 @@ import UserCreate from "./UserCreate";
 import UserDelete from "./UserDelete";
 import EditUniAliases from "./EditUniAliases";
 import { useEffect, useState } from "react";
-import Loading from "../loading";
+import Loading from "../Loading";
 import Onboarding from '../../pages/onboarding';
-import ExtensionIncompatible from '../extension_incompatible';
+import ExtensionIncompatible from '../ExtensionIncompatible';
 import {
   EXEMI_CANVAS_TOKEN_FAILURE_STICKY_KEY,
   isExemiExtensionIframe,

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import Loading from './pages/loading';
-import BigError from './pages/error';
+import Loading from './pages/Loading';
+import BigError from './pages/BigError';
 import Login from './pages/auth';
 import LoggedInFlow from './pages/app';
 import InitialSetup from './pages/setup';

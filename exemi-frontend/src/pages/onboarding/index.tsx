@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, type ReactNode } from 'react'
-import MagicForm from './form'
+import MagicForm from './MagicForm'
 import { useNavigate } from 'react-router-dom'
 import { useExemiCanvasPageContext } from '../../canvasExtensionContext'
 import {

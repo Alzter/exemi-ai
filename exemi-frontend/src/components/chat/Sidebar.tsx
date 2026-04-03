@@ -2,7 +2,7 @@ import {useState, useEffect, useRef} from 'react'
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 import { useNavigate } from 'react-router-dom';
 import {type Session} from '../../models';
-import UserSelector from '../admin/user_selector';
+// import UserSelector from '../admin/UserSelector';
 
 type ChatSidebarParams = {
     session : Session,
