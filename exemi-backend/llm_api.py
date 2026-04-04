@@ -100,7 +100,7 @@ async def create_tasks_for_user(
     if not model: raise HTTPException(status_code=500, detail="Error reaching LLM: Ollama server offline")
 
     tasks_prompt = get_task_creation_prompt_for_user(
-        username = user.username,
+        username = username,
         user=user,
         session=session
     )
