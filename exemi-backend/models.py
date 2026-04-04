@@ -170,6 +170,7 @@ class UserPublic(UserBase):
     active_university_name : str | None
     actual_university_name : str | None
     fallback_university_names : list[str]
+    tasks_generation_assignments_snapshot : str | None = None
 
 class UserCreate(UserBase):
     password : str

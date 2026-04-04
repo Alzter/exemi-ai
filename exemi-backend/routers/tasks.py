@@ -566,7 +566,6 @@ def create_task_for_self(
         session=session,
     )
 
-
 @router.patch("/task/{id}", response_model=TaskPublic)
 def update_task(
     id: int,
@@ -719,6 +718,10 @@ def delete_tasks_for_user(
     
     for task in existing_tasks:
         session.delete(task)
+    
+    # Clear out the user's cached snapshot of assignment tasks
+    user.tasks_generation_assignments_snapshot = None
+    session.add(user)
 
     session.commit()
     return True
