@@ -497,10 +497,12 @@ class TaskPublic(TaskBase, UTCModel):
     id : int
     created_at : datetime
     user_id : int
-    user : UserPublic
     assignment : AssignmentPublic | None = None
     progress_mins : int
     colour_raw : str | None = None
+
+class TaskPublicWithUser(TaskPublic):
+    user : UserPublic | None = None
 
 class TaskLLM(BaseModel):
     id : int | None
