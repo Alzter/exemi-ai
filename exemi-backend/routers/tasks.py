@@ -5,12 +5,12 @@ from sqlmodel import Session, select
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import selectinload
 from fastapi import APIRouter, Depends, HTTPException, Query
-from ..dependencies import get_session
-from ..dependencies import get_current_user
+from ..dependencies import get_session, get_current_user, get_current_magic
 from ..date_utils import parse_timestamp
 from datetime import date, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 from pydantic import BaseModel, TypeAdapter
+from ..llm_api import create_tasks_for_user
 
 router = APIRouter()
 
@@ -144,13 +144,6 @@ class TaskJSON(BaseModel):
     description : str
     duration_mins : str
     due_date : datetime
-
-# - id (int): The ID number of the task.
-# - assignment_id (int): The ID number of the student's assignment which this task references.
-# - name (str): The name of the task in the format "<Shortened assignment name>: <Task name>".
-# - description (str): Summary of what steps are needed to complete the task.
-# - duration_mins (int): An estimation of how many minutes the student will need to complete this task.
-# - due_date (str): Which date the student must work on this task in ISO 8601 format (YYYY-MM-DD).
 
 tasks_list_adapter = TypeAdapter(list[TaskJSON])
 
@@ -600,3 +593,89 @@ def delete_task(
     session.delete(task)
     session.commit()
     return True
+
+class TaskGenerationResult(BaseModel):
+    change_summary : str
+    tasks_list : list[TaskPublic]
+
+@router.get("/tasks_generate/self", response_model=TaskGenerationResult)
+async def generate_tasks_for_self(
+    user : User = Depends(get_current_user),
+    magic : str = Depends(get_current_magic),
+    session : Session = Depends(get_session)
+) -> TaskGenerationResult:
+    """
+    For the current student, use the LLM to create or update their list of assignment tasks.
+
+    Args:
+        user (User, optional): The currently logged in user.
+        magic (str, optional): The user's magic. TODO: This should not be necessary.
+        session (Session, optional): Connection to the SQL database.
+
+    Raises:
+        HTTPException: Raises a 500 if the LLM fails in any way to generate the task list.
+
+    Returns:
+        TaskGenerationResult: Summary of the changes made to the student's tasks and the new list of incomplete task objects.
+    """
+
+    response = await generate_tasks_for_user(
+        username=user.username,
+        user=user,
+        magic=magic,
+        session=session
+    )
+    return response
+
+@router.get("/tasks_generate/{username}", response_model=TaskGenerationResult)
+async def generate_tasks_for_user(
+    username : str,
+    user : User = Depends(get_current_user),
+    magic : str = Depends(get_current_magic),
+    session : Session = Depends(get_session)
+) -> TaskGenerationResult:
+    """
+    For any given student, use the LLM to create or update their list of assignment tasks.
+
+    Args:
+        username (str): Name of the student to update assignment tasks for.
+        user (User, optional): The currently logged in user.
+        magic (str, optional): The user's magic. TODO: This should not be necessary.
+        session (Session, optional): Connection to the SQL database.
+
+    Raises:
+        HTTPException: Raises a 401 if a non-administrator user attempts to generate new tasks for another user.
+        HTTPException: Raises a 500 if the LLM fails in any way to generate the task list.
+
+    Returns:
+        TaskGenerationResult: Summary of the changes made to the student's tasks and the new list of incomplete task objects.
+    """
+    
+    if username != user.username and not user.admin:
+        raise HTTPException(status_code=401, detail="Unauthorised")
+
+    try:
+        change_summary = await create_tasks_for_user(
+            username=username,
+            magic=magic,
+            user=user,
+            session=session
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting LLM to generate tasks list for user: {str(e)}")
+
+    updated_tasks = get_all_tasks_for_user(
+        username=username,
+        incomplete_only=True,
+        offset=0,
+        limit=100,
+        user=user,
+        session=session
+    )
+
+    updated_tasks = [TaskPublic.model_validate(task) for task in updated_tasks]
+
+    return TaskGenerationResult(
+        change_summary=change_summary,
+        tasks_list=updated_tasks
+    )

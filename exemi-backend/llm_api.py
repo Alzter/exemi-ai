@@ -10,7 +10,7 @@ from langchain_core.messages import BaseMessage, AIMessage
 from langchain.tools import BaseTool
 from langchain_ollama import ChatOllama
 from .llm_tools import create_tools
-from .routers.llm_prompt import get_system_prompt, get_summarising_prompt, get_update_user_bio_prompt
+from .routers.llm_prompt import get_system_prompt, get_summarising_prompt, get_update_user_bio_prompt, get_task_creation_prompt_for_user
 from dotenv import load_dotenv
 import warnings
 load_dotenv()
@@ -89,6 +89,30 @@ async def summarise(
 
     response : AIMessage = model.invoke(messages)
     return str(response.content)
+
+async def create_tasks_for_user(
+    username : str,
+    user : User,
+    magic : str,
+    session : Session
+) -> list[BaseMessage]:
+    if not model: raise HTTPException(status_code=500, detail="Error reaching LLM: Ollama server offline")
+
+    tasks_prompt = get_task_creation_prompt_for_user(
+        username = user.username,
+        user=user,
+        session=session
+    )
+
+    response : list[BaseMessage] = await chat(
+        messages = [],
+        user=user,
+        magic=magic,
+        session=session,
+        system_prompt=tasks_prompt
+    )
+
+    return response
 
 async def chat(
     messages : list[dict],
