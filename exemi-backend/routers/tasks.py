@@ -665,6 +665,101 @@ class TaskGenerationResult(BaseModel):
     generated_tasks : list[TaskLLM]
     updated_tasks_list : list[TaskPublic]
 
+@router.post("/tasks/cleanup/self", response_model=list[TaskPublic])
+def cleanup_tasks_for_self(
+    user : User = Depends(get_current_user),
+    session : Session = Depends(get_session)
+) -> list[Task]:
+    """
+    Cleanup the current user's tasks list by deleting
+    all tasks which no longer reference an assignment
+    the user has.
+
+    Args:
+        user (User, optional): The currently logged in user.
+        session (Session, optional): Connection to SQL database.
+
+    Raises:
+        HTTPException:
+            Raises a 401 if a non-administrator user attempts to cleanup another user's tasks.
+        HTTPException:
+            Raises a 404 if the user specified by 'username' is not found.
+
+    Returns:
+        list[Task]: The user's updated list of tasks.
+    """
+    return cleanup_tasks_for_user(
+        username=user.username,
+        user=user,
+        session=session
+    )
+
+@router.post("/tasks/cleanup/{username}", response_model=list[TaskPublic])
+def cleanup_tasks_for_user(
+    username : str,
+    user : User = Depends(get_current_user),
+    session : Session = Depends(get_session)
+) -> list[Task]:
+    """
+    Cleanup an arbitrary user's tasks list by deleting
+    all tasks which no longer reference an assignment
+    the user has.
+
+    Args:
+        username (str): Name of the user to cleanup tasks for.
+        user (User, optional): The currently logged in user.
+        session (Session, optional): Connection to SQL database.
+
+    Raises:
+        HTTPException:
+            Raises a 401 if a non-administrator user attempts to cleanup another user's tasks.
+        HTTPException:
+            Raises a 404 if the user specified by 'username' is not found.
+
+    Returns:
+        list[Task]: The user's updated list of tasks.
+    """
+
+    if user.username != username and not user.admin:
+        raise HTTPException(status_code=401, detail="Unauthorised")
+
+    existing_user = session.exec(
+        select(User)
+        .where(User.username==username)
+    ).first()
+    
+    if not existing_user:
+        raise HTTPException(status_code=404, detail=f"User not found: {username}")
+
+    existing_tasks : list[Task] = get_all_tasks_for_user(
+        username=username,
+        incomplete_only=False,
+        offset=0,
+        limit=100,
+        user=user,
+        session=session
+    )
+
+    user_assignments : list[UsersAssignments] = session.exec(
+        select(UsersAssignments)
+        .where(UsersAssignments.user_id == existing_user.id)
+    ).all()
+
+    user_assignments_by_id : dict[int, UsersAssignments] = {assignment.assignment_id : assignment for assignment in user_assignments}
+
+    existing_tasks_by_id : dict[int, Task] = {task.id : task for task in existing_tasks}
+    for task_id, task in existing_tasks_by_id.items():
+
+        if task.assignment_id is not None:
+            existing_assignment = user_assignments_by_id.get(task.assignment_id)
+            if not existing_assignment and not task.completed:
+                session.delete(task)
+                existing_tasks_by_id.pop(task_id)
+
+    session.commit()
+
+    return existing_tasks_by_id.values()
+
 def commit_generated_tasks(
     new_tasks : TaskList,
     existing_tasks : list[Task],
@@ -826,6 +921,13 @@ async def generate_tasks_for_user(
 
     if username != user.username and not user.admin:
         raise HTTPException(status_code=401, detail="Unauthorised")
+
+    # First, delete all tasks which no longer reference an assignment the user has.
+    cleanup_tasks_for_user(
+        username=username,
+        user=user,
+        session=session
+    )
 
     try:
         gen_result = await create_tasks_for_user(
