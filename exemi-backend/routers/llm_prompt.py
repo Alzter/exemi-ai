@@ -181,7 +181,7 @@ Respond ONLY with the new list of the user's tasks as a JSON object.
 Each task must have the following fields:
 - id (int | None): The ID number of the task if known, or None if it is a new task.
 - assignment_id (int): The ID number of the student's assignment which this task references.
-- name (str): The name of the task in the format "<Shortened assignment name>: <Task name>".
+- name (str): The name of the task in the format "<Shortened assignment name>: <Task name>". For shortened assignment names, do NOT include the unit name in this field and use descriptive names (e.g., "Multiple Choice Quiz") rather than generic names (e.g., "Assignment 2").
 - description (str): Summary of what steps are needed to complete the task.
 - duration_mins (int): An estimation of how many minutes the student will need to complete this task.
 - due_at (str): Which date the student must work on this task in ISO 8601 format (YYYY-MM-DD).
