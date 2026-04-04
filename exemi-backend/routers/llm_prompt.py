@@ -1,11 +1,22 @@
-from ..models import User, Unit, UnitPublic
+import json
+
+from pydantic import BaseModel
+
+from ..models import User, Unit, UnitPublic, TaskList
 from ..date_utils import timestamp_to_string
-from ..routers.curriculum import get_assignments_list_json, get_units_list_json
+from ..routers.curriculum import (
+    build_assignments_list_json,
+    build_assignments_payload,
+    build_units_list_json,
+    compute_assignments_delta,
+    get_assignments_list_json,
+    get_units_list_json,
+)
 from ..routers.reminders import get_reminders_list_json
 from ..routers.users import get_user_biography_text
 from ..dependencies import get_current_user, get_session
 from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel import Session
+from sqlmodel import Session, select
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -150,41 +161,8 @@ Write a maximum of {max_words} words.
 
     return prompt
 
-@router.get("/prompt/tasks/self")
-async def get_task_creation_prompt_for_self(
-    tasks_per_day : int = 10,
-    user : User = Depends(get_current_user),
-    session : Session = Depends(get_session)
-) -> str:
-    return get_task_creation_prompt_for_user(
-        username=user.username,
-        tasks_per_day=tasks_per_day,
-        user=user,
-        session=session
-    )
-
-@router.get("/prompt/tasks/{username}")
-def get_task_creation_prompt_for_user(
-    username : str,
-    tasks_per_day : int = 10,
-    user : User = Depends(get_current_user),
-    session : Session = Depends(get_session)
-) -> str:
-    # Imported lazily to avoid circular imports
-    from ..routers.tasks import get_tasks_list_for_user_json
-
-    if not user.username == username and not user.admin:
-        raise HTTPException(status_code=401, detail="Unauthorised")
-
-    existing_tasks = get_tasks_list_for_user_json(
-        username=username,
-        user=user,
-        session=session
-    )
-
-    has_existing_tasks : bool = existing_tasks != "[]"
-    
-    prompt = f"""
+def _task_creation_prompt_header(tasks_per_day: int) -> str:
+    return f"""
 You are a study assistant. Your goal is to help
 an undergraduate student with ADHD better manage
 their university study load by breaking down their
@@ -203,7 +181,7 @@ Respond ONLY with the new list of the user's tasks as a JSON object.
 Each task must have the following fields:
 - id (int | None): The ID number of the task if known, or None if it is a new task.
 - assignment_id (int): The ID number of the student's assignment which this task references.
-- name (str): The name of the task in the format "\<Shortened assignment name\>: \<Task name\>".
+- name (str): The name of the task in the format "<Shortened assignment name>: <Task name>".
 - description (str): Summary of what steps are needed to complete the task.
 - duration_mins (int): An estimation of how many minutes the student will need to complete this task.
 - due_at (str): Which date the student must work on this task in ISO 8601 format (YYYY-MM-DD).
@@ -224,8 +202,9 @@ Each task must have the following fields:
 3. Prioritise assignments which have less time left and greater grade contributions FIRST.
     """.strip()
 
-    if has_existing_tasks:
-        prompt += f"""
+
+def _task_creation_prompt_existing_tasks_block(existing_tasks: str) -> str:
+    return f"""
 You have already created a list of tasks for the
 student. Update this list of tasks using these rules:
 
@@ -241,40 +220,144 @@ student. Update this list of tasks using these rules:
 ```
 """.strip()
 
-    prompt += "\n\n"
-    prompt += f"""
+
+class TaskGenerationPrepare(BaseModel):
+    prompt: str
+    bypass_llm: bool = False
+    task_list_if_bypass: TaskList | None = None
+
+
+def prepare_task_generation(
+    username: str,
+    requesting_user: User,
+    session: Session,
+    tasks_per_day: int = 10,
+) -> TaskGenerationPrepare:
+    from ..routers.tasks import (
+        get_incomplete_tasks_as_task_list,
+        get_tasks_list_for_user_json,
+        user_has_incomplete_overdue_tasks_sydney,
+    )
+
+    target = session.exec(select(User).where(User.username == username)).first()
+    if not target:
+        raise HTTPException(status_code=404, detail=f"User not found: {username}")
+
+    if requesting_user.username != username and not requesting_user.admin:
+        raise HTTPException(status_code=401, detail="Unauthorised")
+
+    existing_tasks = get_tasks_list_for_user_json(
+        username=username,
+        user=requesting_user,
+        session=session,
+    )
+    has_existing_tasks = existing_tasks != "[]"
+    payload = build_assignments_payload(user=target, session=session)
+
+    prompt = _task_creation_prompt_header(tasks_per_day)
+    if has_existing_tasks:
+        prompt += "\n\n" + _task_creation_prompt_existing_tasks_block(existing_tasks)
+
+    units_block = f"""
 ## UNITS
 The student is enrolled in the following units:
 ```json
-{get_units_list_json(user=user, session=session)}
+{build_units_list_json(user=target, session=session)}
 ```
+""".strip()
+
+    if not has_existing_tasks:
+        prompt += "\n\n" + units_block
+        prompt += "\n\n## ASSIGNMENTS\nThe student has the following assignments:\n```json\n"
+        prompt += build_assignments_list_json(user=target, session=session)
+        prompt += "\n```"
+        return TaskGenerationPrepare(prompt=prompt.strip())
+
+    snap = target.tasks_generation_assignments_snapshot
+    if not snap:
+        prompt += "\n\n" + units_block
+        prompt += "\n\n## ASSIGNMENTS\nThe student has the following assignments:\n```json\n"
+        prompt += build_assignments_list_json(user=target, session=session)
+        prompt += "\n```"
+        return TaskGenerationPrepare(prompt=prompt.strip())
+
+    delta = compute_assignments_delta(snap, payload)
+    if delta is None:
+        prompt += "\n\n" + units_block
+        prompt += "\n\n## ASSIGNMENTS\nThe student has the following assignments:\n```json\n"
+        prompt += build_assignments_list_json(user=target, session=session)
+        prompt += "\n```"
+        return TaskGenerationPrepare(prompt=prompt.strip())
+
+    overdue = user_has_incomplete_overdue_tasks_sydney(
+        username=username, user=requesting_user, session=session
+    )
+
+    if delta.is_empty() and not overdue:
+        return TaskGenerationPrepare(
+            prompt="",
+            bypass_llm=True,
+            task_list_if_bypass=get_incomplete_tasks_as_task_list(
+                username=username, user=requesting_user, session=session
+            ),
+        )
+
+    prompt += "\n\n" + units_block
+
+    if delta.is_empty() and overdue:
+        prompt += """
 
 ## ASSIGNMENTS
-The student has the following assignments:
-```json
-{get_assignments_list_json(user=user, session=session)}
-```
-    """.strip()
+The student's Canvas assignment set is **unchanged** since the last time tasks were generated (same assignments, due dates, and descriptions as in your snapshot). Do not invent new assignments or new tasks for assignments that were not in that snapshot.
 
-#     prompt += "\n\n"
+Apply only **TASK LIST UPDATE RULES** above (especially overdue tasks). Return the **full** updated task list as JSON.
+""".strip()
+        return TaskGenerationPrepare(prompt=prompt.strip())
 
-#     if has_existing_tasks:
-#         prompt += """
-# ## RESPONSE RULES
-# Once you have finished breaking the
-# student's assignments into smaller tasks,
-# summarise what changes you made to the
-# student's task list and why.
-#         """.strip()
-#     else:
-#         prompt += """
-# ## RESPONSE RULES
-# Once you have finished breaking the
-# student's assignments into smaller tasks,
-# summarise what tasks you created.
-#         """.strip()
-    
-    return prompt
+    delta_obj = delta.model_dump(mode="json")
+    prompt += "\n\n## ASSIGNMENT_CHANGES\n"
+    prompt += (
+        "Only these changes occurred since the last task generation. Update the task list accordingly "
+        "(add tasks for new assignments, remove or adjust tasks for removed or changed assignments). "
+        "Preserve tasks for assignments not listed here unless overdue rules require rescheduling.\n```json\n"
+    )
+    prompt += json.dumps(delta_obj, ensure_ascii=False, indent=2)
+    prompt += "\n```"
+    return TaskGenerationPrepare(prompt=prompt.strip())
+
+
+@router.get("/prompt/tasks/self")
+async def get_task_creation_prompt_for_self(
+    tasks_per_day : int = 10,
+    user : User = Depends(get_current_user),
+    session : Session = Depends(get_session)
+) -> str:
+    return get_task_creation_prompt_for_user(
+        username=user.username,
+        tasks_per_day=tasks_per_day,
+        user=user,
+        session=session
+    )
+
+@router.get("/prompt/tasks/{username}")
+def get_task_creation_prompt_for_user(
+    username : str,
+    tasks_per_day : int = 10,
+    user : User = Depends(get_current_user),
+    session : Session = Depends(get_session)
+) -> str:
+    prep = prepare_task_generation(
+        username=username,
+        requesting_user=user,
+        session=session,
+        tasks_per_day=tasks_per_day,
+    )
+    if prep.bypass_llm:
+        return (
+            "No LLM call would be made: assignments are unchanged since the last committed task generation "
+            "and there are no overdue incomplete tasks. The existing task list would be returned as-is."
+        )
+    return prep.prompt
 
 @router.get("/prompt")
 async def get_system_prompt(

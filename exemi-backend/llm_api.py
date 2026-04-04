@@ -12,10 +12,16 @@ from langchain_core.messages import BaseMessage, AIMessage
 from langchain.tools import BaseTool
 from langchain_ollama import ChatOllama
 from .llm_tools import create_tools
-from .routers.llm_prompt import get_system_prompt, get_summarising_prompt, get_update_user_bio_prompt, get_task_creation_prompt_for_user
+from .routers.llm_prompt import get_system_prompt, get_summarising_prompt, get_update_user_bio_prompt, prepare_task_generation
 from dotenv import load_dotenv
 import warnings
 load_dotenv()
+
+
+class CreateTasksForUserResult(BaseModel):
+    tasks: TaskList
+    llm_bypassed: bool = False
+
 
 LLM_MODEL = os.environ["LLM_MODEL"]
 LLM_API_URL = os.environ["LLM_API_URL"]
@@ -96,22 +102,25 @@ async def create_tasks_for_user(
     username : str,
     user : User,
     session : Session
-) -> TaskList:
+) -> CreateTasksForUserResult:
+    prep = prepare_task_generation(
+        username=username,
+        requesting_user=user,
+        session=session,
+    )
+    if prep.bypass_llm:
+        assert prep.task_list_if_bypass is not None
+        return CreateTasksForUserResult(tasks=prep.task_list_if_bypass, llm_bypassed=True)
+
     if not model: raise HTTPException(status_code=500, detail="Error reaching LLM: Ollama server offline")
 
-    tasks_prompt = get_task_creation_prompt_for_user(
-        username = username,
-        user=user,
-        session=session
-    )
-
-    messages = [{"role":"system", "content":tasks_prompt}]
+    messages = [{"role":"system", "content":prep.prompt}]
 
     model_structured = model.with_structured_output(TaskList)
 
     tasks = model_structured.invoke(messages)
 
-    return tasks
+    return CreateTasksForUserResult(tasks=tasks, llm_bypassed=False)
 
 async def chat(
     messages : list[dict],

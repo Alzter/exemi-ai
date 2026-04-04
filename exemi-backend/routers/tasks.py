@@ -36,6 +36,73 @@ def _require_valid_timezone(timezone_name: str) -> None:
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid timezone_name")
 
+
+def user_has_incomplete_overdue_tasks_sydney(
+    username: str,
+    user: User,
+    session: Session,
+    timezone_name: str = "Australia/Sydney",
+) -> bool:
+    """True if the user has any incomplete task due before local calendar today (matches prompt timezone)."""
+    tasks = get_all_tasks_for_user(
+        username=username,
+        incomplete_only=True,
+        offset=0,
+        limit=100,
+        user=user,
+        session=session,
+    )
+    today = datetime.now(ZoneInfo(timezone_name)).date()
+    start_naive, _ = _utc_naive_bounds_for_local_calendar_day(today, timezone_name)
+    for t in tasks:
+        if t.due_at is not None and t.due_at < start_naive:
+            return True
+    return False
+
+
+def get_incomplete_tasks_as_task_list(
+    username: str,
+    user: User,
+    session: Session,
+) -> TaskList:
+    """Map DB incomplete tasks to TaskList for LLM bypass (skips tasks without assignment_id)."""
+    tasks = get_all_tasks_for_user(
+        username=username,
+        incomplete_only=True,
+        offset=0,
+        limit=100,
+        user=user,
+        session=session,
+    )
+    out: list[TaskLLM] = []
+    for t in tasks:
+        if t.assignment_id is None:
+            continue
+        out.append(
+            TaskLLM(
+                id=t.id,
+                assignment_id=t.assignment_id,
+                name=t.name,
+                description=t.description,
+                duration_mins=t.duration_mins,
+                due_at=t.due_at,
+            )
+        )
+    return TaskList(tasks=out)
+
+
+def save_tasks_generation_assignments_snapshot(username: str, session: Session) -> None:
+    from ..routers.curriculum import build_assignments_payload, snapshot_assignments_json
+
+    u = session.exec(select(User).where(User.username == username)).first()
+    if not u:
+        return
+    payload = build_assignments_payload(user=u, session=session)
+    u.tasks_generation_assignments_snapshot = snapshot_assignments_json(payload)
+    session.add(u)
+    session.commit()
+
+
 @router.get("/task/{id}", response_model=TaskPublic)
 def get_task(
     id: int,
@@ -761,14 +828,16 @@ async def generate_tasks_for_user(
         raise HTTPException(status_code=401, detail="Unauthorised")
 
     try:
-        new_tasks = await create_tasks_for_user(
+        gen_result = await create_tasks_for_user(
             username=username,
             user=user,
             session=session
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting LLM to generate tasks list for user: {str(e)}")
-    
+
+    new_tasks = gen_result.tasks
+
     existing_tasks : list[Task] = get_all_tasks_for_user(
         username=username,
         incomplete_only=True,
@@ -778,15 +847,15 @@ async def generate_tasks_for_user(
         session=session
     )
 
-    if commit:
-        updated_tasks = commit_generated_tasks(
+    if commit and not gen_result.llm_bypassed:
+        existing_tasks = commit_generated_tasks(
             new_tasks=new_tasks,
             existing_tasks=existing_tasks,
             username=username,
             user=user,
             session=session
         )
-        existing_tasks = updated_tasks
+        save_tasks_generation_assignments_snapshot(username=username, session=session)
 
     return TaskGenerationResult(
         generated_tasks = new_tasks.tasks,

@@ -99,6 +99,11 @@ class User(UserBase, table=True):
     university : University = Relationship(back_populates="users")
     biographies : list["UserBiography"] = Relationship(back_populates="user", cascade_delete=True)
     active_university_name : str | None = Field(default=None, max_length=255, index=True)
+    tasks_generation_assignments_snapshot : str | None = Field(
+        default=None,
+        sa_column=Column(TEXT),
+        description="JSON snapshot of assignment payload at last committed task generation (no days_remaining), for LLM prompt deltas.",
+    )
 
     @property
     def actual_university_name(self) -> str | None:
