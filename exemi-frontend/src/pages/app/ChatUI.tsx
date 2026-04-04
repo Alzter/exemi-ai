@@ -1,9 +1,8 @@
-import {useState, useEffect} from 'react'
-const backendURL = import.meta.env.VITE_BACKEND_API_URL;
-import { useNavigate } from 'react-router-dom';
-import {type User, type Session} from '../../models';
+import {useState, useRef} from 'react'
+import {type Session} from '../../models';
 import ChatSidebar from '../../components/chat/Sidebar';
 import ChatMessages from '../../components/chat/Messages';
+import TasksWindow from '../../components/tasks/TasksWindow';
 
 type ChatUIParams = {
   session : Session,
@@ -13,7 +12,7 @@ type ChatUIParams = {
 
 export default function ChatUI({session, isViewing, logOut} : ChatUIParams){
 
-    let navigate = useNavigate();
+    const chatMainRef = useRef<HTMLDivElement>(null);
 
     const [sidebarEnabled, setSidebarEnabled] = useState<boolean>(isViewing);
     const [conversationID, setConversationID] = useState<number|null>(null);
@@ -33,16 +32,19 @@ export default function ChatUI({session, isViewing, logOut} : ChatUIParams){
                 setError={setError}
                 logOut={logOut}
             />
-            <ChatMessages
-                session={session}
-                isViewing={isViewing}
-                conversationID={conversationID}
-                setConversationID={setConversationID}
-                loading={loading}
-                setLoading={setLoading}
-                error={error}
-                setError={setError}
-            />
+            <div className="chat-main-area" ref={chatMainRef}>
+                <ChatMessages
+                    session={session}
+                    isViewing={isViewing}
+                    conversationID={conversationID}
+                    setConversationID={setConversationID}
+                    loading={loading}
+                    setLoading={setLoading}
+                    error={error}
+                    setError={setError}
+                />
+                <TasksWindow layoutContainerRef={chatMainRef}/>
+            </div>
         </div>
     )
 }
