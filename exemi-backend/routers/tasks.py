@@ -1,4 +1,4 @@
-from ..models import User, Assignment
+from ..models import User, UsersAssignments
 from ..models import Task, TaskCreate, TaskUpdate, TaskPublic
 from typing import Literal
 from sqlmodel import Session, select
@@ -10,9 +10,9 @@ from ..dependencies import get_current_user
 from ..date_utils import parse_timestamp
 from datetime import date, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
+from pydantic import BaseModel, TypeAdapter
 
 router = APIRouter()
-
 
 def _utc_naive_bounds_for_local_calendar_day(
     d: date, timezone_name: str
@@ -30,13 +30,11 @@ def _utc_naive_bounds_for_local_calendar_day(
         end_local.astimezone(timezone.utc).replace(tzinfo=None),
     )
 
-
 def _require_valid_timezone(timezone_name: str) -> None:
     try:
         ZoneInfo(timezone_name)
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid timezone_name")
-
 
 @router.get("/task/{id}", response_model=TaskPublic)
 def get_task(
@@ -70,6 +68,7 @@ def get_task(
 
 @router.get("/tasks_all/self", response_model=list[TaskPublic])
 def get_all_tasks_for_self(
+    incomplete_only : bool = False,
     offset: int = 0,
     limit: int = Query(default=100, le=100),
     user: User = Depends(get_current_user),
@@ -79,6 +78,7 @@ def get_all_tasks_for_self(
     Obtain all incomplete and complete tasks for the current user.
 
     Args:
+        incomplete_only (booll, optional): Whether to only return incomplete tasks.
         offset (int, optional): Pagination start index. Defaults to 0.
         limit (int, optional): Maximum number of tasks to obtain. Defaults to 100. Max of 100.
         user (User, optional): The currently logged in user.
@@ -89,6 +89,7 @@ def get_all_tasks_for_self(
     """
     return get_all_tasks_for_user(
         username=user.username,
+        incomplete_only=incomplete_only,
         offset=offset,
         limit=limit,
         user=user,
@@ -98,6 +99,7 @@ def get_all_tasks_for_self(
 @router.get("/tasks_all/{username}", response_model=list[TaskPublic])
 def get_all_tasks_for_user(
     username : str,
+    incomplete_only : bool = False,
     offset: int = 0,
     limit: int = Query(default=100, le=100),
     user: User = Depends(get_current_user),
@@ -108,6 +110,7 @@ def get_all_tasks_for_user(
 
     Args:
         username (str): Which user to obtain task list for.
+        incomplete_only (bool, optional): Whether to only return incomplete tasks.
         offset (int, optional): Pagination start index. Defaults to 0.
         limit (int, optional): Maximum number of tasks to obtain. Defaults to 100. Max of 100.
         user (User, optional): The currently logged in user.
@@ -119,16 +122,101 @@ def get_all_tasks_for_user(
     if user.username != username and not user.admin:
         raise HTTPException(status_code=401, detail="Unauthorised")
     
-    tasks = session.exec(
-        select(Task)
-        .join(User)
-        .where(User.username==username)
-        .order_by(Task.due_at)
-        .offset(offset)
-        .limit(limit)
-    )
+    query = select(Task)
+    query = query.join(User)
+    query = query.where(User.username==username)
+
+    if incomplete_only:
+        query = query.where(not Task.completed)
+
+    query = query.order_by(Task.due_at)
+    query = query.offset(offset)
+    query = query.limit(limit)
+
+    tasks = session.exec(query)
 
     return tasks
+
+class TaskJSON(BaseModel):
+    id : int
+    assignment_id : int | None
+    name : str
+    description : str
+    duration_mins : str
+    due_date : datetime
+
+# - id (int): The ID number of the task.
+# - assignment_id (int): The ID number of the student's assignment which this task references.
+# - name (str): The name of the task in the format "<Shortened assignment name>: <Task name>".
+# - description (str): Summary of what steps are needed to complete the task.
+# - duration_mins (int): An estimation of how many minutes the student will need to complete this task.
+# - due_date (str): Which date the student must work on this task in ISO 8601 format (YYYY-MM-DD).
+
+tasks_list_adapter = TypeAdapter(list[TaskJSON])
+
+@router.get("/tool/tasks_json/self", response_model=str)
+def get_tasks_list_for_self_json(
+    user : User = Depends(get_current_user),
+    session : Session = Depends(get_session)
+) -> str:
+    """
+    For the current user, obtain a string
+    representing list of JSON objects for
+    each of their incomplete tasks.
+
+    Args:
+        user (User, optional): The currently logged in user.
+        session (Session, optional): Connection to SQL database.
+
+    Returns:
+        str: The tasks list JSON string.
+    """
+    return get_tasks_list_for_user_json(
+        username=user.username,
+        user=user,
+        session=session
+    )
+
+@router.get("/tool/tasks_json/{username}", response_model=str)
+def get_tasks_list_for_user_json(
+    username : str,
+    user : User = Depends(get_current_user),
+    session : Session = Depends(get_session)
+) -> str:
+    """
+    For any user, obtain a string
+    representing list of JSON objects for
+    each of their incomplete tasks.
+
+    Args:
+        username (str): User to obtain task list for.
+        user (User, optional): The currently logged in user.
+        session (Session, optional): Connection to SQL database.
+
+    Returns:
+        str: The tasks list JSON string.
+    """
+    tasks = get_all_tasks_for_user(
+        username=username,
+        incomplete_only=True,
+        offset=0,
+        limit=100,
+        user=user,
+        session=session
+    )
+
+    tasks_json = [
+        TaskJSON(
+            id = task.id,
+            assignment_id = task.assignment_id,
+            name = task.name,
+            description = task.description,
+            duration_mins = task.duration_mins,
+            due_date = task.due_at
+        )
+    for task in tasks]
+
+    return tasks_list_adapter.dump_json(tasks_json).decode("utf-8")
 
 @router.get("/tasks/self", response_model=list[TaskPublic])
 def get_tasks_for_self(
@@ -316,10 +404,15 @@ def create_task_for_user(
     Raises:
         HTTPException: Raises a 401 if a non-administrator user tries to create tasks on behalf of another user.
         HTTPException: Raises a 404 if the user specified by 'username' is not found.
+        HTTPException: Raises a 400 if the task's owner does not have the task's assignment.
+        HTTPException: Raises a 400 if the task's due date is earlier than the current date.
+        HTTPException: Raises a 400 if the task's due date is later than the assignment's due date.
 
     Returns:
         Task: The new task.
     """
+    
+    # Do not allow task creation on behalf of other users unless admin
     existing_user = user
 
     if user.username != username:
@@ -333,12 +426,31 @@ def create_task_for_user(
         if not existing_user:
             raise HTTPException(status_code=404, detail=f"User not found: {username}")
 
+    # Ensure the task due date is later than or equal to the current date
+    current_date = datetime.now(ZoneInfo("Australia/Sydney"))
+    if parse_timestamp(data.due_at) < current_date:
+        raise HTTPException(
+            status_code=400,
+            detail=f"The task due date ({parse_timestamp(data.due_at).date().isoformat()}) cannot be earlier than the current date ({current_date.date().isoformat()})"
+        )
+
     if data.assignment_id is not None:
-        existing_assignment = session.get(Assignment, data.assignment_id)
+        # Ensure the task due date is earlier than the assignment due date
+        existing_assignment = session.exec(
+            select(UsersAssignments)
+            .where(UsersAssignments.user_id == existing_user.id)
+            .where(UsersAssignments.assignment_id == data.assignment_id)
+        ).first()
         if not existing_assignment:
             raise HTTPException(
                 status_code=400,
-                detail=f"Assignment not found with ID {data.assignment_id}",
+                detail=f"The student does not have the assignment with ID {data.assignment_id}",
+            )
+        
+        if data.due_at > existing_assignment.due_at:
+            raise HTTPException(
+                status_code=400,
+                detail=f"The task due date ({parse_timestamp(data.due_at).date().isoformat()}) cannot be later than the assignment due date ({parse_timestamp(existing_assignment.due_at).date().isoformat()})"
             )
 
     task = Task.model_validate(
@@ -371,6 +483,11 @@ def create_task_for_self(
         user (User, optional): The currently logged in user.
         session (Session, optional): Connection to SQL database.
 
+    Raises:
+        HTTPException: Raises a 400 if the user does not have the task's assignment.
+        HTTPException: Raises a 400 if the task's due date is earlier than the current date.
+        HTTPException: Raises a 400 if the task's due date is later than the assignment's due date.
+
     Returns:
         Task: The new task.
     """
@@ -401,11 +518,52 @@ def update_task(
     Raises:
         HTTPException: Raises a 404 if the task was not found.
         HTTPException: Raises a 404 if a non-adminstrator user attempts to update another user's task.
+        HTTPException: Raises a 400 if the task's owner does not have the task's assignment.
+        HTTPException: Raises a 400 if the task's due date is earlier than the current date.
+        HTTPException: Raises a 400 if the task's due date is later than the assignment's due date.
 
     Returns:
         Task: The updated task.
     """
+    
     task = get_task(id=id, user=user, session=session)
+    
+    # Ensure the user owning this task exists
+    existing_user = session.get(User, task.user_id)
+    if not existing_user:
+        raise HTTPException(status_code=404, detail=f"The task's owner was not found under user ID {task.user_id}")
+
+    # Ensure the task due date is later than or equal to the current date
+    due_at = new_data.due_at or task.due_at
+    if due_at is not None:
+        current_date = datetime.now(ZoneInfo("Australia/Sydney"))
+        if parse_timestamp(due_at) < current_date:
+            raise HTTPException(
+                status_code=400,
+                detail=f"The task due date ({parse_timestamp(due_at).date().isoformat()}) cannot be earlier than the current date ({current_date.date().isoformat()})"
+            )
+
+    # Check the user has the assignment which this task references
+    assignment_id = new_data.assignment_id or task.assignment_id
+
+    # Ensure the task due date is earlier than the assignment due date
+    if assignment_id:
+        existing_assignment = session.exec(
+            select(UsersAssignments)
+            .where(UsersAssignments.user_id == existing_user.id)
+            .where(UsersAssignments.assignment_id == assignment_id)
+        ).first()
+        if not existing_assignment:
+            raise HTTPException(
+                status_code=400,
+                detail=f"The student does not have the assignment with ID {assignment_id}",
+            )
+
+        if due_at > existing_assignment.due_at:
+            raise HTTPException(
+                status_code=400,
+                detail=f"The task due date ({parse_timestamp(due_at).date().isoformat()}) cannot be later than the assignment due date ({parse_timestamp(existing_assignment.due_at).date().isoformat()})"
+            )
 
     new_data_dict = new_data.model_dump(exclude_unset=True)
     task.sqlmodel_update(new_data_dict)

@@ -122,7 +122,7 @@ async def chat(
     if not system_prompt:
         system_prompt = await get_system_prompt(user=user, session=session, unit_id=unit_id)
 
-    tools : list[BaseTool] = create_tools(user=user, magic=magic, session=session)
+    tools : list[BaseTool] = create_tools(user=user, session=session)
 
     agent = create_agent(
         model=model,
@@ -195,7 +195,7 @@ async def chat_stream(
     if not system_prompt:
         system_prompt = await get_system_prompt(user=user, session=session, unit_id=unit_id)
 
-    tools : list[BaseTool] = create_tools(user=user, magic=magic, session=session)
+    tools : list[BaseTool] = create_tools(user=user, session=session)
 
     agent = create_agent(
         model=model,

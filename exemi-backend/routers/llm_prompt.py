@@ -1,6 +1,7 @@
 from ..models import User, Unit, UnitPublic
 from ..date_utils import timestamp_to_string
 from ..routers.curriculum import get_assignments_list_json, get_units_list_json
+from ..routers.tasks import get_tasks_list_for_user_json
 from ..routers.reminders import get_reminders_list_json
 from ..routers.users import get_user_biography_text
 from ..dependencies import get_current_user, get_session
@@ -150,22 +151,90 @@ Write a maximum of {max_words} words.
 
     return prompt
 
-@router.get("/prompt/tasks")
-async def get_task_creation_prompt(
+@router.get("/prompt/tasks/self")
+async def get_task_creation_prompt_for_self(
+    tasks_per_day : int = 10,
+    user : User = Depends(get_current_user),
+    session : Session = Depends(get_session)
+) -> str:
+    return get_task_creation_prompt_for_user(
+        username=user.username,
+        tasks_per_day=tasks_per_day,
+        user=user,
+        session=session
+    )
+
+@router.get("/prompt/tasks/{username}")
+def get_task_creation_prompt_for_user(
+    username : str,
+    tasks_per_day : int = 10,
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session)
 ) -> str:
 
-    existing_tasks = None
-    return f"""
-You are a study assistant. Your task is to help
-an undergraduate student with ADHD better manage
-their study load by breaking their list of
-assignments into smaller, more manageable tasks.
-Each task must be assigned to ONE assignment.
+    if not user.username == username and not user.admin:
+        raise HTTPException(status_code=401, detail="Unauthorised")
 
-## TASK STRUCTURE:
+    existing_tasks = get_tasks_list_for_user_json(
+        username=username,
+        user=user,
+        session=session
+    )
+
+    has_existing_tasks : bool = existing_tasks != "[]"
+    
+    prompt = f"""
+You are a study assistant. Your goal is to help
+an undergraduate student with ADHD better manage
+their university study load by breaking down their
+assignments into smaller, more manageable tasks.
+
+You will be given the student's list of assignments
+in JSON format and must create tasks representing each
+step required to complete these assignments.
+
+The current date is {datetime.now(ZoneInfo("Australia/Sydney")).date().isoformat()}.
+
+## TOOLS
+Use the tools ``create_assignment_task_for_student``, ``update_assignment_task_for_student``, and ``delete_assignment_task_for_student`` to create, edit, and delete assignment tasks for the student.
+
+## TASK FIELDS
 Each task has the following fields:
+- ID
+- Assignment ID
+- Name
+- Description
+- Duration in minutes
+- Due date
+
+## TASK RULES
+1. Each task MUST be assigned to ONE of the student's assignments.
+2. Each task must represent ONE small step needed to complete the assignment.
+3. Each task must not exceed 25 minutes in duration.
+4. Each task must have clear completion criteria.
+5. All tasks must have a due date later than or equal to the current date.
+6. All tasks must be due before their assignment is due.
+7. Break down each assignment with easier and smaller tasks first.
+8. Ensure each day has less than or equal to {tasks_per_day} tasks.
+
+## ASSIGNMENT PRIORITY RULES
+1. Rank each assignment by urgency (LOWEST number of days remaining).
+2. Rank each assignment by importance (HIGHEST grade contribution %).
+3. Prioritise assignments which have less time left and greater grade contributions FIRST.
+    """.strip()
+
+    if has_existing_tasks:
+        prompt += f"""
+You have already created a list of tasks for the
+student. Update this list of tasks using these rules:
+
+## TASK LIST UPDATE RULES
+1. Create new tasks for any assignments which do not have any tasks assigned to them.
+2. For all overdue tasks (tasks with a due date earlier than today):
+    a. Update the due date of the overdue task to be later than today.
+    b. Update the due dates of all tasks after the overdue task for the same assignment to be later than the overdue task.
+
+## EXISTING TASK FIELDS
 - id (int): The ID number of the task.
 - assignment_id (int): The ID number of the student's assignment which this task references.
 - name (str): The name of the task in the format "<Shortened assignment name>: <Task name>".
@@ -173,45 +242,46 @@ Each task has the following fields:
 - duration_mins (int): An estimation of how many minutes the student will need to complete this task.
 - due_date (str): Which date the student must work on this task in ISO 8601 format (YYYY-MM-DD).
 
-The current date is {datetime.now(ZoneInfo("Australia/Sydney")).isoformat()}.
-
-Read the following list of assignments and break them down into
-smaller tasks using the tools ``create_assignment_task_for_student``,
-``update_assignment_task_for_student``, and ``delete_assignment_task_for_student``.
-
+## EXISTING TASKS LIST
 ```json
-{get_assignments_list_json(user=user, session=session)}
+{existing_tasks}
 ```
+""".strip()
 
-## TASK PRIORITY RULES
-1. Rank each assignment by urgency (LOWEST number of days remaining).
-2. Rank each assignment by importance (HIGHEST grade contribution %).
-3. Prioritise assignments which have less time left and greater grade contributions FIRST.
-
-## TASK DECOMPOSITION RULES
-Remember these principles to break down tasks:
-- If you're having trouble getting started, the first step is too big!
-- Do all things in the order of priority.
-- Start small, and begin with the easiest part.
-- Work in a space free of distractions.
-- Break study sessions into 25 minute chunks, or less if the task is hard.
-- Replace depressive / anxious beliefs with more realistic ones.
-
-{get_user_biography(user=user, session=session)}
-
+    prompt += "\n\n"
+    prompt += f"""
 ## UNITS
-You have access to the student's curriculum and assessment information from their Canvas account, including their units and assignments.
 The student is enrolled in the following units:
 ```json
 {get_units_list_json(user=user, session=session)}
 ```
-{f"\nFor this conversation, the student is ONLY needing assistance with the unit: {unit_name}.\n" if unit_name else ""}
+
 ## ASSIGNMENTS
 The student has the following assignments:
 ```json
-{get_assignments_list_json(user=user, session=session, unit_id=unit_id)}
+{get_assignments_list_json(user=user, session=session)}
 ```
-""".strip()
+    """.strip()
+
+    prompt += "\n\n"
+
+    if has_existing_tasks:
+        prompt += """
+## RESPONSE RULES
+Once you have finished breaking the
+student's assignments into smaller tasks,
+summarise what changes you made to the
+student's task list and why.
+        """.strip()
+    else:
+        prompt += """
+## RESPONSE RULES
+Once you have finished breaking the
+student's assignments into smaller tasks,
+summarise what tasks you created.
+        """.strip()
+    
+    return prompt
 
 @router.get("/prompt")
 async def get_system_prompt(

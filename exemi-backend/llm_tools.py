@@ -7,8 +7,23 @@ from .models import User, UserBiographyCreate, UserBiography, ReminderCreate
 from .models import Task, TaskPublic, TaskCreate, TaskUpdate, UsersAssignments
 from .date_utils import parse_timestamp
 from .dependencies import get_engine
+from fastapi import HTTPException
 
-def create_tools(user : User, magic : str, session : Session) -> list[BaseTool]:
+def create_tools(
+    user : User,
+    session : Session
+) -> list[BaseTool]:
+    """
+    Create LLM tools to manage database
+    entities for the current user.
+
+    Args:
+        user (User): The current logged in user.
+        session (Session): Connection to the SQL database.
+
+    Returns:
+        list[BaseTool]: The LLM tools.
+    """
 
     # @tool
     # async def get_assignments_from_Canvas() -> str:
@@ -112,6 +127,9 @@ def create_tools(user : User, magic : str, session : Session) -> list[BaseTool]:
                     session=tool_session
                 )
             return "Task created successfully!"
+        # Invalid task errors will throw a HTTPException
+        except HTTPException as e:
+            return f"Error creating task: {e.detail}"
         except Exception:
             return "Error creating task: database error. Do NOT try again."
 
@@ -124,16 +142,16 @@ def create_tools(user : User, magic : str, session : Session) -> list[BaseTool]:
         due_at : str | None = None
     ) -> str:
         """
-        Update one of the student's tasks
-        by replacing the values of one or
-        more of the task's fields.
+        Update one of the student's assignment
+        tasks by replacing one or more of its
+        fields with new values.
 
         Args:
             task_id (int): ID of the task to modify.
-            name (str | None, optional): New name for the task. Defaults to None.
-            description (str | None, optional): New description for the task. Defaults to None.
-            duration_mins (int | None, optional): New duration for the task. Defaults to None.
-            due_at (str | None, optional): New due date for the task in ISO 8601 format (YYYY-MM-DD). Defaults to None.
+            name (str | None, optional): New name for the task in the format "<Shortened assignment name>: <Task name>". Defaults to None.
+            description (str | None, optional): New summary of what steps are needed to complete the task. Defaults to None.
+            duration_mins (int | None, optional): New estimation of how many minutes the student will need to complete this task. Defaults to None.
+            due_at (str | None, optional): New date the student must work on this task in ISO 8601 format (YYYY-MM-DD). Defaults to None.
 
         Returns:
             str: Task update success or failure message.
@@ -155,17 +173,17 @@ def create_tools(user : User, magic : str, session : Session) -> list[BaseTool]:
                     session=tool_session
                 )
             return "Task updated successfully!"
+        except HTTPException as e:
+            return f"Error updating task: {e.detail}"
         except Exception:
             return "Error updating task. Do NOT try again."
-
 
     @tool
     def delete_assignment_task_for_student(
         task_id : int
     ) -> str:
         """
-        Delete one of the student's assignment
-        tasks if it is no longer necessary.
+        Delete one of the student's assignment tasks.
 
         Args:
             task_id (int): ID of the task to delete.
@@ -181,6 +199,8 @@ def create_tools(user : User, magic : str, session : Session) -> list[BaseTool]:
                     session=tool_session
                 )
             return "Task deleted successfully!"
+        except HTTPException as e:
+            return f"Error deleting task: {e.detail}"
         except Exception:
             return "Error deleting task. Do NOT try again."
 
@@ -242,4 +262,9 @@ def create_tools(user : User, magic : str, session : Session) -> list[BaseTool]:
         except Exception:
             return "Error deleting reminder, please do NOT try again"
 
-    return [set_reminder, remove_reminder, add_information_to_student_biography]
+    return [
+        create_assignment_task_for_student,
+        update_assignment_task_for_student,
+        delete_assignment_task_for_student,
+        add_information_to_student_biography
+    ]
