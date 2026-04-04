@@ -65,10 +65,10 @@ def get_incomplete_tasks_as_task_list(
     user: User,
     session: Session,
 ) -> TaskList:
-    """Map DB incomplete tasks to TaskList for LLM bypass (skips tasks without assignment_id)."""
+    """Map DB tasks to TaskList for LLM bypass (skips tasks without assignment_id)."""
     tasks = get_all_tasks_for_user(
         username=username,
-        incomplete_only=True,
+        incomplete_only=False,
         offset=0,
         limit=100,
         user=user,
@@ -86,6 +86,7 @@ def get_incomplete_tasks_as_task_list(
                 description=t.description,
                 duration_mins=t.duration_mins,
                 due_at=t.due_at,
+                completed=t.completed,
             )
         )
     return TaskList(tasks=out)
@@ -211,11 +212,13 @@ class TaskJSON(BaseModel):
     description : str
     duration_mins : int
     due_at : datetime
+    completed : bool
 
 tasks_list_adapter = TypeAdapter(list[TaskJSON])
 
 @router.get("/tool/tasks_json/self", response_model=str)
 def get_tasks_list_for_self_json(
+    incomplete_only : bool = False,
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session)
 ) -> str:
@@ -225,6 +228,7 @@ def get_tasks_list_for_self_json(
     each of their incomplete tasks.
 
     Args:
+        incomplete_only (bool, optional): Whether to only return incomplete tasks. Defaults to False.
         user (User, optional): The currently logged in user.
         session (Session, optional): Connection to SQL database.
 
@@ -233,6 +237,7 @@ def get_tasks_list_for_self_json(
     """
     return get_tasks_list_for_user_json(
         username=user.username,
+        incomplete_only=incomplete_only,
         user=user,
         session=session
     )
@@ -240,16 +245,18 @@ def get_tasks_list_for_self_json(
 @router.get("/tool/tasks_json/{username}", response_model=str)
 def get_tasks_list_for_user_json(
     username : str,
+    incomplete_only : bool = False,
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session)
 ) -> str:
     """
     For any user, obtain a string
     representing list of JSON objects for
-    each of their incomplete tasks.
+    each of their tasks.
 
     Args:
         username (str): User to obtain task list for.
+        incomplete_only (bool, optional): Whether to only return incomplete tasks. Defaults to False.
         user (User, optional): The currently logged in user.
         session (Session, optional): Connection to SQL database.
 
@@ -258,7 +265,7 @@ def get_tasks_list_for_user_json(
     """
     tasks = get_all_tasks_for_user(
         username=username,
-        incomplete_only=True,
+        incomplete_only=incomplete_only,
         offset=0,
         limit=100,
         user=user,
@@ -272,7 +279,8 @@ def get_tasks_list_for_user_json(
             name = task.name,
             description = task.description,
             duration_mins = task.duration_mins,
-            due_at = task.due_at
+            due_at = task.due_at,
+            completed = task.completed
         )
     for task in tasks]
 
@@ -661,6 +669,60 @@ def delete_task(
     session.commit()
     return True
 
+@router.delete("/tasks/self", response_model=Literal[True])
+def delete_tasks_for_self(
+    user : User = Depends(get_current_user),
+    session : Session = Depends(get_session)
+) -> Literal[True]:
+    """
+    Delete all tasks for the current user.
+    """
+    return delete_tasks_for_user(
+        username=user.username,
+        user=user,
+        session=session
+    )
+
+@router.delete("/tasks/{username}", response_model=Literal[True])
+def delete_tasks_for_user(
+    username : str,
+    user : User = Depends(get_current_user),
+    session : Session = Depends(get_session)
+) -> Literal[True]:
+    """
+    Delete all tasks for an arbitrary user.
+
+    Args:
+        username (str): Name of the user to delete tasks for.
+        user (User, optional): The currently logged in user.
+        session (Session, optional): Connection to SQL database.
+
+    Raises:
+        HTTPException: Raises a 401 if a non-administrator user attempts to delete another user's tasks.
+        HTTPException: Raises a 404 if the user specified by 'username' is not found.
+
+    Returns:
+        Literal[True]: Success.
+    """
+
+    if user.username != username and not user.admin:
+        raise HTTPException(status_code=401, detail="Unauthorised")
+
+    existing_tasks : list[Task] = get_all_tasks_for_user(
+        username=username,
+        incomplete_only=False,
+        offset=0,
+        limit=100,
+        user=user,
+        session=session
+    )
+    
+    for task in existing_tasks:
+        session.delete(task)
+
+    session.commit()
+    return True
+
 class TaskGenerationResult(BaseModel):
     generated_tasks : list[TaskLLM]
     updated_tasks_list : list[TaskPublic]
@@ -942,7 +1004,7 @@ async def generate_tasks_for_user(
 
     existing_tasks : list[Task] = get_all_tasks_for_user(
         username=username,
-        incomplete_only=True,
+        incomplete_only=False,
         offset=0,
         limit=100,
         user=user,

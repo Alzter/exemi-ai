@@ -508,6 +508,7 @@ class TaskLLM(BaseModel):
     description : str
     duration_mins : int
     due_at : datetime
+    completed : bool
 
 class TaskList(BaseModel):
     tasks : list[TaskLLM]

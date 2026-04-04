@@ -185,6 +185,7 @@ Each task must have the following fields:
 - description (str): Summary of what steps are needed to complete the task.
 - duration_mins (int): An estimation of how many minutes the student will need to complete this task.
 - due_at (str): Which date the student must work on this task in ISO 8601 format (YYYY-MM-DD).
+- completed (bool): Whether the task has been completed.
 
 ## TASK RULES
 1. Each task MUST be assigned to ONE of the student's assignments.
@@ -192,9 +193,10 @@ Each task must have the following fields:
 3. Each task must not exceed 25 minutes in duration.
 4. Each task must have clear completion criteria.
 5. All tasks must have a due date later than or equal to the current date.
-6. All tasks must be due before their assignment is due.
-7. Break down each assignment with easier and smaller tasks first.
-8. Ensure each day has less than or equal to {tasks_per_day} tasks.
+6. Do NOT delete or modify any tasks which have been completed.
+7. All tasks must be due before their assignment is due.
+8. Break down each assignment with easier and smaller tasks first.
+9. Ensure each day has less than or equal to {tasks_per_day} tasks.
 
 ## ASSIGNMENT PRIORITY RULES
 1. Rank each assignment by urgency (LOWEST number of days remaining).
@@ -248,8 +250,9 @@ def prepare_task_generation(
 
     existing_tasks = get_tasks_list_for_user_json(
         username=username,
+        incomplete_only=False,
         user=requesting_user,
-        session=session,
+        session=session
     )
     has_existing_tasks = existing_tasks != "[]"
     payload = build_assignments_payload(user=target, session=session)
