@@ -1,5 +1,5 @@
 from ..models import User, UsersAssignments
-from ..models import Task, TaskCreate, TaskUpdate, TaskPublic
+from ..models import Task, TaskCreate, TaskUpdate, TaskPublic, TaskList, TaskLLM
 from typing import Literal
 from sqlmodel import Session, select
 from sqlalchemy import and_, or_
@@ -10,6 +10,7 @@ from ..date_utils import parse_timestamp
 from datetime import date, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 from pydantic import BaseModel, TypeAdapter
+import warnings
 
 router = APIRouter()
 
@@ -126,7 +127,7 @@ def get_all_tasks_for_user(
     query = query.where(User.username==username)
 
     if incomplete_only:
-        query = query.where(not Task.completed)
+        query = query.where(Task.completed == False)
 
     query = query.order_by(Task.due_at)
     query = query.offset(offset)
@@ -141,8 +142,8 @@ class TaskJSON(BaseModel):
     assignment_id : int | None
     name : str
     description : str
-    duration_mins : str
-    due_date : datetime
+    duration_mins : int
+    due_at : datetime
 
 tasks_list_adapter = TypeAdapter(list[TaskJSON])
 
@@ -204,7 +205,7 @@ def get_tasks_list_for_user_json(
             name = task.name,
             description = task.description,
             duration_mins = task.duration_mins,
-            due_date = task.due_at
+            due_at = task.due_at
         )
     for task in tasks]
 
@@ -594,43 +595,145 @@ def delete_task(
     return True
 
 class TaskGenerationResult(BaseModel):
-    change_summary : str
-    tasks_list : list[TaskPublic]
+    generated_tasks : list[TaskLLM]
+    updated_tasks_list : list[TaskPublic]
+
+def commit_generated_tasks(
+    new_tasks : TaskList,
+    existing_tasks : list[Task],
+    username : str,
+    user : User,
+    session : Session
+) -> list[Task]:
+    """
+    Update an arbitrary user's list of assignment
+    tasks to match a list of LLM-generated
+    tasks. Creates all new tasks, updates
+    existing tasks, and deletes task not
+    in the list.
+
+    Args:
+        new_tasks (TaskList): List of LLM-generated tasks.
+        existing_tasks (list[Task]): List of the user's existing tasks from the DB.
+        username (str): Name of the user to update tasks for.
+        user (User, optional): The currently logged in user.
+        session (Session, optional): Connection to SQL database.
+
+    Raises:
+        HTTPException: Raises a 404 if a non-adminstrator user attempts to update another user's task list.
+
+    Returns:
+        list[Task]: The user's updated list of tasks.
+    """
+
+    if user.username != username and not user.admin:
+        raise HTTPException(status_code=401, detail="Unauthorised")
+    
+    existing_user = session.exec(
+        select(User)
+        .where(User.username==username)
+    ).first()
+
+    if not existing_user:
+        raise HTTPException(status_code=404, detail=f"User not found: {username}")
+    
+    # existing_tasks : list[Task] = get_all_tasks_for_user(
+    #     username=username,
+    #     incomplete_only=True,
+    #     offset=0,
+    #     limit=100,
+    #     user=user,
+    #     session=session
+    # )
+
+    existing_tasks_by_id : dict[int, Task] = {task.id : task for task in existing_tasks}
+
+    header = {
+        "created_at" : datetime.now(timezone.utc),
+        "user_id" : existing_user.id,
+        "completed": False,
+        "in_progress": False
+    }
+
+    modified_tasks : list[Task] = []
+
+    new_task_ids = [task.id for task in new_tasks.tasks if task.id is not None]
+
+    for task in new_tasks.tasks:
+        
+        task_data = task.model_dump(exclude_unset=True)
+
+        # If task does not exist, create it:
+        if not task.id:
+            new_task = Task.model_validate(
+                TaskCreate.model_validate(task_data),
+                update=header
+            )
+            session.add(new_task)
+            modified_tasks.append(new_task)
+        
+        # If task does exist, update it:
+        else:
+            existing_task = existing_tasks_by_id.get(task.id)
+            if not existing_task:
+                # raise HTTPException(status_code=404, detail=f"Task not found with ID {task.id}")
+                warnings.warn(f"Task not found with ID {task.id}")
+                continue
+
+            update = TaskUpdate.model_validate(
+                task_data, update=header
+            ).model_dump(exclude_unset=True)
+
+            existing_task.sqlmodel_update(update)
+            modified_tasks.append(existing_task)
+    
+    # Delete all user tasks which aren't in the new list
+    for task_id, task in existing_tasks_by_id.items():
+        if task_id not in new_task_ids:
+            session.delete(task)
+
+    session.commit()
+
+    for task in modified_tasks:
+        session.refresh(task)
+    
+    return modified_tasks
 
 @router.get("/tasks_generate/self", response_model=TaskGenerationResult)
 async def generate_tasks_for_self(
+    commit : bool = True,
     user : User = Depends(get_current_user),
-    magic : str = Depends(get_current_magic),
     session : Session = Depends(get_session)
 ) -> TaskGenerationResult:
     """
     For the current student, use the LLM to create or update their list of assignment tasks.
 
     Args:
+        commit (bool, optional): Whether to update the user's tasks list in the database to match the LLM-generated tasks. Defaults to True.
         user (User, optional): The currently logged in user.
-        magic (str, optional): The user's magic. TODO: This should not be necessary.
         session (Session, optional): Connection to the SQL database.
 
     Raises:
         HTTPException: Raises a 500 if the LLM fails in any way to generate the task list.
 
     Returns:
-        TaskGenerationResult: Summary of the changes made to the student's tasks and the new list of incomplete task objects.
+        TaskGenerationResult: The list of LLM generated task as well as the current list of user tasks in the database.
     """
 
-    response = await generate_tasks_for_user(
+    result = await generate_tasks_for_user(
         username=user.username,
+        commit=commit,
         user=user,
-        magic=magic,
         session=session
     )
-    return response
+    
+    return result
 
 @router.get("/tasks_generate/{username}", response_model=TaskGenerationResult)
 async def generate_tasks_for_user(
     username : str,
+    commit : bool = True,
     user : User = Depends(get_current_user),
-    magic : str = Depends(get_current_magic),
     session : Session = Depends(get_session)
 ) -> TaskGenerationResult:
     """
@@ -638,6 +741,7 @@ async def generate_tasks_for_user(
 
     Args:
         username (str): Name of the student to update assignment tasks for.
+        commit (bool, optional): Whether to update the user's tasks list in the database to match the LLM-generated tasks. Defaults to True.
         user (User, optional): The currently logged in user.
         magic (str, optional): The user's magic. TODO: This should not be necessary.
         session (Session, optional): Connection to the SQL database.
@@ -647,7 +751,7 @@ async def generate_tasks_for_user(
         HTTPException: Raises a 500 if the LLM fails in any way to generate the task list.
 
     Returns:
-        TaskGenerationResult: Summary of the changes made to the student's tasks and the new list of incomplete task objects.
+        TaskGenerationResult: The list of LLM generated task as well as the current list of user tasks in the database.
     """
     
     # Imported lazily to avoid circular import
@@ -657,16 +761,15 @@ async def generate_tasks_for_user(
         raise HTTPException(status_code=401, detail="Unauthorised")
 
     try:
-        change_summary = await create_tasks_for_user(
+        new_tasks = await create_tasks_for_user(
             username=username,
-            magic=magic,
             user=user,
             session=session
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting LLM to generate tasks list for user: {str(e)}")
-
-    updated_tasks = get_all_tasks_for_user(
+    
+    existing_tasks : list[Task] = get_all_tasks_for_user(
         username=username,
         incomplete_only=True,
         offset=0,
@@ -675,9 +778,33 @@ async def generate_tasks_for_user(
         session=session
     )
 
-    updated_tasks = [TaskPublic.model_validate(task) for task in updated_tasks]
+    if commit:
+        updated_tasks = commit_generated_tasks(
+            new_tasks=new_tasks,
+            existing_tasks=existing_tasks,
+            username=username,
+            user=user,
+            session=session
+        )
+        existing_tasks = updated_tasks
 
     return TaskGenerationResult(
-        change_summary=change_summary,
-        tasks_list=updated_tasks
+        generated_tasks = new_tasks.tasks,
+        updated_tasks_list = existing_tasks
     )
+
+    # updated_tasks = get_all_tasks_for_user(
+    #     username=username,
+    #     incomplete_only=True,
+    #     offset=0,
+    #     limit=100,
+    #     user=user,
+    #     session=session
+    # )
+
+    # updated_tasks = [TaskPublic.model_validate(task) for task in updated_tasks]
+
+    # return TaskGenerationResult(
+    #     change_summary=change_summary,
+    #     tasks_list=updated_tasks
+    # )

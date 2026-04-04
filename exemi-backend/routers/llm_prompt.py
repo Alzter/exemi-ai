@@ -196,17 +196,17 @@ step required to complete these assignments.
 
 The current date is {datetime.now(ZoneInfo("Australia/Sydney")).date().isoformat()}.
 
-## TOOLS
-Use the tools ``create_assignment_task_for_student``, ``update_assignment_task_for_student``, and ``delete_assignment_task_for_student`` to create, edit, and delete assignment tasks for the student.
+## RESPONSE RULES
+Respond ONLY with the new list of the user's tasks as a JSON object.
 
 ## TASK FIELDS
-Each task has the following fields:
-- ID
-- Assignment ID
-- Name
-- Description
-- Duration in minutes
-- Due date
+Each task must have the following fields:
+- id (int | None): The ID number of the task if known, or None if it is a new task.
+- assignment_id (int): The ID number of the student's assignment which this task references.
+- name (str): The name of the task in the format "\<Shortened assignment name\>: \<Task name\>".
+- description (str): Summary of what steps are needed to complete the task.
+- duration_mins (int): An estimation of how many minutes the student will need to complete this task.
+- due_at (str): Which date the student must work on this task in ISO 8601 format (YYYY-MM-DD).
 
 ## TASK RULES
 1. Each task MUST be assigned to ONE of the student's assignments.
@@ -235,14 +235,6 @@ student. Update this list of tasks using these rules:
     a. Update the due date of the overdue task to be later than today.
     b. Update the due dates of all tasks after the overdue task for the same assignment to be later than the overdue task.
 
-## EXISTING TASK FIELDS
-- id (int): The ID number of the task.
-- assignment_id (int): The ID number of the student's assignment which this task references.
-- name (str): The name of the task in the format "<Shortened assignment name>: <Task name>".
-- description (str): Summary of what steps are needed to complete the task.
-- duration_mins (int): An estimation of how many minutes the student will need to complete this task.
-- due_date (str): Which date the student must work on this task in ISO 8601 format (YYYY-MM-DD).
-
 ## EXISTING TASKS LIST
 ```json
 {existing_tasks}
@@ -264,23 +256,23 @@ The student has the following assignments:
 ```
     """.strip()
 
-    prompt += "\n\n"
+#     prompt += "\n\n"
 
-    if has_existing_tasks:
-        prompt += """
-## RESPONSE RULES
-Once you have finished breaking the
-student's assignments into smaller tasks,
-summarise what changes you made to the
-student's task list and why.
-        """.strip()
-    else:
-        prompt += """
-## RESPONSE RULES
-Once you have finished breaking the
-student's assignments into smaller tasks,
-summarise what tasks you created.
-        """.strip()
+#     if has_existing_tasks:
+#         prompt += """
+# ## RESPONSE RULES
+# Once you have finished breaking the
+# student's assignments into smaller tasks,
+# summarise what changes you made to the
+# student's task list and why.
+#         """.strip()
+#     else:
+#         prompt += """
+# ## RESPONSE RULES
+# Once you have finished breaking the
+# student's assignments into smaller tasks,
+# summarise what tasks you created.
+#         """.strip()
     
     return prompt
 

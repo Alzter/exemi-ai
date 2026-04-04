@@ -1,7 +1,9 @@
 import os
 import json
+from datetime import datetime
+from pydantic import BaseModel
 from .dependencies import get_current_user, get_current_magic, get_session
-from .models import User
+from .models import User, TaskList
 from typing import AsyncGenerator, Callable, Any
 from sqlmodel import Session
 from fastapi import HTTPException, Depends, BackgroundTasks
@@ -93,9 +95,8 @@ async def summarise(
 async def create_tasks_for_user(
     username : str,
     user : User,
-    magic : str,
     session : Session
-) -> list[BaseMessage]:
+) -> TaskList:
     if not model: raise HTTPException(status_code=500, detail="Error reaching LLM: Ollama server offline")
 
     tasks_prompt = get_task_creation_prompt_for_user(
@@ -104,15 +105,13 @@ async def create_tasks_for_user(
         session=session
     )
 
-    response : list[BaseMessage] = await chat(
-        messages = [],
-        user=user,
-        magic=magic,
-        session=session,
-        system_prompt=tasks_prompt
-    )
+    messages = [{"role":"system", "content":tasks_prompt}]
 
-    return response
+    model_structured = model.with_structured_output(TaskList)
+
+    tasks = model_structured.invoke(messages)
+
+    return tasks
 
 async def chat(
     messages : list[dict],

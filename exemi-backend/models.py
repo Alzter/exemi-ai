@@ -496,6 +496,17 @@ class TaskPublic(TaskBase, UTCModel):
     progress_mins : int
     colour_raw : str | None = None
 
+class TaskLLM(BaseModel):
+    id : int | None
+    assignment_id : int
+    name : str
+    description : str
+    duration_mins : int
+    due_at : datetime
+
+class TaskList(BaseModel):
+    tasks : list[TaskLLM]
+
 class ReminderBase(SQLModel):
     # canvas_assignment_id : int
     assignment_name : str = Field(max_length=255)

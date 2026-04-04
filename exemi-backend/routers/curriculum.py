@@ -584,6 +584,7 @@ def get_assignment(
 #     return "\n".join(message).strip()
 
 class AssignmentJSON(BaseModel):
+    id : int
     name: str
     description: str | None
     due_date: datetime | None
@@ -640,6 +641,7 @@ def get_assignments_list_json(
 
             assignment_list.append(
                 AssignmentJSON(
+                    id=assignment.id,
                     name=assignment.name or "",
                     description=assignment.readable_description,
                     due_date=parse_timestamp(assignment.due_at),
