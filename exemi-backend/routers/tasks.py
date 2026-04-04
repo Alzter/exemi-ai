@@ -10,7 +10,6 @@ from ..date_utils import parse_timestamp
 from datetime import date, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 from pydantic import BaseModel, TypeAdapter
-from ..llm_api import create_tasks_for_user
 
 router = APIRouter()
 
@@ -651,6 +650,9 @@ async def generate_tasks_for_user(
         TaskGenerationResult: Summary of the changes made to the student's tasks and the new list of incomplete task objects.
     """
     
+    # Imported lazily to avoid circular import
+    from ..llm_api import create_tasks_for_user
+
     if username != user.username and not user.admin:
         raise HTTPException(status_code=401, detail="Unauthorised")
 

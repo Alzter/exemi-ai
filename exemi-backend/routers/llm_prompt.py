@@ -1,7 +1,6 @@
 from ..models import User, Unit, UnitPublic
 from ..date_utils import timestamp_to_string
 from ..routers.curriculum import get_assignments_list_json, get_units_list_json
-from ..routers.tasks import get_tasks_list_for_user_json
 from ..routers.reminders import get_reminders_list_json
 from ..routers.users import get_user_biography_text
 from ..dependencies import get_current_user, get_session
@@ -171,6 +170,8 @@ def get_task_creation_prompt_for_user(
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session)
 ) -> str:
+    # Imported lazily to avoid circular imports
+    from ..routers.tasks import get_tasks_list_for_user_json
 
     if not user.username == username and not user.admin:
         raise HTTPException(status_code=401, detail="Unauthorised")
