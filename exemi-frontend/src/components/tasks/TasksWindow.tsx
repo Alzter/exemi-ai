@@ -40,7 +40,7 @@ const MIN_EXPANDED_PX = 160;
 const DEFAULT_EXPANDED_VIEWPORT_RATIO = 0.5;
 const MAX_VIEWPORT_RATIO = 0.78;
 
-const WIDE_BREAKPOINT_MQ = '(min-width: 600px)';
+const BOARD_WIDE_BREAKPOINT_MQ = '(min-width: 600px)';
 
 function getDefaultExpandedHeightPx(): number {
     if (typeof window === 'undefined') return MIN_EXPANDED_PX;
@@ -60,9 +60,9 @@ export default function TasksWindow({layoutContainerRef}: TasksWindowProps) {
     const [heightPx, setHeightPx] = useState(COLLAPSED_PX);
     const [dragging, setDragging] = useState(false);
     const [selectedDateISO, setSelectedDateISO] = useState(() => formatISODateLocal(new Date()));
-    const [isWideViewport, setIsWideViewport] = useState(() => {
+    const [isBoardWideViewport, setIsBoardWideViewport] = useState(() => {
         if (typeof window === 'undefined') return true;
-        return window.matchMedia(WIDE_BREAKPOINT_MQ).matches;
+        return window.matchMedia(BOARD_WIDE_BREAKPOINT_MQ).matches;
     });
 
     const dragStartY = useRef(0);
@@ -76,9 +76,10 @@ export default function TasksWindow({layoutContainerRef}: TasksWindowProps) {
     const showResetDate = selectedDateISO !== todayISOValue;
 
     const showTodoColumn = selectedDateISO >= todayISOValue;
+    /** Wide: show Done with To-Do for today. Narrow: show Done only for past days (To-Do hidden). */
     const showDoneColumn =
         selectedDateISO <= todayISOValue &&
-        (isWideViewport || selectedDateISO < todayISOValue);
+        (isBoardWideViewport || selectedDateISO < todayISOValue);
 
     let boardLayoutClass = 'tasks-panel-board--none';
     if (showTodoColumn && showDoneColumn) {
@@ -138,8 +139,8 @@ export default function TasksWindow({layoutContainerRef}: TasksWindowProps) {
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
-        const mq = window.matchMedia(WIDE_BREAKPOINT_MQ);
-        const onChange = () => setIsWideViewport(mq.matches);
+        const mq = window.matchMedia(BOARD_WIDE_BREAKPOINT_MQ);
+        const onChange = () => setIsBoardWideViewport(mq.matches);
         onChange();
         mq.addEventListener('change', onChange);
         return () => mq.removeEventListener('change', onChange);
