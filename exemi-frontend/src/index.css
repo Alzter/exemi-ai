@@ -373,7 +373,7 @@ div.tasks-panel-header{
 
 button.tasks-panel-header-toggle{
   flex: 1 1 auto;
-  min-width: 0;
+  min-width: 100px;
   display:flex;
   flex-direction: row;
   align-items: center;
@@ -416,7 +416,7 @@ button.tasks-panel-header-toggle:active{
 }
 
 div.tasks-panel-date-selector{
-  flex: 0 0 auto;
+  flex: 0 0.2 auto;
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -430,7 +430,7 @@ div.tasks-panel-date-selector{
 }
 
 div.tasks-panel-date-selector--visible{
-  max-width: 380px;
+  max-width: 400px;
   opacity: 1;
   pointer-events: auto;
 }
@@ -448,9 +448,9 @@ span.tasks-panel-date-label{
 
 button.tasks-panel-date-btn{
   flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  min-width: 28px;
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
   padding: 0;
   margin: 0;
   display: inline-flex;
