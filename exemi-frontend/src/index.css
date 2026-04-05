@@ -537,6 +537,8 @@ div.tasks-panel-board{
   gap: 0;
   width: 100%;
   min-width: 0;
+  /* Global `div { border-radius: 8px }` would clip children when columns use overflow:hidden */
+  border-radius: 0;
 }
 
 div.tasks-panel-board--none{
@@ -552,6 +554,8 @@ div.tasks-panel-column{
   overflow: hidden;
   flex: 0 1 0;
   transition: flex 0.2s ease-in-out;
+  /* Override global `div { border-radius: 8px }` — otherwise overflow:hidden clips the card to a fully rounded rect */
+  border-radius: 0;
 }
 
 div.tasks-panel-board--both div.tasks-panel-column--todo{
@@ -592,12 +596,12 @@ div.tasks-panel-column-card{
 }
 
 /* Flush junction when To-Do and Done sit side by side: square inner corners, single divider */
-div.tasks-panel-board--both div.tasks-panel-column-card--adjacent-left{
+div.tasks-panel-board--both div.tasks-panel-column--adjacent-left div.tasks-panel-column-card{
   border-radius: 8px 0 0 8px;
   border-right: none;
 }
 
-div.tasks-panel-board--both div.tasks-panel-column-card--adjacent-right{
+div.tasks-panel-board--both div.tasks-panel-column--adjacent-right div.tasks-panel-column-card{
   border-radius: 0 8px 8px 0;
 }
 

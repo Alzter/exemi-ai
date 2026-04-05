@@ -470,17 +470,15 @@ export default function TasksWindow({session, layoutContainerRef}: TasksWindowPr
                 ) : (
                     <div className={'tasks-panel-board ' + boardLayoutClass}>
                         <div
-                            className="tasks-panel-column tasks-panel-column--todo"
+                            className={
+                                'tasks-panel-column tasks-panel-column--todo' +
+                                (showTodoColumn && showDoneColumn
+                                    ? ' tasks-panel-column--adjacent-left'
+                                    : '')
+                            }
                             aria-hidden={!showTodoColumn}
                         >
-                            <div
-                                className={
-                                    'tasks-panel-column-card' +
-                                    (showTodoColumn && showDoneColumn
-                                        ? ' tasks-panel-column-card--adjacent-left'
-                                        : '')
-                                }
-                            >
+                            <div className="tasks-panel-column-card">
                                 <div className="tasks-panel-column-head">
                                     <h3 className="tasks-panel-column-title">
                                         To-Do: {incompleteTasks.length}
@@ -502,17 +500,15 @@ export default function TasksWindow({session, layoutContainerRef}: TasksWindowPr
                             </div>
                         </div>
                         <div
-                            className="tasks-panel-column tasks-panel-column--done"
+                            className={
+                                'tasks-panel-column tasks-panel-column--done' +
+                                (showTodoColumn && showDoneColumn
+                                    ? ' tasks-panel-column--adjacent-right'
+                                    : '')
+                            }
                             aria-hidden={!showDoneColumn}
                         >
-                            <div
-                                className={
-                                    'tasks-panel-column-card' +
-                                    (showTodoColumn && showDoneColumn
-                                        ? ' tasks-panel-column-card--adjacent-right'
-                                        : '')
-                                }
-                            >
+                            <div className="tasks-panel-column-card">
                                 <div className="tasks-panel-column-head">
                                     <h3 className="tasks-panel-column-title">
                                         Done: {completeTasks.length}
