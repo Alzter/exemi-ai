@@ -352,12 +352,13 @@ div.tasks-panel-resize-handle{
   background: #ccc;
 } */
 
-button.tasks-panel-header{
+div.tasks-panel-header{
   flex-shrink: 0;
   display:flex;
   flex-direction: row;
   align-items: center;
   justify-content: flex-start;
+  gap: 0.35em;
   width: 100%;
   height:40px;
   padding: 4px 1em;
@@ -366,24 +367,130 @@ button.tasks-panel-header{
   border-radius: 0;
   background-color: #eee;
   color: #222;
+  box-shadow: none;
+}
+
+button.tasks-panel-header-toggle{
+  flex: 1 1 auto;
+  min-width: 0;
+  display:flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  background-color: transparent;
+  color: #222;
   font-weight: 600;
   text-align: left;
   cursor: pointer;
   box-shadow: none;
+  transform: none;
 }
 
-button.tasks-panel-header:hover{
+div.tasks-panel-header:has(.tasks-panel-header-toggle:hover){
   background-color: #ccc;
+}
+
+button.tasks-panel-header-toggle:hover{
+  background-color: transparent;
   transform: none;
   box-shadow: none;
   font-size: 1.1em;
 }
 
-button.tasks-panel-header:active{
+div.tasks-panel-header:has(.tasks-panel-header-toggle:active){
   background-color: #aaa;
+}
+
+button.tasks-panel-header-toggle:active{
+  background-color: transparent;
   transform: none;
   box-shadow: none;
   font-size: 0.95em;
+}
+
+div.tasks-panel-date-selector{
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.15em;
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  font-weight: 600;
+}
+
+div.tasks-panel-date-selector--visible{
+  max-width: 380px;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+span.tasks-panel-date-label{
+  display: inline-block;
+  width: 13.5em;
+  max-width: 13.5em;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 600;
+}
+
+button.tasks-panel-date-btn{
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  padding: 0;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 4px;
+  background-color: transparent;
+  color: #222;
+  cursor: pointer;
+  box-shadow: none;
+  transform: none;
+}
+
+button.tasks-panel-date-btn:hover{
+  background-color: #ccc;
+  transform: none;
+  box-shadow: none;
+}
+
+button.tasks-panel-date-btn:active{
+  background-color: #aaa;
+  transform: none;
+}
+
+button.tasks-panel-date-btn svg{
+  font-size: 1.25em;
+  vertical-align: middle;
+  margin: 0;
+  margin-left: 0;
+}
+
+/* Keeps date picker width stable when reset is hidden */
+div.tasks-panel-date-reset-slot{
+  flex-shrink: 0;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 div.tasks-panel-body{
