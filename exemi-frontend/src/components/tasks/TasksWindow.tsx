@@ -7,6 +7,7 @@ import {
     MdKeyboardArrowDown,
     MdKeyboardArrowUp,
     MdRefresh,
+    MdAdd,
 } from 'react-icons/md';
 import {type Session} from '../../models';
 import {
@@ -427,7 +428,8 @@ export default function TasksWindow({session, layoutContainerRef}: TasksWindowPr
                                 {showAddTaskButton ? (
                                     <div className="tasks-panel-column-foot">
                                         <button type="button" className="tasks-panel-add-task">
-                                            + Add Task
+                                            <MdAdd aria-hidden />
+                                            Add Task
                                         </button>
                                     </div>
                                 ) : null}

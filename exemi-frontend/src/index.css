@@ -589,7 +589,8 @@ div.tasks-panel-column-head{
   flex-shrink: 0;
   margin: 0;
   padding: 0.45em 0.65em;
-  border-bottom: 2px solid #aaa;
+  padding-bottom: 0;
+  /* border-bottom: 2px solid #aaa; */
   background-color: #eee;
 }
 
@@ -621,7 +622,7 @@ div.tasks-panel-column-scroll{
 div.tasks-panel-column-foot{
   flex-shrink: 0;
   padding: 0.35em 0.65em 0.5em;
-  border-top: 2px solid #aaa;
+  /* border-top: 2px solid #aaa; */
   background-color: #eee;
 }
 
@@ -629,7 +630,7 @@ button.tasks-panel-add-task{
   width: 100%;
   margin: 0;
   padding: 0.45em 0.5em;
-  font-size: 0.9em;
+  /* font-size: 0.9em; */
   font-weight: 600;
   color: #333;
   background-color: #ddd;
@@ -676,6 +677,17 @@ button.tasks-panel-task-check{
   background: transparent;
   color: inherit;
   cursor: pointer;
+}
+button.tasks-panel-task-check:hover{
+  transform: scale(1.3) translateX(1px);
+  background-color: transparent;
+  box-shadow: none;
+}
+
+button.tasks-panel-task-check:active{
+  transform: scale(0.8) translateX(-1px);
+  background-color: transparent;
+  box-shadow: none;
 }
 
 button.tasks-panel-task-check svg{
