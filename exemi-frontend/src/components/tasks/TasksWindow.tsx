@@ -4,6 +4,7 @@ import {
     MdArrowRight,
     MdCheckBox,
     MdCheckBoxOutlineBlank,
+    MdClose,
     MdKeyboardArrowDown,
     MdKeyboardArrowUp,
     MdRefresh,
@@ -68,7 +69,33 @@ type TaskPublicRow = {
     duration_mins: number;
     completed: boolean;
     colour_raw: string | null;
+    /** Optimistic row while autofill/create is in flight */
+    clientPending?: boolean;
 };
+
+type TaskCreateFromApi = {
+    name: string;
+    description: string;
+    duration_mins: number;
+    assignment_id: number | null;
+    due_at: string;
+};
+
+function taskPublicJsonToRow(t: {
+    id: number;
+    name: string;
+    duration_mins: number;
+    completed: boolean;
+    colour_raw?: string | null;
+}): TaskPublicRow {
+    return {
+        id: t.id,
+        name: t.name,
+        duration_mins: t.duration_mins,
+        completed: t.completed,
+        colour_raw: t.colour_raw ?? null,
+    };
+}
 
 type TasksWindowProps = {
     session: Session;
@@ -90,6 +117,14 @@ export default function TasksWindow({session, layoutContainerRef}: TasksWindowPr
     /** After LLM task generation (`/tasks_generate/self`); gates date picker and `/tasks/self`. */
     const [tasksBootstrapReady, setTasksBootstrapReady] = useState(() => !session.token);
 
+    const [taskEntryOpen, setTaskEntryOpen] = useState(false);
+    const [newTaskTitle, setNewTaskTitle] = useState('');
+    const todoEntryContainerRef = useRef<HTMLDivElement>(null);
+    const todoColumnScrollRef = useRef<HTMLDivElement>(null);
+    const newTaskInputRef = useRef<HTMLInputElement>(null);
+    const pendingTempIdRef = useRef(0);
+    const prevSelectedDateISORef = useRef(selectedDateISO);
+
     const dragStartY = useRef(0);
     const dragStartHeight = useRef(0);
     const activePointerId = useRef<number | null>(null);
@@ -106,7 +141,8 @@ export default function TasksWindow({session, layoutContainerRef}: TasksWindowPr
         selectedDateISO <= todayISOValue &&
         (isBoardWideViewport || selectedDateISO < todayISOValue);
 
-    const showAddTaskButton = selectedDateISO >= todayISOValue;
+    const showAddTaskButton =
+        selectedDateISO >= todayISOValue && Boolean(session.token && session.user?.username);
 
     const userTimeZone =
         typeof Intl !== 'undefined'
@@ -154,6 +190,37 @@ export default function TasksWindow({session, layoutContainerRef}: TasksWindowPr
         };
     }, [session.token]);
 
+    const reloadTasksFromApi = useCallback(async (): Promise<TaskPublicRow[] | null> => {
+        const token = session.token;
+        if (!token) return null;
+
+        const dateParam = utcIsoForLocalCalendarDate(selectedDateISO, userTimeZone);
+        const currentParam = new Date().toISOString();
+
+        const params = new URLSearchParams({
+            date: dateParam,
+            current_date: currentParam,
+            timezone_name: userTimeZone,
+            offset: '0',
+            limit: '100',
+        });
+
+        try {
+            const res = await fetch(`${backendURL}/tasks/self?${params.toString()}`, {
+                method: 'GET',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    Accept: 'application/json',
+                },
+            });
+            if (!res.ok) return null;
+            const list = (await res.json()) as TaskPublicRow[];
+            return Array.isArray(list) ? list : [];
+        } catch {
+            return null;
+        }
+    }, [session.token, selectedDateISO, userTimeZone]);
+
     useEffect(() => {
         const token = session.token;
         if (!token) {
@@ -166,47 +233,151 @@ export default function TasksWindow({session, layoutContainerRef}: TasksWindowPr
         }
 
         let cancelled = false;
-        const dateParam = utcIsoForLocalCalendarDate(selectedDateISO, userTimeZone);
-        const currentParam = new Date().toISOString();
-
-        const params = new URLSearchParams({
-            date: dateParam,
-            current_date: currentParam,
-            timezone_name: userTimeZone,
-            offset: '0',
-            limit: '100',
-        });
-
         setTasksError(null);
 
-        fetch(`${backendURL}/tasks/self?${params.toString()}`, {
-            method: 'GET',
-            headers: {
-                Authorization: `Bearer ${token}`,
-                Accept: 'application/json',
-            },
-        })
-            .then(async (res) => {
-                if (!res.ok) {
-                    const text = await res.text();
-                    throw new Error(text || res.statusText);
-                }
-                return res.json() as Promise<TaskPublicRow[]>;
-            })
-            .then((list) => {
-                if (cancelled) return;
-                setTasks(Array.isArray(list) ? list : []);
-            })
-            .catch(() => {
-                if (cancelled) return;
+        void reloadTasksFromApi().then((list) => {
+            if (cancelled) return;
+            if (list === null) {
                 setTasksError('Could not load tasks.');
                 setTasks([]);
-            });
+            } else {
+                setTasks(list);
+            }
+        });
 
         return () => {
             cancelled = true;
         };
-    }, [session.token, selectedDateISO, userTimeZone, tasksBootstrapReady]);
+    }, [session.token, tasksBootstrapReady, reloadTasksFromApi]);
+
+    const cancelTaskEntry = useCallback(() => {
+        setTaskEntryOpen(false);
+        setNewTaskTitle('');
+    }, []);
+
+    useEffect(() => {
+        if (!taskEntryOpen) return;
+        const id = requestAnimationFrame(() => {
+            newTaskInputRef.current?.focus();
+            newTaskInputRef.current?.scrollIntoView({block: 'nearest', behavior: 'smooth'});
+            const sc = todoColumnScrollRef.current;
+            if (sc) {
+                sc.scrollTo({top: sc.scrollHeight, behavior: 'smooth'});
+            }
+        });
+        return () => cancelAnimationFrame(id);
+    }, [taskEntryOpen]);
+
+    useEffect(() => {
+        if (!taskEntryOpen) return;
+        const onPointerDown = (e: PointerEvent) => {
+            const el = todoEntryContainerRef.current;
+            if (!el) return;
+            if (e.target instanceof Node && !el.contains(e.target)) {
+                cancelTaskEntry();
+            }
+        };
+        document.addEventListener('pointerdown', onPointerDown, true);
+        return () => document.removeEventListener('pointerdown', onPointerDown, true);
+    }, [taskEntryOpen, cancelTaskEntry]);
+
+    useEffect(() => {
+        if (prevSelectedDateISORef.current !== selectedDateISO) {
+            prevSelectedDateISORef.current = selectedDateISO;
+            cancelTaskEntry();
+        }
+    }, [selectedDateISO, cancelTaskEntry]);
+
+    const confirmNewTask = useCallback(async () => {
+        const name = newTaskTitle.trim();
+        if (!name) return;
+        const token = session.token;
+        const username = session.user?.username;
+        if (!token || !username) return;
+
+        setTaskEntryOpen(false);
+        setNewTaskTitle('');
+
+        const tempId = --pendingTempIdRef.current;
+        setTasks((prev) => [
+            ...prev,
+            {
+                id: tempId,
+                name,
+                duration_mins: 0,
+                completed: false,
+                colour_raw: null,
+                clientPending: true,
+            },
+        ]);
+
+        const due_at = utcIsoForLocalCalendarDate(selectedDateISO, userTimeZone);
+
+        const removePlaceholder = () => {
+            setTasks((prev) => prev.filter((t) => t.id !== tempId));
+        };
+
+        try {
+            const autofillRes = await fetch(
+                `${backendURL}/task_autofill/${encodeURIComponent(username)}`,
+                {
+                    method: 'POST',
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json',
+                    },
+                    body: JSON.stringify({name, due_at}),
+                },
+            );
+            if (!autofillRes.ok) {
+                removePlaceholder();
+                setTasksError('Could not generate task details.');
+                return;
+            }
+
+            const taskCreate = (await autofillRes.json()) as TaskCreateFromApi;
+
+            const createRes = await fetch(`${backendURL}/task/${encodeURIComponent(username)}`, {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                },
+                body: JSON.stringify(taskCreate),
+            });
+
+            if (!createRes.ok) {
+                removePlaceholder();
+                setTasksError('Could not save task.');
+                return;
+            }
+
+            const createdJson = (await createRes.json()) as Parameters<typeof taskPublicJsonToRow>[0];
+            const refreshed = await reloadTasksFromApi();
+            if (refreshed !== null) {
+                setTasks(refreshed);
+                setTasksError(null);
+            } else {
+                setTasks((prev) => [
+                    ...prev.filter((t) => t.id !== tempId),
+                    taskPublicJsonToRow(createdJson),
+                ]);
+                setTasksError('Task saved; could not refresh the list.');
+            }
+        } catch {
+            removePlaceholder();
+            setTasksError('Could not add task.');
+        }
+    }, [
+        newTaskTitle,
+        session.token,
+        session.user?.username,
+        selectedDateISO,
+        userTimeZone,
+        reloadTasksFromApi,
+    ]);
 
     const patchTaskCompleted = useCallback(
         async (taskId: number, completed: boolean) => {
@@ -332,10 +503,11 @@ export default function TasksWindow({session, layoutContainerRef}: TasksWindowPr
         const safeBg = safeTaskBackgroundFromColourRaw(t.colour_raw);
         const bg =
             column === 'done' ? completedTaskBackgroundFromSafe(safeBg) : safeBg;
-        const durLabel =
-            isBoardWideViewport
-                ? `${t.duration_mins} minute${t.duration_mins === 1 ? '' : 's'}`
-                : `${t.duration_mins} min`;
+        const durLabel = t.clientPending
+            ? '…'
+            : isBoardWideViewport
+              ? `${t.duration_mins} minute${t.duration_mins === 1 ? '' : 's'}`
+              : `${t.duration_mins} min`;
 
         const isFutureDay = selectedDateISO > todayISOValue;
         const isPastDay = selectedDateISO < todayISOValue;
@@ -362,7 +534,7 @@ export default function TasksWindow({session, layoutContainerRef}: TasksWindowPr
                         type="button"
                         className="tasks-panel-task-check"
                         aria-label={checkAriaLabel}
-                        disabled={isPastDay}
+                        disabled={isPastDay || !!t.clientPending}
                         onClick={() => onToggleTask(t)}
                     >
                         {t.completed ? <MdCheckBox aria-hidden /> : <MdCheckBoxOutlineBlank aria-hidden />}
@@ -478,22 +650,70 @@ export default function TasksWindow({session, layoutContainerRef}: TasksWindowPr
                             }
                             aria-hidden={!showTodoColumn}
                         >
-                            <div className="tasks-panel-column-card">
+                            <div ref={todoEntryContainerRef} className="tasks-panel-column-card">
                                 <div className="tasks-panel-column-head">
                                     <h3 className="tasks-panel-column-title">
                                         To-Do: {incompleteTasks.length}
                                     </h3>
                                 </div>
                                 <div className="tasks-panel-column-body">
-                                    <div className="tasks-panel-column-scroll">
+                                    <div ref={todoColumnScrollRef} className="tasks-panel-column-scroll">
                                         {incompleteTasks.map((t) => renderTaskRow(t, 'todo'))}
+                                        {taskEntryOpen ? (
+                                            <input
+                                                ref={newTaskInputRef}
+                                                type="text"
+                                                className="tasks-panel-task-entry-input"
+                                                value={newTaskTitle}
+                                                onChange={(e) => setNewTaskTitle(e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        if (newTaskTitle.trim()) void confirmNewTask();
+                                                    }
+                                                    if (e.key === 'Escape') {
+                                                        e.preventDefault();
+                                                        cancelTaskEntry();
+                                                    }
+                                                }}
+                                                placeholder="Task name"
+                                                aria-label="New task name"
+                                            />
+                                        ) : null}
                                     </div>
                                     {showAddTaskButton ? (
                                         <div className="tasks-panel-column-foot">
-                                            <button type="button" className="tasks-panel-add-task">
-                                                <MdAdd aria-hidden />
-                                                Add Task
-                                            </button>
+                                            {taskEntryOpen ? (
+                                                <div className="tasks-panel-task-entry-actions">
+                                                    <button
+                                                        type="button"
+                                                        className="tasks-panel-task-entry-confirm"
+                                                        disabled={!newTaskTitle.trim()}
+                                                        onClick={() => void confirmNewTask()}
+                                                        aria-label="Add task"
+                                                    >
+                                                        <MdAdd aria-hidden />
+                                                        <span>Add</span>
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className="tasks-panel-task-entry-cancel"
+                                                        onClick={cancelTaskEntry}
+                                                        aria-label="Cancel adding task"
+                                                    >
+                                                        <MdClose aria-hidden />
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <button
+                                                    type="button"
+                                                    className="tasks-panel-add-task"
+                                                    onClick={() => setTaskEntryOpen(true)}
+                                                >
+                                                    <MdAdd aria-hidden />
+                                                    Add Task
+                                                </button>
+                                            )}
                                         </div>
                                     ) : null}
                                 </div>

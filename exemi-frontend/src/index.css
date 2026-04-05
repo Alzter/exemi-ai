@@ -670,6 +670,106 @@ button.tasks-panel-add-task:active{
   transform: scale(0.99);
 }
 
+div.tasks-panel-task-entry-actions{
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+div.tasks-panel button.tasks-panel-task-entry-confirm{
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+  height: 48px;
+  min-height: 48px;
+  margin: 0;
+  padding: 0 0.65em;
+  border-radius: 8px;
+  background-color: #4f46e5;
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.95em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35em;
+  box-shadow: none;
+  transform: none;
+}
+
+div.tasks-panel button.tasks-panel-task-entry-confirm:hover:not(:disabled){
+  background-color: #4338ca;
+  transform: scale(1.02);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+div.tasks-panel button.tasks-panel-task-entry-confirm:disabled{
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+div.tasks-panel button.tasks-panel-task-entry-confirm:disabled:hover{
+  transform: none;
+  box-shadow: none;
+}
+
+div.tasks-panel button.tasks-panel-task-entry-cancel{
+  flex-shrink: 0;
+  width: 48px;
+  min-width: 48px;
+  max-width: 48px;
+  height: 48px;
+  min-height: 48px;
+  margin: 0;
+  padding: 0;
+  border-radius: 8px;
+  background-color: #6b7280;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: none;
+  transform: none;
+}
+
+div.tasks-panel button.tasks-panel-task-entry-cancel:hover{
+  background-color: #4b5563;
+  transform: scale(1.02);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
+}
+
+div.tasks-panel button.tasks-panel-task-entry-confirm svg,
+div.tasks-panel button.tasks-panel-task-entry-cancel svg{
+  font-size: 1.4em;
+  margin: 0;
+}
+
+input.tasks-panel-task-entry-input{
+  flex-shrink: 0;
+  width: 100%;
+  box-sizing: border-box;
+  height: 50px;
+  min-height: 50px;
+  margin-top: 0;
+  margin-bottom: 0;
+  padding: 0 0.55em;
+  background-color: #fff;
+  border: 2px solid #4f46e5;
+  border-radius: 8px;
+  font-size: 0.88em;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+input.tasks-panel-task-entry-input:focus{
+  outline: none;
+  border-color: #4f46e5;
+  box-shadow: 0 3px 3px rgba(0, 0, 0, 0.2);
+}
+
 div.tasks-panel-task-row{
   flex-shrink: 0;
   display: flex;
@@ -700,6 +800,11 @@ button.tasks-panel-task-check{
   color: inherit;
   cursor: pointer;
 }
+
+button.tasks-panel-task-check:disabled{
+  background-color: transparent;
+}
+
 button.tasks-panel-task-check:hover{
   transform: scale(1.3) translateX(1px);
   background-color: transparent;

@@ -415,7 +415,7 @@ The user is trying to create a task with the fields:
 You must return the following fields for the user's task:
 - assignment_id (int | None): The ID number of the student's assignment which this task references, or None if the task doesn't seem to reference any assignment.
 - description (str): Summary of what steps are needed to complete the task.
-- duration_mins (int): An estimation of how many minutes the student will need to complete this task.
+- duration_mins (int): An estimation of how many minutes the student will need to complete this task. Should be divisible by 5 and <= 25.
 
 ## ASSIGNMENTS
 Use the student's list of assignments to decide which assignment this task should be created for,

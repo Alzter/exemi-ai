@@ -509,17 +509,20 @@ def create_task_for_user(
             .where(UsersAssignments.user_id == existing_user.id)
             .where(UsersAssignments.assignment_id == data.assignment_id)
         ).first()
+
         if not existing_assignment:
             raise HTTPException(
                 status_code=400,
                 detail=f"The student does not have the assignment with ID {data.assignment_id}",
             )
         
-        if data.due_at > existing_assignment.due_at:
-            raise HTTPException(
-                status_code=400,
-                detail=f"The task due date ({parse_timestamp(data.due_at).date().isoformat()}) cannot be later than the assignment due date ({parse_timestamp(existing_assignment.due_at).date().isoformat()})"
-            )
+        # existing_assignment_data = existing_assignment.assignment
+
+        # if parse_timestamp(data.due_at) > parse_timestamp(existing_assignment_data.due_at):
+        #     raise HTTPException(
+        #         status_code=400,
+        #         detail=f"The task due date ({parse_timestamp(data.due_at).date().isoformat()}) cannot be later than the assignment due date ({parse_timestamp(existing_assignment_data.due_at).date().isoformat()})"
+        #     )
 
     task = Task.model_validate(
         data,
@@ -706,12 +709,13 @@ def update_task(
                 status_code=400,
                 detail=f"The student does not have the assignment with ID {assignment_id}",
             )
+        # existing_assignment_data = existing_assignment.assignment
 
-        if due_at > existing_assignment.due_at:
-            raise HTTPException(
-                status_code=400,
-                detail=f"The task due date ({parse_timestamp(due_at).date().isoformat()}) cannot be later than the assignment due date ({parse_timestamp(existing_assignment.due_at).date().isoformat()})"
-            )
+        # if parse_timestamp(due_at) > parse_timestamp(existing_assignment_data.due_at):
+        #     raise HTTPException(
+        #         status_code=400,
+        #         detail=f"The task due date ({parse_timestamp(due_at).date().isoformat()}) cannot be later than the assignment due date ({parse_timestamp(existing_assignment_data.due_at).date().isoformat()})"
+        #     )
 
     new_data_dict = new_data.model_dump(exclude_unset=True)
     task.sqlmodel_update(new_data_dict)
