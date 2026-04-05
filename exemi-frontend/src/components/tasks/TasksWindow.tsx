@@ -86,8 +86,9 @@ export default function TasksWindow({session, layoutContainerRef}: TasksWindowPr
     });
 
     const [tasks, setTasks] = useState<TaskPublicRow[]>([]);
-    const [tasksLoading, setTasksLoading] = useState(false);
     const [tasksError, setTasksError] = useState<string | null>(null);
+    /** After LLM task generation (`/tasks_generate/self`); gates date picker and `/tasks/self`. */
+    const [tasksBootstrapReady, setTasksBootstrapReady] = useState(() => !session.token);
 
     const dragStartY = useRef(0);
     const dragStartHeight = useRef(0);
@@ -116,9 +117,51 @@ export default function TasksWindow({session, layoutContainerRef}: TasksWindowPr
     const completeTasks = tasks.filter((t) => t.completed);
 
     useEffect(() => {
+        if (!session.token) {
+            setTasksBootstrapReady(true);
+            return;
+        }
+
+        let cancelled = false;
+        setTasksBootstrapReady(false);
+        setTasksError(null);
+
+        fetch(`${backendURL}/tasks_generate/self`, {
+            method: 'GET',
+            headers: {
+                Authorization: `Bearer ${session.token}`,
+                Accept: 'application/json',
+            },
+        })
+            .then(async (res) => {
+                if (!res.ok) {
+                    const text = await res.text();
+                    throw new Error(text || res.statusText);
+                }
+                await res.json();
+            })
+            .catch(() => {
+                if (!cancelled) {
+                    setTasksError('Could not generate or refresh tasks.');
+                }
+            })
+            .finally(() => {
+                if (!cancelled) setTasksBootstrapReady(true);
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [session.token]);
+
+    useEffect(() => {
         const token = session.token;
         if (!token) {
             setTasks([]);
+            return;
+        }
+
+        if (!tasksBootstrapReady) {
             return;
         }
 
@@ -134,7 +177,6 @@ export default function TasksWindow({session, layoutContainerRef}: TasksWindowPr
             limit: '100',
         });
 
-        setTasksLoading(true);
         setTasksError(null);
 
         fetch(`${backendURL}/tasks/self?${params.toString()}`, {
@@ -159,15 +201,12 @@ export default function TasksWindow({session, layoutContainerRef}: TasksWindowPr
                 if (cancelled) return;
                 setTasksError('Could not load tasks.');
                 setTasks([]);
-            })
-            .finally(() => {
-                if (!cancelled) setTasksLoading(false);
             });
 
         return () => {
             cancelled = true;
         };
-    }, [session.token, selectedDateISO, userTimeZone]);
+    }, [session.token, selectedDateISO, userTimeZone, tasksBootstrapReady]);
 
     const patchTaskCompleted = useCallback(
         async (taskId: number, completed: boolean) => {
@@ -360,9 +399,9 @@ export default function TasksWindow({session, layoutContainerRef}: TasksWindowPr
                 <div
                     className={
                         'tasks-panel-date-selector' +
-                        (open ? ' tasks-panel-date-selector--visible' : '')
+                        (open && tasksBootstrapReady ? ' tasks-panel-date-selector--visible' : '')
                     }
-                    aria-hidden={!open}
+                    aria-hidden={!open || !tasksBootstrapReady}
                 >
                     <button
                         type="button"
@@ -412,69 +451,82 @@ export default function TasksWindow({session, layoutContainerRef}: TasksWindowPr
                     </button>
                 </div>
             </div>
-            <div className="tasks-panel-body">
+            <div
+                className={
+                    'tasks-panel-body' +
+                    (session.token && !tasksBootstrapReady ? ' tasks-panel-body--bootstrap' : '')
+                }
+            >
                 {tasksError ? <p className="tasks-panel-tasks-error">{tasksError}</p> : null}
-                {/* {tasksLoading ? (
-                    <p className="tasks-panel-placeholder">Loading tasks…</p>
-                ) : null} */}
-                <div className={'tasks-panel-board ' + boardLayoutClass}>
+                {session.token && !tasksBootstrapReady ? (
                     <div
-                        className="tasks-panel-column tasks-panel-column--todo"
-                        aria-hidden={!showTodoColumn}
+                        className="tasks-panel-bootstrap-spinner"
+                        role="status"
+                        aria-live="polite"
+                        aria-label="Generating and loading tasks"
                     >
+                        <div className="loading-spinner" aria-hidden />
+                    </div>
+                ) : (
+                    <div className={'tasks-panel-board ' + boardLayoutClass}>
                         <div
-                            className={
-                                'tasks-panel-column-card' +
-                                (showTodoColumn && showDoneColumn
-                                    ? ' tasks-panel-column-card--adjacent-left'
-                                    : '')
-                            }
+                            className="tasks-panel-column tasks-panel-column--todo"
+                            aria-hidden={!showTodoColumn}
                         >
-                            <div className="tasks-panel-column-head">
-                                <h3 className="tasks-panel-column-title">
-                                    To-Do: {incompleteTasks.length}
-                                </h3>
-                            </div>
-                            <div className="tasks-panel-column-body">
-                                <div className="tasks-panel-column-scroll">
-                                    {incompleteTasks.map((t) => renderTaskRow(t, 'todo'))}
+                            <div
+                                className={
+                                    'tasks-panel-column-card' +
+                                    (showTodoColumn && showDoneColumn
+                                        ? ' tasks-panel-column-card--adjacent-left'
+                                        : '')
+                                }
+                            >
+                                <div className="tasks-panel-column-head">
+                                    <h3 className="tasks-panel-column-title">
+                                        To-Do: {incompleteTasks.length}
+                                    </h3>
                                 </div>
-                                {showAddTaskButton ? (
-                                    <div className="tasks-panel-column-foot">
-                                        <button type="button" className="tasks-panel-add-task">
-                                            <MdAdd aria-hidden />
-                                            Add Task
-                                        </button>
+                                <div className="tasks-panel-column-body">
+                                    <div className="tasks-panel-column-scroll">
+                                        {incompleteTasks.map((t) => renderTaskRow(t, 'todo'))}
                                     </div>
-                                ) : null}
+                                    {showAddTaskButton ? (
+                                        <div className="tasks-panel-column-foot">
+                                            <button type="button" className="tasks-panel-add-task">
+                                                <MdAdd aria-hidden />
+                                                Add Task
+                                            </button>
+                                        </div>
+                                    ) : null}
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    <div
-                        className="tasks-panel-column tasks-panel-column--done"
-                        aria-hidden={!showDoneColumn}
-                    >
                         <div
-                            className={
-                                'tasks-panel-column-card' +
-                                (showTodoColumn && showDoneColumn
-                                    ? ' tasks-panel-column-card--adjacent-right'
-                                    : '')
-                            }
+                            className="tasks-panel-column tasks-panel-column--done"
+                            aria-hidden={!showDoneColumn}
                         >
-                            <div className="tasks-panel-column-head">
-                                <h3 className="tasks-panel-column-title">
-                                    Done: {completeTasks.length}
-                                </h3>
-                            </div>
-                            <div className="tasks-panel-column-body">
-                                <div className="tasks-panel-column-scroll">
-                                    {completeTasks.map((t) => renderTaskRow(t, 'done'))}
+                            <div
+                                className={
+                                    'tasks-panel-column-card' +
+                                    (showTodoColumn && showDoneColumn
+                                        ? ' tasks-panel-column-card--adjacent-right'
+                                        : '')
+                                }
+                            >
+                                <div className="tasks-panel-column-head">
+                                    <h3 className="tasks-panel-column-title">
+                                        Done: {completeTasks.length}
+                                    </h3>
+                                </div>
+                                <div className="tasks-panel-column-body">
+                                    <div className="tasks-panel-column-scroll">
+                                        {completeTasks.map((t) => renderTaskRow(t, 'done'))}
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
+                )}
             </div>
         </div>
     );

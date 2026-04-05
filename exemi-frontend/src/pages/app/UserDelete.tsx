@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useNavigate } from "react-router"
 import UserSelector from "../../components/admin/UserSelector";
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
@@ -7,7 +7,7 @@ export default function UserDelete({session} : any){
 
     let navigate = useNavigate();
 
-    const [username, setUsername] = useState<string>();
+    const [username, setUsername] = useState<string>("");
     const [refreshUsers, setRefreshUsers] = useState(0);
 
     const [error, setError] = useState<string | null>(null);
@@ -17,7 +17,7 @@ export default function UserDelete({session} : any){
         event.preventDefault();
         setLoading(true);
         
-        if (username === session.user.username){
+        if (username !== "" && username === session.user?.username){
             setError("You cannot delete your own account!");
             setLoading(false);
             return;

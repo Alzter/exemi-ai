@@ -24,7 +24,7 @@ export default function UserCreate({session} : any){
         university_name:"swinburne",
         password:"",
     });
-    const [highestLegalUserID, setHighestLegalUserID] = useState<number>(0);
+    const [, setHighestLegalUserID] = useState<number>(0);
 
     // Automatically increment the user ID value
     // to be an integer higher than the greatest

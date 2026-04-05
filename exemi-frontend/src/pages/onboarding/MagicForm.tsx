@@ -23,7 +23,7 @@ type MagicFormParams = {
 
 export default function MagicForm({
   session,
-  setSession,
+  setSession: _setSession,
   universityName,
   canvasSubdomainHint,
   setMagicValid,

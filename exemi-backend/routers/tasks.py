@@ -1028,19 +1028,3 @@ async def generate_tasks_for_user(
         generated_tasks = new_tasks.tasks,
         updated_tasks_list = existing_tasks
     )
-
-    # updated_tasks = get_all_tasks_for_user(
-    #     username=username,
-    #     incomplete_only=True,
-    #     offset=0,
-    #     limit=100,
-    #     user=user,
-    #     session=session
-    # )
-
-    # updated_tasks = [TaskPublic.model_validate(task) for task in updated_tasks]
-
-    # return TaskGenerationResult(
-    #     change_summary=change_summary,
-    #     tasks_list=updated_tasks
-    # )

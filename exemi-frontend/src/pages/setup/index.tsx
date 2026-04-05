@@ -1,8 +1,8 @@
-import { use, useState } from 'react';
+import { useState } from 'react';
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 
 
-export default function CreateAdminAccount({error, setError, setSession} : any){
+export default function CreateAdminAccount({error, setError} : any){
     type UserCreateForm = {
         username : string;
         password : string;

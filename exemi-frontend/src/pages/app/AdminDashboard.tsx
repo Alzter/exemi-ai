@@ -1,9 +1,7 @@
-import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-const backendURL = import.meta.env.VITE_BACKEND_API_URL;
-import { MdAdd, MdSettings, MdSearch, MdDelete, MdEdit } from "react-icons/md";
+import { MdAdd, MdSearch, MdDelete, MdEdit } from "react-icons/md";
 
-export default function AdminDashboard({session, setSession, logOut} : any) {
+export default function AdminDashboard({logOut} : any) {
 
   let navigate = useNavigate();
 

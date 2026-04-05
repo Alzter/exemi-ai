@@ -20,11 +20,6 @@ type Message = {
     id : number
 }
 
-type Conversation = {
-    created_at : Date
-    id : number
-}
-
 export default function ChatMessagesUI({session, isViewing, conversationID, setConversationID, loading, setLoading, error, setError} : ChatUIProps){
 
     const [units, setUnits] = useState<UserUnit[]>([]);
@@ -196,6 +191,13 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
                 },
                 method:"GET"
             });
+
+            if (!llm_response.ok || !llm_response.body) {
+                setError("Error retrieving LLM response.");
+                setAwaitingLLMResponse(false);
+                setLoading(false);
+                return;
+            }
 
             // Add an empty message before the LLM responds
             setMessages(prev => [

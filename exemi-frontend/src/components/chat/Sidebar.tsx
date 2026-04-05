@@ -1,4 +1,4 @@
-import {useState, useEffect, useRef} from 'react'
+import {useState, useEffect} from 'react'
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 import { useNavigate } from 'react-router-dom';
 import {type Session} from '../../models';
@@ -27,7 +27,7 @@ export default function ChatSidebar({session, enabled, setEnabled, isViewing, lo
 
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [username, setUsername] = useState<string>(
-        isViewing ? "1" : session.user.username
+        isViewing ? "1" : (session.user?.username ?? "")
     );
 
     function toggleChatSidebar(){
@@ -151,7 +151,7 @@ export default function ChatSidebar({session, enabled, setEnabled, isViewing, lo
                 </div>
                 
                 <div className="chat-sidebar-footer">
-                {session.user.admin ? (
+                {session.user?.admin ? (
                     <button onClick={() => {navigate("/");}}>Back to Dashboard</button>
                 ) : (
                     <button onClick={logOut}>Log Out</button>
