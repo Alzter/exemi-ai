@@ -34,11 +34,13 @@ function formatTaskHeaderDateLabel(selectedISO: string, todayISOValue: string): 
     return d.toLocaleDateString('en-GB', {weekday: 'long', day: 'numeric', month: 'long'});
 }
 
-const COLLAPSED_PX = 42;
+const COLLAPSED_PX = 52;
 const MIN_EXPANDED_PX = 160;
 /** Default height when expanding before the user has resized (50% of viewport). */
 const DEFAULT_EXPANDED_VIEWPORT_RATIO = 0.5;
 const MAX_VIEWPORT_RATIO = 0.78;
+
+const WIDE_BREAKPOINT_MQ = '(min-width: 600px)';
 
 function getDefaultExpandedHeightPx(): number {
     if (typeof window === 'undefined') return MIN_EXPANDED_PX;
@@ -58,6 +60,10 @@ export default function TasksWindow({layoutContainerRef}: TasksWindowProps) {
     const [heightPx, setHeightPx] = useState(COLLAPSED_PX);
     const [dragging, setDragging] = useState(false);
     const [selectedDateISO, setSelectedDateISO] = useState(() => formatISODateLocal(new Date()));
+    const [isWideViewport, setIsWideViewport] = useState(() => {
+        if (typeof window === 'undefined') return true;
+        return window.matchMedia(WIDE_BREAKPOINT_MQ).matches;
+    });
 
     const dragStartY = useRef(0);
     const dragStartHeight = useRef(0);
@@ -68,6 +74,20 @@ export default function TasksWindow({layoutContainerRef}: TasksWindowProps) {
     const todayISOValue = formatISODateLocal(new Date());
     const dateLabel = formatTaskHeaderDateLabel(selectedDateISO, todayISOValue);
     const showResetDate = selectedDateISO !== todayISOValue;
+
+    const showTodoColumn = selectedDateISO >= todayISOValue;
+    const showDoneColumn =
+        selectedDateISO <= todayISOValue &&
+        (isWideViewport || selectedDateISO < todayISOValue);
+
+    let boardLayoutClass = 'tasks-panel-board--none';
+    if (showTodoColumn && showDoneColumn) {
+        boardLayoutClass = 'tasks-panel-board--both';
+    } else if (showTodoColumn) {
+        boardLayoutClass = 'tasks-panel-board--todo-only';
+    } else if (showDoneColumn) {
+        boardLayoutClass = 'tasks-panel-board--done-only';
+    }
 
     const maxForContainer = useCallback(() => {
         const el = layoutContainerRef.current;
@@ -115,6 +135,15 @@ export default function TasksWindow({layoutContainerRef}: TasksWindowProps) {
             window.removeEventListener('pointercancel', onPointerUp);
         };
     }, [dragging, endDrag, maxForContainer]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const mq = window.matchMedia(WIDE_BREAKPOINT_MQ);
+        const onChange = () => setIsWideViewport(mq.matches);
+        onChange();
+        mq.addEventListener('change', onChange);
+        return () => mq.removeEventListener('change', onChange);
+    }, []);
 
     const onResizeHandlePointerDown = (e: React.PointerEvent) => {
         e.preventDefault();
@@ -214,7 +243,40 @@ export default function TasksWindow({layoutContainerRef}: TasksWindowProps) {
                 </div>
             </div>
             <div className="tasks-panel-body">
-                <p className="tasks-panel-placeholder">Task list will appear here.</p>
+                <div className={'tasks-panel-board ' + boardLayoutClass}>
+                    <div
+                        className="tasks-panel-column tasks-panel-column--todo"
+                        aria-hidden={!showTodoColumn}
+                    >
+                        <div
+                            className={
+                                'tasks-panel-column-card' +
+                                (showTodoColumn && showDoneColumn
+                                    ? ' tasks-panel-column-card--adjacent-left'
+                                    : '')
+                            }
+                        >
+                            <h3 className="tasks-panel-column-title">To-Do</h3>
+                            <div className="tasks-panel-column-scroll" />
+                        </div>
+                    </div>
+                    <div
+                        className="tasks-panel-column tasks-panel-column--done"
+                        aria-hidden={!showDoneColumn}
+                    >
+                        <div
+                            className={
+                                'tasks-panel-column-card' +
+                                (showTodoColumn && showDoneColumn
+                                    ? ' tasks-panel-column-card--adjacent-right'
+                                    : '')
+                            }
+                        >
+                            <h3 className="tasks-panel-column-title">Done</h3>
+                            <div className="tasks-panel-column-scroll" />
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     );
