@@ -499,6 +499,7 @@ class TaskPublic(TaskBase, UTCModel):
     user_id : int
     assignment : AssignmentPublic | None = None
     progress_mins : int
+    completed : bool
     colour_raw : str | None = None
 
 class TaskPublicWithUser(TaskPublic):

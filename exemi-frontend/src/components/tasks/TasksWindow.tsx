@@ -2,10 +2,20 @@ import {useCallback, useEffect, useRef, useState, type RefObject} from 'react';
 import {
     MdArrowLeft,
     MdArrowRight,
+    MdCheckBox,
+    MdCheckBoxOutlineBlank,
     MdKeyboardArrowDown,
     MdKeyboardArrowUp,
     MdRefresh,
 } from 'react-icons/md';
+import {type Session} from '../../models';
+import {
+    completedTaskBackgroundFromSafe,
+    safeTaskBackgroundFromColourRaw,
+    utcIsoForLocalCalendarDate,
+} from '../../utils/taskBoardUtils';
+
+const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 
 function formatISODateLocal(d: Date): string {
     const y = d.getFullYear();
@@ -51,11 +61,20 @@ function clamp(n: number, lo: number, hi: number) {
     return Math.min(hi, Math.max(lo, n));
 }
 
+type TaskPublicRow = {
+    id: number;
+    name: string;
+    duration_mins: number;
+    completed: boolean;
+    colour_raw: string | null;
+};
+
 type TasksWindowProps = {
+    session: Session;
     layoutContainerRef: RefObject<HTMLDivElement | null>;
 };
 
-export default function TasksWindow({layoutContainerRef}: TasksWindowProps) {
+export default function TasksWindow({session, layoutContainerRef}: TasksWindowProps) {
     const lastExpandedRef = useRef(getDefaultExpandedHeightPx());
     const [heightPx, setHeightPx] = useState(COLLAPSED_PX);
     const [dragging, setDragging] = useState(false);
@@ -64,6 +83,10 @@ export default function TasksWindow({layoutContainerRef}: TasksWindowProps) {
         if (typeof window === 'undefined') return true;
         return window.matchMedia(BOARD_WIDE_BREAKPOINT_MQ).matches;
     });
+
+    const [tasks, setTasks] = useState<TaskPublicRow[]>([]);
+    const [tasksLoading, setTasksLoading] = useState(false);
+    const [tasksError, setTasksError] = useState<string | null>(null);
 
     const dragStartY = useRef(0);
     const dragStartHeight = useRef(0);
@@ -80,6 +103,103 @@ export default function TasksWindow({layoutContainerRef}: TasksWindowProps) {
     const showDoneColumn =
         selectedDateISO <= todayISOValue &&
         (isBoardWideViewport || selectedDateISO < todayISOValue);
+
+    const showAddTaskButton = selectedDateISO >= todayISOValue;
+
+    const userTimeZone =
+        typeof Intl !== 'undefined'
+            ? Intl.DateTimeFormat().resolvedOptions().timeZone || 'Australia/Sydney'
+            : 'Australia/Sydney';
+
+    const incompleteTasks = tasks.filter((t) => !t.completed);
+    const completeTasks = tasks.filter((t) => t.completed);
+
+    useEffect(() => {
+        const token = session.token;
+        if (!token) {
+            setTasks([]);
+            return;
+        }
+
+        let cancelled = false;
+        const dateParam = utcIsoForLocalCalendarDate(selectedDateISO, userTimeZone);
+        const currentParam = new Date().toISOString();
+
+        const params = new URLSearchParams({
+            date: dateParam,
+            current_date: currentParam,
+            timezone_name: userTimeZone,
+            offset: '0',
+            limit: '100',
+        });
+
+        setTasksLoading(true);
+        setTasksError(null);
+
+        fetch(`${backendURL}/tasks/self?${params.toString()}`, {
+            method: 'GET',
+            headers: {
+                Authorization: `Bearer ${token}`,
+                Accept: 'application/json',
+            },
+        })
+            .then(async (res) => {
+                if (!res.ok) {
+                    const text = await res.text();
+                    throw new Error(text || res.statusText);
+                }
+                return res.json() as Promise<TaskPublicRow[]>;
+            })
+            .then((list) => {
+                if (cancelled) return;
+                setTasks(Array.isArray(list) ? list : []);
+            })
+            .catch(() => {
+                if (cancelled) return;
+                setTasksError('Could not load tasks.');
+                setTasks([]);
+            })
+            .finally(() => {
+                if (!cancelled) setTasksLoading(false);
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [session.token, selectedDateISO, userTimeZone]);
+
+    const patchTaskCompleted = useCallback(
+        async (taskId: number, completed: boolean) => {
+            const token = session.token;
+            if (!token) return false;
+            const res = await fetch(`${backendURL}/task/${taskId}`, {
+                method: 'PATCH',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                },
+                body: JSON.stringify({completed}),
+            });
+            return res.ok;
+        },
+        [session.token],
+    );
+
+    const onToggleTask = (task: TaskPublicRow) => {
+        const next = !task.completed;
+        setTasks((prev) =>
+            prev.map((t) => (t.id === task.id ? {...t, completed: next} : t)),
+        );
+        void patchTaskCompleted(task.id, next).then((ok) => {
+            if (!ok) {
+                setTasks((prev) =>
+                    prev.map((t) => (t.id === task.id ? {...t, completed: task.completed} : t)),
+                );
+                setTasksError('Could not update task.');
+            }
+        });
+    };
 
     let boardLayoutClass = 'tasks-panel-board--none';
     if (showTodoColumn && showDoneColumn) {
@@ -168,6 +288,40 @@ export default function TasksWindow({layoutContainerRef}: TasksWindowProps) {
         });
     };
 
+    function renderTaskRow(t: TaskPublicRow, column: 'todo' | 'done') {
+        const safeBg = safeTaskBackgroundFromColourRaw(t.colour_raw);
+        const bg =
+            column === 'done' ? completedTaskBackgroundFromSafe(safeBg) : safeBg;
+        const durLabel =
+            isBoardWideViewport
+                ? `${t.duration_mins} minute${t.duration_mins === 1 ? '' : 's'}`
+                : `${t.duration_mins} min`;
+
+        return (
+            <div
+                key={t.id}
+                className={
+                    'tasks-panel-task-row' +
+                    (column === 'done' ? ' tasks-panel-task-row--done' : '')
+                }
+                style={{backgroundColor: bg}}
+            >
+                <button
+                    type="button"
+                    className="tasks-panel-task-check"
+                    aria-label={t.completed ? 'Mark incomplete' : 'Mark complete'}
+                    onClick={() => onToggleTask(t)}
+                >
+                    {t.completed ? <MdCheckBox aria-hidden /> : <MdCheckBoxOutlineBlank aria-hidden />}
+                </button>
+                <div className="tasks-panel-task-name-outer">
+                    <span className="tasks-panel-task-name-inner">{t.name}</span>
+                </div>
+                <span className="tasks-panel-task-duration">{durLabel}</span>
+            </div>
+        );
+    }
+
     return (
         <div
             className={'tasks-panel' + (dragging ? ' tasks-panel--dragging' : '')}
@@ -244,6 +398,10 @@ export default function TasksWindow({layoutContainerRef}: TasksWindowProps) {
                 </div>
             </div>
             <div className="tasks-panel-body">
+                {tasksError ? <p className="tasks-panel-tasks-error">{tasksError}</p> : null}
+                {tasksLoading ? (
+                    <p className="tasks-panel-placeholder">Loading tasks…</p>
+                ) : null}
                 <div className={'tasks-panel-board ' + boardLayoutClass}>
                     <div
                         className="tasks-panel-column tasks-panel-column--todo"
@@ -257,8 +415,23 @@ export default function TasksWindow({layoutContainerRef}: TasksWindowProps) {
                                     : '')
                             }
                         >
-                            <h3 className="tasks-panel-column-title">To-Do</h3>
-                            <div className="tasks-panel-column-scroll" />
+                            <div className="tasks-panel-column-head">
+                                <h3 className="tasks-panel-column-title">
+                                    To-Do: {incompleteTasks.length}
+                                </h3>
+                            </div>
+                            <div className="tasks-panel-column-body">
+                                <div className="tasks-panel-column-scroll">
+                                    {incompleteTasks.map((t) => renderTaskRow(t, 'todo'))}
+                                </div>
+                                {showAddTaskButton ? (
+                                    <div className="tasks-panel-column-foot">
+                                        <button type="button" className="tasks-panel-add-task">
+                                            + Add Task
+                                        </button>
+                                    </div>
+                                ) : null}
+                            </div>
                         </div>
                     </div>
                     <div
@@ -273,8 +446,16 @@ export default function TasksWindow({layoutContainerRef}: TasksWindowProps) {
                                     : '')
                             }
                         >
-                            <h3 className="tasks-panel-column-title">Done</h3>
-                            <div className="tasks-panel-column-scroll" />
+                            <div className="tasks-panel-column-head">
+                                <h3 className="tasks-panel-column-title">
+                                    Done: {completeTasks.length}
+                                </h3>
+                            </div>
+                            <div className="tasks-panel-column-body">
+                                <div className="tasks-panel-column-scroll">
+                                    {completeTasks.map((t) => renderTaskRow(t, 'done'))}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

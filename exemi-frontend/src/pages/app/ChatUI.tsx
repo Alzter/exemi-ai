@@ -43,7 +43,7 @@ export default function ChatUI({session, isViewing, logOut} : ChatUIParams){
                     error={error}
                     setError={setError}
                 />
-                <TasksWindow layoutContainerRef={chatMainRef}/>
+                <TasksWindow session={session} layoutContainerRef={chatMainRef}/>
             </div>
         </div>
     )
