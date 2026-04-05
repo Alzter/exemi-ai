@@ -1,9 +1,9 @@
 import json
 
-from pydantic import BaseModel
+from pydantic import BaseModel, TypeAdapter
 
-from ..models import User, Unit, UnitPublic, TaskList
-from ..date_utils import timestamp_to_string
+from ..models import TaskAutofillCreate, User, Unit, UnitPublic, TaskList
+from ..date_utils import parse_timestamp, timestamp_to_string
 from ..routers.curriculum import (
     build_assignments_list_json,
     build_assignments_payload,
@@ -222,12 +222,10 @@ student. Update this list of tasks using these rules:
 ```
 """.strip()
 
-
 class TaskGenerationPrepare(BaseModel):
     prompt: str
     bypass_llm: bool = False
     task_list_if_bypass: TaskList | None = None
-
 
 def prepare_task_generation(
     username: str,
@@ -328,7 +326,6 @@ Apply only **TASK LIST UPDATE RULES** above (especially overdue tasks). Return t
     prompt += "\n```"
     return TaskGenerationPrepare(prompt=prompt.strip())
 
-
 @router.get("/prompt/tasks/self")
 async def get_task_creation_prompt_for_self(
     tasks_per_day : int = 10,
@@ -361,6 +358,72 @@ def get_task_creation_prompt_for_user(
             "and there are no overdue incomplete tasks. The existing task list would be returned as-is."
         )
     return prep.prompt
+
+@router.post("/prompt/task_create/self")
+def get_task_autofill_prompt_for_self(
+    task : TaskAutofillCreate,
+    user : User = Depends(get_current_user),
+    session : Session = Depends(get_session)
+):
+    return get_task_autofill_prompt_for_user(
+        username = user.username,
+        task=task,
+        user=user,
+        session=session
+    )
+
+task_autofill_create_adapter = TypeAdapter(TaskAutofillCreate)
+
+@router.post("/prompt/task_create/{username}")
+def get_task_autofill_prompt_for_user(
+    username : str,
+    task : TaskAutofillCreate,
+    user : User = Depends(get_current_user),
+    session : Session = Depends(get_session)
+) -> str:
+    if not username == user.username and not user.admin:
+        raise HTTPException(status_code=401, detail="Unauthorised")
+    
+    existing_user = session.exec(select(User).where(User.username==username)).first()
+    if not existing_user: raise HTTPException(status_code=404, detail=f"User not found: {username}")
+    
+    if not task.due_at: raise HTTPException(status_code=500, detail="Task missing due date")
+    due_timestamp = parse_timestamp(task.due_at)
+    if due_timestamp: due_timestamp = due_timestamp.isoformat()
+
+    return f"""
+You are a study assistant. Your goal is to help
+an undergraduate student with ADHD create tasks
+representing manageable steps they can take to
+complete their university assignments.
+
+You will be given the name of a new task the
+student is trying to create for one of their
+assignments. Your task is to fill in the missing
+fields for the task using information from the
+student's list of assignments.
+
+The current date is {datetime.now(ZoneInfo("Australia/Sydney")).date().isoformat()}.
+
+## TASK NAME
+The user is trying to create a task with the fields:
+```json
+{task_autofill_create_adapter.dump_json(task).decode("utf-8")}
+```
+
+## TASK FIELDS
+You must return the following fields for the user's task:
+- assignment_id (int | None): The ID number of the student's assignment which this task references, or None if the task doesn't seem to reference any assignment.
+- description (str): Summary of what steps are needed to complete the task.
+- duration_mins (int): An estimation of how many minutes the student will need to complete this task.
+
+## ASSIGNMENTS
+Use the student's list of assignments to decide which assignment this task should be created for,
+what steps are necessary to complete it, and how long it should take to complete in minutes.
+```json
+{get_assignments_list_json(user=existing_user, session=session)}
+```
+    """.strip()
 
 @router.get("/prompt")
 async def get_system_prompt(

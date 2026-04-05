@@ -3,7 +3,7 @@ import json
 from datetime import datetime
 from pydantic import BaseModel
 from .dependencies import get_current_user, get_current_magic, get_session
-from .models import User, TaskList
+from .models import User, TaskList, TaskAutofillCreate, TaskAutofillResponse, TaskCreate
 from typing import AsyncGenerator, Callable, Any
 from sqlmodel import Session
 from fastapi import HTTPException, Depends, BackgroundTasks
@@ -12,7 +12,7 @@ from langchain_core.messages import BaseMessage, AIMessage
 from langchain.tools import BaseTool
 from langchain_ollama import ChatOllama
 from .llm_tools import create_tools
-from .routers.llm_prompt import get_system_prompt, get_summarising_prompt, get_update_user_bio_prompt, prepare_task_generation
+from .routers.llm_prompt import get_system_prompt, get_summarising_prompt, get_update_user_bio_prompt, prepare_task_generation, get_task_autofill_prompt_for_user
 from dotenv import load_dotenv
 import warnings
 load_dotenv()
@@ -121,6 +121,41 @@ async def create_tasks_for_user(
     tasks = model_structured.invoke(messages)
 
     return CreateTasksForUserResult(tasks=tasks, llm_bypassed=False)
+
+async def autofill_task_for_user(
+    task : TaskAutofillCreate,
+    username : str,
+    user : User,
+    session : Session
+) -> TaskCreate:
+    """
+    Given a task name, get the LLM
+    to generate fields for its assignment
+    ID, due date, and duration in minutes.
+    """
+
+    if not model: raise HTTPException(status_code=500, detail="Error reaching LLM: Ollama server offline")
+    
+    prompt = get_task_autofill_prompt_for_user(
+        task=task,
+        username=username,
+        user=user,
+        session=session
+    )
+
+    messages = [{"role":"system", "content": prompt}]
+    model_structured = model.with_structured_output(TaskAutofillResponse)
+    task_fields : TaskAutofillResponse = model_structured.invoke(messages)
+
+    task_create = TaskCreate(
+        name=task.name,
+        description=task_fields.description,
+        assignment_id=task_fields.assignment_id,
+        duration_mins=task_fields.duration_mins,
+        due_at=task.due_at
+    )
+
+    return task_create
 
 async def chat(
     messages : list[dict],

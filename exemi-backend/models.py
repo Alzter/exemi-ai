@@ -484,6 +484,24 @@ class Task(TaskBase, table=True):
 
 class TaskCreate(TaskBase): pass
 
+class TaskAutofillCreate(SQLModel):
+    """
+    Create a task without fields
+    for assignment ID, duration,
+    etc., and get the LLM to auto
+    -create these fields by
+    inferring them from the task
+    name alongside the user's
+    existing tasks and assignments.
+    """
+    name : str
+    due_at : datetime
+
+class TaskAutofillResponse(SQLModel):
+    description : str
+    assignment_id : int | None
+    duration_mins : int
+
 class TaskUpdate(SQLModel):
     name : str | None = None
     description : str | None = None

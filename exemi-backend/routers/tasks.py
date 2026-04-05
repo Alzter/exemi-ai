@@ -1,4 +1,4 @@
-from ..models import User, UsersAssignments
+from ..models import TaskAutofillCreate, User, UsersAssignments
 from ..models import Task, TaskCreate, TaskUpdate, TaskPublic, TaskList, TaskLLM
 from typing import Literal
 from sqlmodel import Session, select
@@ -565,6 +565,87 @@ def create_task_for_self(
         user=user,
         session=session,
     )
+
+@router.post("/task_autofill/self", response_model=TaskCreate)
+async def autocomplete_task_for_self(
+    data : TaskAutofillCreate,
+    user : User = Depends(get_current_user),
+    session : Session = Depends(get_session)
+) -> TaskCreate:
+    """
+    For the current user, create a task and add it
+    to their list of assignment tasks when given only
+    a task name and due date without fields for its
+    description, assignmennt ID, and duration by using
+    the LLM to autocomplete the missing fields by
+    referencing the student's assignments list.
+
+    Args:
+        data (TaskAutofillCreate): Incomplete TaskCreate object with only name and due date.
+        user (User): The currently logged in user.
+        session (Session): Connection to the SQL database.
+    
+    Returns:
+        TaskCreate: The task creation object with missing fields completed.
+        Task: The task object created in the database.
+    """
+    task = await autocomplete_task_for_user(
+        username = user.username,
+        data=data,
+        user=user,
+        session=session
+    )
+    return task
+
+@router.post("/task_autofill/{username}", response_model=TaskCreate)
+async def autocomplete_task_for_user(
+    data : TaskAutofillCreate,
+    username : str,
+    user : User = Depends(get_current_user),
+    session : Session = Depends(get_session)
+) -> TaskCreate:
+    """
+    For an arbitrary user, create a task and add it
+    to their list of assignment tasks when given only
+    a task name and due date without fields for its
+    description, assignmennt ID, and duration by using
+    the LLM to autocomplete the missing fields by
+    referencing the student's assignments list.
+
+    Args:
+        data (TaskAutofillCreate): Incomplete TaskCreate object with only name and due date.
+        username (username): User to create task on behalf of.
+        user (User): The currently logged in user.
+        session (Session): Connection to the SQL database.
+
+    Raises:
+        HTTPException: Raises a 401 if a non-adminstrator user attempts to create tasks on behalf of another user.
+        HTTPException: Raises a 404 if the user specified by username was not found.
+    
+    Returns:
+        TaskCreate: The task creation object with missing fields completed.
+        Task: The task object created in the database.
+    """
+    if user.username != username and not user.admin:
+        raise HTTPException(status_code=401, detail="Unauthorised")
+
+    from ..llm_api import autofill_task_for_user
+
+    data_with_fields : TaskCreate = await autofill_task_for_user(
+        task = data,
+        username=username,
+        user=user,
+        session=session
+    )
+
+    # task : Task = create_task_for_user(
+    #     data=data_with_fields,
+    #     username=username,
+    #     user=user,
+    #     session=session
+    # )
+
+    return data_with_fields
 
 @router.patch("/task/{id}", response_model=TaskPublic)
 def update_task(
