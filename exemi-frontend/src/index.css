@@ -148,7 +148,7 @@ div.slide-progress-fill{
   transition: width 0.5s ease;
 }
 
-#root, #root div:not(.loading-spinner){
+#root{
   border-radius: 0;
 }
 
@@ -368,6 +368,7 @@ div.tasks-panel-header{
   background-color: #eee;
   color: #222;
   box-shadow: none;
+  transition: background-color 0.2s ease;
 }
 
 button.tasks-panel-header-toggle{
@@ -500,7 +501,6 @@ div.tasks-panel-body{
   flex-direction: column;
   overflow: hidden;
   padding: 0.75em 1em 1em;
-  border-top: 1px solid #ddd;
   border-radius: 0;
   background-color: #eee;
 }
@@ -621,7 +621,7 @@ div.tasks-panel-column-scroll{
 
 div.tasks-panel-column-foot{
   flex-shrink: 0;
-  padding: 0.35em 0.65em 0.5em;
+  padding: 0.65em 0.5em;
   /* border-top: 2px solid #aaa; */
   background-color: #eee;
 }
@@ -632,7 +632,7 @@ button.tasks-panel-add-task{
   padding: 0.45em 0.5em;
   /* font-size: 0.9em; */
   font-weight: 600;
-  color: #333;
+  color: #000;
   background-color: #ddd;
   border: 2px solid #999;
   border-radius: 8px;
@@ -642,10 +642,12 @@ button.tasks-panel-add-task{
 
 button.tasks-panel-add-task:hover{
   background-color: #ccc;
+  transform: scale(1.01);
 }
 
 button.tasks-panel-add-task:active{
   background-color: #bbb;
+  transform: scale(0.99);
 }
 
 div.tasks-panel-task-row{
@@ -688,6 +690,17 @@ button.tasks-panel-task-check:active{
   transform: scale(0.8) translateX(-1px);
   background-color: transparent;
   box-shadow: none;
+}
+
+button.tasks-panel-task-check:disabled{
+  cursor: not-allowed;
+  opacity: 0.72;
+  transform: none;
+}
+
+button.tasks-panel-task-check:disabled:hover,
+button.tasks-panel-task-check:disabled:active{
+  transform: none;
 }
 
 button.tasks-panel-task-check svg{

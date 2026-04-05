@@ -298,6 +298,17 @@ export default function TasksWindow({session, layoutContainerRef}: TasksWindowPr
                 ? `${t.duration_mins} minute${t.duration_mins === 1 ? '' : 's'}`
                 : `${t.duration_mins} min`;
 
+        const isFutureDay = selectedDateISO > todayISOValue;
+        const isPastDay = selectedDateISO < todayISOValue;
+        const showCheckbox = !isFutureDay;
+        const checkAriaLabel = isPastDay
+            ? t.completed
+                ? 'Completed'
+                : 'Not completed'
+            : t.completed
+              ? 'Mark incomplete'
+              : 'Mark complete';
+
         return (
             <div
                 key={t.id}
@@ -307,14 +318,17 @@ export default function TasksWindow({session, layoutContainerRef}: TasksWindowPr
                 }
                 style={{backgroundColor: bg}}
             >
-                <button
-                    type="button"
-                    className="tasks-panel-task-check"
-                    aria-label={t.completed ? 'Mark incomplete' : 'Mark complete'}
-                    onClick={() => onToggleTask(t)}
-                >
-                    {t.completed ? <MdCheckBox aria-hidden /> : <MdCheckBoxOutlineBlank aria-hidden />}
-                </button>
+                {showCheckbox ? (
+                    <button
+                        type="button"
+                        className="tasks-panel-task-check"
+                        aria-label={checkAriaLabel}
+                        disabled={isPastDay}
+                        onClick={() => onToggleTask(t)}
+                    >
+                        {t.completed ? <MdCheckBox aria-hidden /> : <MdCheckBoxOutlineBlank aria-hidden />}
+                    </button>
+                ) : null}
                 <div className="tasks-panel-task-name-outer">
                     <span className="tasks-panel-task-name-inner">{t.name}</span>
                 </div>
@@ -400,9 +414,9 @@ export default function TasksWindow({session, layoutContainerRef}: TasksWindowPr
             </div>
             <div className="tasks-panel-body">
                 {tasksError ? <p className="tasks-panel-tasks-error">{tasksError}</p> : null}
-                {tasksLoading ? (
+                {/* {tasksLoading ? (
                     <p className="tasks-panel-placeholder">Loading tasks…</p>
-                ) : null}
+                ) : null} */}
                 <div className={'tasks-panel-board ' + boardLayoutClass}>
                     <div
                         className="tasks-panel-column tasks-panel-column--todo"
