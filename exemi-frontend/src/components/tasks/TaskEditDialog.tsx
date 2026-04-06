@@ -7,6 +7,7 @@ import {
     MdPause,
     MdPlayArrow,
     MdToday,
+    MdDelete
 } from 'react-icons/md';
 import {DialogBox} from '../ui/DialogBox';
 import {safeTaskBackgroundFromColourRaw, utcIsoForLocalCalendarDate} from '../../utils/taskBoardUtils';
@@ -410,8 +411,8 @@ export function TaskEditDialog({
                 }}
             >
                 <div className="task-edit-dialog-inner">
-                    {loading ? <p className="task-edit-dialog-loading">Loading…</p> : null}
-                    {loadError ? <p className="task-edit-dialog-error">{loadError}</p> : null}
+                    {loading ? <p>Loading…</p> : null}
+                    {loadError ? <p>{loadError}</p> : null}
 
                     {!loading && !loadError && detail ? (
                         <>
@@ -446,8 +447,7 @@ export function TaskEditDialog({
                                         }}
                                     />
                                 ) : (
-                                    <span
-                                        className="task-edit-dialog-title-display"
+                                    <h3
                                         role="button"
                                         tabIndex={0}
                                         onClick={() => {
@@ -463,7 +463,7 @@ export function TaskEditDialog({
                                         }}
                                     >
                                         {detail.name}
-                                    </span>
+                                    </h3>
                                 )}
                             </div>
                             </div>
@@ -590,21 +590,22 @@ export function TaskEditDialog({
                     border: '2px solid rgba(0,0,0,0.14)',
                 }}
             >
-                <p className="task-edit-delete-confirm-text">Delete this task?</p>
+                <h3>Delete this task?</h3>
                 <div className="task-edit-delete-actions">
                     <button
                         type="button"
-                        className="task-edit-delete-cancel"
+                        className="secondary"
                         onClick={() => setDeleteOpen(false)}
                     >
                         Cancel
                     </button>
                     <button
                         type="button"
-                        className="task-edit-delete-confirm"
+                        className="secondary"
                         disabled={deleting}
                         onClick={() => void onConfirmDelete()}
                     >
+                        <MdDelete/>
                         {deleting ? 'Deleting…' : 'Delete'}
                     </button>
                 </div>
