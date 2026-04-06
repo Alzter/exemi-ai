@@ -956,8 +956,8 @@ def commit_generated_tasks(
     #     user=user,
     #     session=session
     # )
-
-    existing_tasks_by_id : dict[int, Task] = {task.id : task for task in existing_tasks}
+    
+    existing_tasks_by_id : dict[int, Task] = {task.id : task for task in existing_tasks if task.id is not None}
 
     header = {
         "created_at" : datetime.now(timezone.utc),
@@ -976,6 +976,11 @@ def commit_generated_tasks(
 
         # If task does not exist, create it:
         if not task.id:
+
+            # Do NOT allow the LLM to add completed tasks
+            if task.completed:
+                continue
+
             new_task = Task.model_validate(
                 TaskCreate.model_validate(task_data),
                 update=header
@@ -990,6 +995,10 @@ def commit_generated_tasks(
                 # raise HTTPException(status_code=404, detail=f"Task not found with ID {task.id}")
                 warnings.warn(f"Task not found with ID {task.id}")
                 continue
+            
+            # DO NOT allow the LLM to modify tasks which are completed
+            if existing_task.completed:
+                continue
 
             update = TaskUpdate.model_validate(
                 task_data, update=header
@@ -1000,7 +1009,9 @@ def commit_generated_tasks(
     
     # Delete all user tasks which aren't in the new list
     for task_id, task in existing_tasks_by_id.items():
-        if task_id not in new_task_ids:
+
+        # Do NOT allow the LLM to delete tasks which are completed
+        if task_id not in new_task_ids and not task.completed:
             session.delete(task)
 
     session.commit()
