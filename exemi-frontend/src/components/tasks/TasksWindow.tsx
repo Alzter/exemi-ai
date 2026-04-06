@@ -553,7 +553,7 @@ export default function TasksWindow({session, layoutContainerRef}: TasksWindowPr
             className={'tasks-panel' + (dragging ? ' tasks-panel--dragging' : '')}
             style={{height: heightPx}}
             aria-expanded={open}
-        >
+        >   
             <div
                 className="tasks-panel-resize-handle"
                 onPointerDown={onResizeHandlePointerDown}
@@ -561,6 +561,7 @@ export default function TasksWindow({session, layoutContainerRef}: TasksWindowPr
                 aria-orientation="horizontal"
                 aria-label="Resize tasks panel"
             />
+
             <div className="tasks-panel-header">
                 <button type="button" className="tasks-panel-header-toggle" onClick={toggleOpen}>
                     <p>
@@ -623,6 +624,15 @@ export default function TasksWindow({session, layoutContainerRef}: TasksWindowPr
                     </button>
                 </div>
             </div>
+
+            <div
+                className="tasks-panel-resize-handle"
+                onPointerDown={onResizeHandlePointerDown}
+                role="separator"
+                aria-orientation="horizontal"
+                aria-label="Resize tasks panel"
+            />
+
             <div
                 className={
                     'tasks-panel-body' +
@@ -637,6 +647,7 @@ export default function TasksWindow({session, layoutContainerRef}: TasksWindowPr
                         aria-live="polite"
                         aria-label="Generating and loading tasks"
                     >
+                        <p>I am creating assignment tasks for you, please wait...</p>
                         <div className="loading-spinner" aria-hidden />
                     </div>
                 ) : (
