@@ -1194,10 +1194,10 @@ div.tasks-panel-task-row{
   transition: transform 0.1s ease;
 }
 
-div.tasks-panel-task-row:not(.tasks-panel-task-row--done):hover{
+div.tasks-panel-task-row:not(.tasks-panel-task-row--done):not(tasks-panel-task-row--pending):not(.tasks-panel-task-row--doing):hover{
   transform:scale(1.01);
 }
-div.tasks-panel-task-row:not(.tasks-panel-task-row--done):active{
+div.tasks-panel-task-row:not(.tasks-panel-task-row--done):not(tasks-panel-task-row--pending):not(.tasks-panel-task-row--doing):active{
   transform:scale(0.99);
 }
 
