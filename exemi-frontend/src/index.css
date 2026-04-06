@@ -727,6 +727,10 @@ div.tasks-panel-doing-card.tasks-panel-column-card{
   border-radius: 8px 0 0 0;
 }
 
+div.tasks-panel-doing-card.tasks-panel-doing-card--dialog-open.tasks-panel-column-card{
+  position: relative;
+}
+
 /*
  * To-Do when Done column hidden (board--todo-only): right edge faces outward.
  * Solo To-Do: all corners rounded. Under Doing: bottom-left + bottom-right only.
@@ -755,8 +759,25 @@ div.tasks-panel-doing-card-head h3.tasks-panel-column-title{
   min-width: 0;
 }
 
+/* Dialog open: title off-layout (no gap above prompt); header band height unchanged */
+div.tasks-panel-doing-card-head--dialog-open.tasks-panel-column-head{
+  position: relative;
+  z-index: 2;
+  justify-content: flex-end;
+  min-height: calc(0.45em + 0.45em + 1.35em);
+}
+
 div.tasks-panel-doing-card-head--dialog-open h3.tasks-panel-column-title{
-  visibility: hidden;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+  flex: none;
 }
 
 button.tasks-panel-doing-close{
@@ -818,15 +839,18 @@ div.tasks-panel-doing-rows--invisible{
   visibility: hidden;
 }
 
-div.tasks-panel-doing-dialog{
+/* Full-card overlay: vertically centers in Doing card; header stays above (z-index) */
+div.tasks-panel-doing-dialog.tasks-panel-doing-dialog--card-overlay{
   position: absolute;
   inset: 0;
+  z-index: 1;
   box-sizing: border-box;
-  padding: 0.5em 0.65em 0.65em;
+  padding: 0.65em;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: stretch;
+  pointer-events: auto;
 }
 
 p.tasks-panel-doing-dialog-question{

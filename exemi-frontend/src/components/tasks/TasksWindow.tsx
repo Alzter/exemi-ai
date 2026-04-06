@@ -947,7 +947,12 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
                                         {doingAnimContent ? (
                                             <div className="tasks-panel-doing-card-wrap">
                                                 <div
-                                                    className="tasks-panel-column-card tasks-panel-doing-card"
+                                                    className={
+                                                        'tasks-panel-column-card tasks-panel-doing-card' +
+                                                        (doingCloseDialogOpen
+                                                            ? ' tasks-panel-doing-card--dialog-open'
+                                                            : '')
+                                                    }
                                                     style={{backgroundColor: doingCardBackground}}
                                                 >
                                                     <div
@@ -993,39 +998,39 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
                                                             >
                                                                 {doingTasksForUi.map((t) => renderDoingTaskRow(t))}
                                                             </div>
-                                                            {doingCloseDialogOpen ? (
-                                                                <div
-                                                                    className="tasks-panel-doing-dialog"
-                                                                    role="dialog"
-                                                                    aria-modal="true"
-                                                                    aria-labelledby="tasks-doing-dialog-title"
-                                                                >
-                                                                    <p
-                                                                        id="tasks-doing-dialog-title"
-                                                                        className="tasks-panel-doing-dialog-question"
-                                                                    >
-                                                                        Would you like help breaking the task down?
-                                                                    </p>
-                                                                    <div className="tasks-panel-doing-dialog-actions">
-                                                                        <button
-                                                                            type="button"
-                                                                            className="tasks-panel-add-task"
-                                                                            onClick={onDoingDialogYes}
-                                                                        >
-                                                                            Yes
-                                                                        </button>
-                                                                        <button
-                                                                            type="button"
-                                                                            className="tasks-panel-add-task"
-                                                                            onClick={onDoingDialogNo}
-                                                                        >
-                                                                            No
-                                                                        </button>
-                                                                    </div>
-                                                                </div>
-                                                            ) : null}
                                                         </div>
                                                     </div>
+                                                    {doingCloseDialogOpen ? (
+                                                        <div
+                                                            className="tasks-panel-doing-dialog tasks-panel-doing-dialog--card-overlay"
+                                                            role="dialog"
+                                                            aria-modal="true"
+                                                            aria-labelledby="tasks-doing-dialog-title"
+                                                        >
+                                                            <p
+                                                                id="tasks-doing-dialog-title"
+                                                                className="tasks-panel-doing-dialog-question"
+                                                            >
+                                                                Would you like help breaking the task down?
+                                                            </p>
+                                                            <div className="tasks-panel-doing-dialog-actions">
+                                                                <button
+                                                                    type="button"
+                                                                    className="tasks-panel-add-task"
+                                                                    onClick={onDoingDialogYes}
+                                                                >
+                                                                    Yes
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    className="tasks-panel-add-task"
+                                                                    onClick={onDoingDialogNo}
+                                                                >
+                                                                    No
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    ) : null}
                                                 </div>
                                             </div>
                                         ) : null}
