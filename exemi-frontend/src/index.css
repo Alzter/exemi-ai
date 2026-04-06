@@ -572,9 +572,22 @@ div.tasks-panel-column{
   min-height: 0;
   overflow: hidden;
   flex: 0 1 0;
-  /* Avoid `transition: flex` — it animates layout every frame and makes the page feel sluggish */
+  transition:
+    flex-grow 0.2s ease-in-out,
+    flex-shrink 0.2s ease-in-out,
+    flex-basis 0.2s ease-in-out;
   /* Override global `div { border-radius: 8px }` — otherwise overflow:hidden clips the card to a fully rounded rect */
   border-radius: 0;
+}
+
+@media (prefers-reduced-motion: reduce){
+  div.tasks-panel-column{
+    transition-duration: 0.01ms !important;
+  }
+
+  div.tasks-panel-doing-slot{
+    transition-duration: 0.01ms !important;
+  }
 }
 
 div.tasks-panel-board--both div.tasks-panel-column--todo{
@@ -661,10 +674,43 @@ div.tasks-panel-board--todo-only
 
 div.tasks-panel-todo-column-stack--with-doing div.tasks-panel-todo-main-card.tasks-panel-column-card{
   border-top: none;
+  /* Stack below Doing so paints under it if borders/AA overlap */
+  position: relative;
+  z-index: 0;
+}
+
+/* Doing card: height animates open/closed (grid row 0fr ↔ 1fr) */
+div.tasks-panel-doing-slot{
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.2s ease-in-out;
+  width: 100%;
+  /* Global `div { border-radius: 8px }` would clip children with bogus bottom rounding */
+  border-radius: 0;
+  height: fit-content;
+  /* Do not shrink in the flex column — default shrink + min-height:0 lets To-Do steal height and clip Doing */
+  flex-shrink: 0;
+  min-height: 0;
+  align-self: stretch;
+  position: relative;
+  z-index: 1;
+}
+
+div.tasks-panel-doing-slot--expanded{
+  grid-template-rows: 1fr;
+}
+
+div.tasks-panel-doing-slot-inner{
+  min-height: 0;
+  overflow: hidden;
+  width: 100%;
+  border-radius: 0;
 }
 
 div.tasks-panel-doing-card-wrap{
   flex: 0 0 auto;
+  flex-shrink: 0;
+  border-radius: 0;
 }
 
 div.tasks-panel-todo-main-card{
@@ -674,10 +720,10 @@ div.tasks-panel-todo-main-card{
   flex-direction: column;
 }
 
-/* Doing: only top-left corner rounded */
+/* Doing: only top-left corner rounded (avoid min-height:0 — it collapses intrinsic height in the grid slot) */
 div.tasks-panel-doing-card.tasks-panel-column-card{
   flex: 0 0 auto;
-  min-height: 0;
+  min-height: auto;
   border-radius: 8px 0 0 0;
 }
 
@@ -756,7 +802,7 @@ button.tasks-panel-doing-close svg{
 
 div.tasks-panel-doing-card-body.tasks-panel-column-body{
   flex: 0 0 auto;
-  min-height: 0;
+  min-height: auto;
 }
 
 div.tasks-panel-doing-body-stack{
@@ -833,11 +879,11 @@ div.tasks-panel-task-row.tasks-panel-task-row--doing:active{
 
 div.tasks-panel-doing-progress-fill{
   position: absolute;
-  left: -2px;
-  top: -2px;
-  bottom: -2px;
+  left: 0;
+  top: 0;
+  bottom: 0;
   z-index: 0;
-  border-radius: 8px;
+  border-radius: 4px;
   pointer-events: none;
 }
 

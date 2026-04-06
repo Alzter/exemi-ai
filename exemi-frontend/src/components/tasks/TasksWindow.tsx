@@ -145,6 +145,7 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
     const pendingTempIdRef = useRef(0);
     const prevSelectedDateISORef = useRef(selectedDateISO);
     const doingExtraSecsRef = useRef<Record<number, number>>({});
+    const doingTasksDisplayRef = useRef<TaskPublicRow[]>([]);
     const [, doingTick] = useState(0);
 
     const [doingCloseDialogOpen, setDoingCloseDialogOpen] = useState(false);
@@ -194,7 +195,36 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
     const todoIncompleteTasks = incompleteTasks.filter((t) => !isTaskInDoingColumn(t));
     const showDoingCard = showTodoColumn && doingTasks.length > 0;
 
+    const [doingAnimContent, setDoingAnimContent] = useState(showDoingCard);
+    const [doingAnimExpanded, setDoingAnimExpanded] = useState(showDoingCard);
+
     const completeTasks = tasks.filter((t) => t.completed);
+
+    useEffect(() => {
+        if (showDoingCard && doingTasks.length > 0) {
+            doingTasksDisplayRef.current = doingTasks;
+        }
+    }, [showDoingCard, doingTasks]);
+
+    useEffect(() => {
+        if (showDoingCard) {
+            setDoingAnimContent(true);
+            const id = requestAnimationFrame(() => {
+                requestAnimationFrame(() => setDoingAnimExpanded(true));
+            });
+            return () => cancelAnimationFrame(id);
+        }
+        setDoingAnimExpanded(false);
+    }, [showDoingCard]);
+
+    const onDoingSlotTransitionEnd = useCallback(
+        (e: React.TransitionEvent<HTMLDivElement>) => {
+            if (e.target !== e.currentTarget) return;
+            if (e.propertyName !== 'grid-template-rows') return;
+            if (!showDoingCard) setDoingAnimContent(false);
+        },
+        [showDoingCard],
+    );
 
     /** Stable key so effects do not run every render (doingTasks is a new [] each time). */
     const doingTaskIdsKey = useMemo(() => {
@@ -779,9 +809,12 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         );
     }
 
+    const doingTasksForUi =
+        showDoingCard ? doingTasks : doingAnimContent ? doingTasksDisplayRef.current : [];
+
     const doingCardBackground =
-        doingTasks[0] !== undefined
-            ? safeTaskBackgroundFromColourRaw(doingTasks[0].colour_raw)
+        doingTasksForUi[0] !== undefined
+            ? safeTaskBackgroundFromColourRaw(doingTasksForUi[0].colour_raw)
             : '#eee';
 
     return (
@@ -903,91 +936,101 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
                                     (showDoingCard ? ' tasks-panel-todo-column-stack--with-doing' : '')
                                 }
                             >
-                                {showDoingCard ? (
-                                    <div className="tasks-panel-doing-card-wrap">
-                                        <div
-                                            className="tasks-panel-column-card tasks-panel-doing-card"
-                                            style={{backgroundColor: doingCardBackground}}
-                                        >
-                                            <div
-                                                className={
-                                                    'tasks-panel-column-head tasks-panel-doing-card-head' +
-                                                    (doingCloseDialogOpen
-                                                        ? ' tasks-panel-doing-card-head--dialog-open'
-                                                        : '')
-                                                }
-                                            >
-                                                <h3
-                                                    className="tasks-panel-column-title"
-                                                    aria-hidden={doingCloseDialogOpen}
+                                <div
+                                    className={
+                                        'tasks-panel-doing-slot' +
+                                        (doingAnimExpanded ? ' tasks-panel-doing-slot--expanded' : '')
+                                    }
+                                    onTransitionEnd={onDoingSlotTransitionEnd}
+                                >
+                                    <div className="tasks-panel-doing-slot-inner">
+                                        {doingAnimContent ? (
+                                            <div className="tasks-panel-doing-card-wrap">
+                                                <div
+                                                    className="tasks-panel-column-card tasks-panel-doing-card"
+                                                    style={{backgroundColor: doingCardBackground}}
                                                 >
-                                                    Doing: {doingTasks.length}
-                                                </h3>
-                                                <button
-                                                    type="button"
-                                                    className="tasks-panel-doing-close"
-                                                    aria-label={
-                                                        doingCloseDialogOpen
-                                                            ? 'Decline help and reset progress'
-                                                            : 'Close doing tasks'
-                                                    }
-                                                    onClick={() =>
-                                                        doingCloseDialogOpen
-                                                            ? onDoingDialogNo()
-                                                            : setDoingCloseDialogOpen(true)
-                                                    }
-                                                >
-                                                    <MdClose aria-hidden />
-                                                </button>
-                                            </div>
-                                            <div className="tasks-panel-column-body tasks-panel-doing-card-body">
-                                                <div className="tasks-panel-doing-body-stack">
                                                     <div
                                                         className={
-                                                            'tasks-panel-doing-rows' +
+                                                            'tasks-panel-column-head tasks-panel-doing-card-head' +
                                                             (doingCloseDialogOpen
-                                                                ? ' tasks-panel-doing-rows--invisible'
+                                                                ? ' tasks-panel-doing-card-head--dialog-open'
                                                                 : '')
                                                         }
                                                     >
-                                                        {doingTasks.map((t) => renderDoingTaskRow(t))}
-                                                    </div>
-                                                    {doingCloseDialogOpen ? (
-                                                        <div
-                                                            className="tasks-panel-doing-dialog"
-                                                            role="dialog"
-                                                            aria-modal="true"
-                                                            aria-labelledby="tasks-doing-dialog-title"
+                                                        <h3
+                                                            className="tasks-panel-column-title"
+                                                            aria-hidden={doingCloseDialogOpen}
                                                         >
-                                                            <p
-                                                                id="tasks-doing-dialog-title"
-                                                                className="tasks-panel-doing-dialog-question"
+                                                            Doing: {doingTasksForUi.length}
+                                                        </h3>
+                                                        <button
+                                                            type="button"
+                                                            className="tasks-panel-doing-close"
+                                                            aria-label={
+                                                                doingCloseDialogOpen
+                                                                    ? 'Decline help and reset progress'
+                                                                    : 'Close doing tasks'
+                                                            }
+                                                            onClick={() =>
+                                                                doingCloseDialogOpen
+                                                                    ? onDoingDialogNo()
+                                                                    : setDoingCloseDialogOpen(true)
+                                                            }
+                                                        >
+                                                            <MdClose aria-hidden />
+                                                        </button>
+                                                    </div>
+                                                    <div className="tasks-panel-column-body tasks-panel-doing-card-body">
+                                                        <div className="tasks-panel-doing-body-stack">
+                                                            <div
+                                                                className={
+                                                                    'tasks-panel-doing-rows' +
+                                                                    (doingCloseDialogOpen
+                                                                        ? ' tasks-panel-doing-rows--invisible'
+                                                                        : '')
+                                                                }
                                                             >
-                                                                Would you like help breaking the task down?
-                                                            </p>
-                                                            <div className="tasks-panel-doing-dialog-actions">
-                                                                <button
-                                                                    type="button"
-                                                                    className="tasks-panel-add-task"
-                                                                    onClick={onDoingDialogYes}
-                                                                >
-                                                                    Yes
-                                                                </button>
-                                                                <button
-                                                                    type="button"
-                                                                    className="tasks-panel-add-task"
-                                                                    onClick={onDoingDialogNo}
-                                                                >
-                                                                    No
-                                                                </button>
+                                                                {doingTasksForUi.map((t) => renderDoingTaskRow(t))}
                                                             </div>
+                                                            {doingCloseDialogOpen ? (
+                                                                <div
+                                                                    className="tasks-panel-doing-dialog"
+                                                                    role="dialog"
+                                                                    aria-modal="true"
+                                                                    aria-labelledby="tasks-doing-dialog-title"
+                                                                >
+                                                                    <p
+                                                                        id="tasks-doing-dialog-title"
+                                                                        className="tasks-panel-doing-dialog-question"
+                                                                    >
+                                                                        Would you like help breaking the task down?
+                                                                    </p>
+                                                                    <div className="tasks-panel-doing-dialog-actions">
+                                                                        <button
+                                                                            type="button"
+                                                                            className="tasks-panel-add-task"
+                                                                            onClick={onDoingDialogYes}
+                                                                        >
+                                                                            Yes
+                                                                        </button>
+                                                                        <button
+                                                                            type="button"
+                                                                            className="tasks-panel-add-task"
+                                                                            onClick={onDoingDialogNo}
+                                                                        >
+                                                                            No
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            ) : null}
                                                         </div>
-                                                    ) : null}
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
+                                        ) : null}
                                     </div>
-                                ) : null}
+                                </div>
                                 <div
                                     ref={todoEntryContainerRef}
                                     className="tasks-panel-column-card tasks-panel-todo-main-card"
