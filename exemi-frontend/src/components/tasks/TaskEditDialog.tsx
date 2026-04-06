@@ -422,10 +422,10 @@ export function TaskEditDialog({
         <button
             type="button"
             className="floating"
-            aria-label="More actions"
+            aria-label="Delete task"
             onClick={() => setDeleteOpen(true)}
         >
-            <MdMoreHoriz aria-hidden />
+            <MdDelete aria-hidden />
         </button>
     );
 
@@ -447,168 +447,170 @@ export function TaskEditDialog({
                     color: '#1a1a1a',
                 }}
             >
-                <div className="task-edit-dialog-inner">
+                {!loading && !loadError && detail ? (
+                    
+                    <div className="dialog-panel-title">
+                        <button
+                            type="button"
+                            className="checkbox"
+                            aria-label={detail.completed ? 'Mark incomplete' : 'Mark complete'}
+                            onClick={() => void onToggleComplete()}
+                        >
+                            {detail.completed ? (
+                                <MdCheckBox aria-hidden />
+                            ) : (
+                                <MdCheckBoxOutlineBlank aria-hidden />
+                            )}
+                        </button>
+
+                        <div>
+                            {titleEditing ? (
+                                <input
+                                    ref={titleInputRef}
+                                    // className="task-edit-dialog-title-input"
+                                    value={titleDraft}
+                                    aria-label="Task title"
+                                    onChange={(e) => setTitleDraft(e.target.value)}
+                                    onBlur={() => void onTitleBlur()}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            (e.target as HTMLInputElement).blur();
+                                        }
+                                    }}
+                                />
+                            ) : (
+                                <h3
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={() => {
+                                        setTitleDraft(detail.name);
+                                        setTitleEditing(true);
+                                    }}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' || e.key === ' ') {
+                                            e.preventDefault();
+                                            setTitleDraft(detail.name);
+                                            setTitleEditing(true);
+                                        }
+                                    }}
+                                >
+                                    {detail.name}
+                                </h3>
+                            )}
+                        </div>
+                    </div>
+                ) : null}
+
+                <div className="dialog-panel-body" style={{paddingLeft:60}}>
                     {loading ? <p>Loading…</p> : null}
                     {loadError ? <p>{loadError}</p> : null}
 
                     {!loading && !loadError && detail ? (
                         <>
-                            <div className="input-row">
-                            <button
-                                type="button"
-                                className="checkbox"
-                                aria-label={detail.completed ? 'Mark incomplete' : 'Mark complete'}
-                                onClick={() => void onToggleComplete()}
-                            >
-                                {detail.completed ? (
-                                    <MdCheckBox aria-hidden />
-                                ) : (
-                                    <MdCheckBoxOutlineBlank aria-hidden />
-                                )}
-                            </button>
-
-                            <div className="task-edit-dialog-header-title-row">
-                                {titleEditing ? (
-                                    <input
-                                        ref={titleInputRef}
-                                        // className="task-edit-dialog-title-input"
-                                        value={titleDraft}
-                                        aria-label="Task title"
-                                        onChange={(e) => setTitleDraft(e.target.value)}
-                                        onBlur={() => void onTitleBlur()}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter') {
-                                                e.preventDefault();
-                                                (e.target as HTMLInputElement).blur();
-                                            }
-                                        }}
-                                    />
-                                ) : (
-                                    <h3
-                                        role="button"
-                                        tabIndex={0}
-                                        onClick={() => {
-                                            setTitleDraft(detail.name);
-                                            setTitleEditing(true);
-                                        }}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter' || e.key === ' ') {
-                                                e.preventDefault();
-                                                setTitleDraft(detail.name);
-                                                setTitleEditing(true);
-                                            }
-                                        }}
-                                    >
-                                        {detail.name}
-                                    </h3>
-                                )}
-                            </div>
-                            </div>
-
-                            <div className="task-edit-dialog-indent">
-                                <div className="task-edit-duration-row">
-                                    <input
-                                        type="number"
-                                        className="short"
-                                        // className="task-edit-number-input"
-                                        min={1}
-                                        max={24 * 60}
-                                        value={durDraft}
-                                        aria-label="Duration in minutes"
-                                        onChange={(e) => setDurDraft(e.target.value)}
-                                        onBlur={() => void onDurBlur()}
-                                    />
-                                    <span>minutes</span>
-                                    {showBreak ? (
-                                        <div className="task-edit-break-group">
-                                            <MdPause aria-hidden/>
-                                            <span>Break every</span>
-                                            <input
-                                                type="number"
-                                                className="short"
-                                                min={1}
-                                                max={240}
-                                                value={breakDraft}
-                                                aria-label="Break every N minutes"
-                                                onChange={(e) => setBreakDraft(e.target.value)}
-                                                onBlur={() => void onBreakBlur()}
-                                            />
-                                            <span>minutes</span>
-                                        </div>
-                                    ) : null}
-                                </div>
-
-                                <label htmlFor="task-edit-desc">
-                                    Description
-                                </label>
-                                <textarea
-                                    id="task-edit-desc"
-                                    style={{flexGrow:1}}
-                                    // className="task-edit-description"
-                                    value={descDraft}
-                                    placeholder="Task description (supports markdown in storage)"
-                                    onChange={(e) => setDescDraft(e.target.value)}
-                                    onBlur={() => void onDescBlur()}
+                            <div className="task-edit-duration-row">
+                                <input
+                                    type="number"
+                                    className="short"
+                                    // className="task-edit-number-input"
+                                    min={1}
+                                    max={24 * 60}
+                                    value={durDraft}
+                                    aria-label="Duration in minutes"
+                                    onChange={(e) => setDurDraft(e.target.value)}
+                                    onBlur={() => void onDurBlur()}
                                 />
-
-                                <div className="task-edit-chips-row">
-                                    <input
-                                        ref={dateInputRef}
-                                        type="date"
-                                        className="task-edit-date-native"
-                                        value={dateISOValue}
-                                        onChange={(e) => void onDateChange(e)}
-                                        aria-hidden
-                                        tabIndex={-1}
-                                    />
-                                    <button
-                                        type="button"
-                                        className="chip"
-                                        onClick={() => {
-                                            const el = dateInputRef.current;
-                                            if (el && 'showPicker' in el && typeof el.showPicker === 'function') {
-                                                el.showPicker();
-                                            } else {
-                                                el?.click();
-                                            }
-                                        }}
-                                    >
-                                        <MdToday aria-hidden />
-                                        {formatChipDate(detail.due_at, userTimeZone)}
-                                    </button>
-
-                                    <div
-                                        className="chip"
-                                    >
-                                        <MdAssignment
-                                            aria-hidden
+                                <span>minutes</span>
+                                {showBreak ? (
+                                    <div className="task-edit-break-group">
+                                        <MdPause aria-hidden/>
+                                        <span>Break every</span>
+                                        <input
+                                            type="number"
+                                            className="short"
+                                            min={1}
+                                            max={240}
+                                            value={breakDraft}
+                                            aria-label="Break every N minutes"
+                                            onChange={(e) => setBreakDraft(e.target.value)}
+                                            onBlur={() => void onBreakBlur()}
                                         />
-                                        <select
-                                            // style={{flex: '1 1 0', minWidth: 0}}
-                                            aria-label="Assignment"
-                                            value={detail.assignment_id ?? ''}
-                                            onChange={(e) => void onAssignmentChange(e)}
-                                        >
-                                            <option value="">No Assignment</option>
-                                            {assignmentSelectOptions.map((a) => (
-                                                <option key={a.id} value={a.id}>
-                                                    {a.name?.trim() || `Assignment ${a.id}`}
-                                                </option>
-                                            ))}
-                                        </select>
+                                        <span>minutes</span>
                                     </div>
-                                </div>
+                                ) : null}
+                            </div>
 
+                            <label htmlFor="task-edit-desc">
+                                Description
+                            </label>
+                            <textarea
+                                id="task-edit-desc"
+                                style={{flexGrow:1}}
+                                // className="task-edit-description"
+                                value={descDraft}
+                                placeholder="Task description (supports markdown in storage)"
+                                onChange={(e) => setDescDraft(e.target.value)}
+                                onBlur={() => void onDescBlur()}
+                            />
+
+                            <div className="task-edit-chips-row">
+                                <input
+                                    ref={dateInputRef}
+                                    type="date"
+                                    className="task-edit-date-native"
+                                    value={dateISOValue}
+                                    onChange={(e) => void onDateChange(e)}
+                                    aria-hidden
+                                    tabIndex={-1}
+                                />
                                 <button
                                     type="button"
-                                    className="primary"
-                                    onClick={() => void onStartClick()}
+                                    className="chip"
+                                    onClick={() => {
+                                        const el = dateInputRef.current;
+                                        if (el && 'showPicker' in el && typeof el.showPicker === 'function') {
+                                            el.showPicker();
+                                        } else {
+                                            el?.click();
+                                        }
+                                    }}
                                 >
-                                    <MdPlayArrow aria-hidden />
-                                    Start {detail.duration_mins} minute
-                                    {detail.duration_mins === 1 ? '' : 's'}
+                                    <MdToday aria-hidden />
+                                    {formatChipDate(detail.due_at, userTimeZone)}
                                 </button>
+
+                                <div
+                                    className="chip"
+                                    style={{width:"100%"}}
+                                >
+                                    <MdAssignment
+                                        aria-hidden
+                                    />
+                                    <select
+                                        // style={{flex: '1 1 0', minWidth: 0}}
+                                        aria-label="Assignment"
+                                        value={detail.assignment_id ?? ''}
+                                        onChange={(e) => void onAssignmentChange(e)}
+                                    >
+                                        <option value="">No Assignment</option>
+                                        {assignmentSelectOptions.map((a) => (
+                                            <option key={a.id} value={a.id}>
+                                                {a.name?.trim() || `Assignment ${a.id}`}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
                             </div>
+
+                            <button
+                                type="button"
+                                className="primary"
+                                onClick={() => void onStartClick()}
+                            >
+                                <MdPlayArrow aria-hidden />
+                                Start {detail.duration_mins} minute
+                                {detail.duration_mins === 1 ? '' : 's'}
+                            </button>
                         </>
                     ) : null}
                 </div>
@@ -619,7 +621,6 @@ export function TaskEditDialog({
                 onClose={() => setDeleteOpen(false)}
                 aria-label="Delete task"
                 backdropClassName="dialog-backdrop--elevated"
-                panelClassName="task-edit-delete-confirm-panel"
                 panelStyle={{
                     width: 'min(360px, calc(100vw - 2rem))',
                     borderRadius: 8,
@@ -627,24 +628,28 @@ export function TaskEditDialog({
                     border: '2px solid rgba(0,0,0,0.14)',
                 }}
             >
+                <div className="dialog-panel-title">
                 <h3>Delete this task?</h3>
-                <div className="task-edit-delete-actions">
-                    <button
-                        type="button"
-                        className="secondary"
-                        onClick={() => setDeleteOpen(false)}
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        type="button"
-                        className="secondary"
-                        disabled={deleting}
-                        onClick={() => void onConfirmDelete()}
-                    >
-                        <MdDelete/>
-                        {deleting ? 'Deleting…' : 'Delete'}
-                    </button>
+                </div>
+                <div className="dialog-panel-body">
+                    <div className="double-column-buttons">
+                        <button
+                            type="button"
+                            className="secondary"
+                            onClick={() => setDeleteOpen(false)}
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="button"
+                            className="secondary"
+                            disabled={deleting}
+                            onClick={() => void onConfirmDelete()}
+                        >
+                            <MdDelete/>
+                            {deleting ? 'Deleting…' : 'Delete'}
+                        </button>
+                    </div>
                 </div>
             </DialogBox>
         </>
