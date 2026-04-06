@@ -69,6 +69,8 @@ type TaskPublicRow = {
     duration_mins: number;
     completed: boolean;
     colour_raw: string | null;
+    /** Local calendar date (YYYY-MM-DD) this row was fetched or created for; checkbox past/future rules use this, not the picker */
+    calendarDateISO?: string;
     /** Optimistic row while autofill/create is in flight */
     clientPending?: boolean;
     /** Local calendar date (YYYY-MM-DD) the pending task was created for; controls visibility when the date picker changes */
@@ -97,6 +99,12 @@ function taskPublicJsonToRow(t: {
         completed: t.completed,
         colour_raw: t.colour_raw ?? null,
     };
+}
+
+function effectiveCalendarDateISO(t: TaskPublicRow, pickerDateISO: string): string {
+    if (t.clientPending && t.clientPendingForDateISO) return t.clientPendingForDateISO;
+    if (t.calendarDateISO) return t.calendarDateISO;
+    return pickerDateISO;
 }
 
 type TasksWindowProps = {
@@ -208,36 +216,43 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         };
     }, [session.token, canvasSyncReady]);
 
-    const reloadTasksFromApi = useCallback(async (): Promise<TaskPublicRow[] | null> => {
-        const token = session.token;
-        if (!token) return null;
+    const reloadTasksFromApi = useCallback(
+        async (forLocalDateISO: string): Promise<TaskPublicRow[] | null> => {
+            const token = session.token;
+            if (!token) return null;
 
-        const dateParam = utcIsoForLocalCalendarDate(selectedDateISO, userTimeZone);
-        const currentParam = new Date().toISOString();
+            const dateParam = utcIsoForLocalCalendarDate(forLocalDateISO, userTimeZone);
+            const currentParam = new Date().toISOString();
 
-        const params = new URLSearchParams({
-            date: dateParam,
-            current_date: currentParam,
-            timezone_name: userTimeZone,
-            offset: '0',
-            limit: '100',
-        });
-
-        try {
-            const res = await fetch(`${backendURL}/tasks/self?${params.toString()}`, {
-                method: 'GET',
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    Accept: 'application/json',
-                },
+            const params = new URLSearchParams({
+                date: dateParam,
+                current_date: currentParam,
+                timezone_name: userTimeZone,
+                offset: '0',
+                limit: '100',
             });
-            if (!res.ok) return null;
-            const list = (await res.json()) as TaskPublicRow[];
-            return Array.isArray(list) ? list : [];
-        } catch {
-            return null;
-        }
-    }, [session.token, selectedDateISO, userTimeZone]);
+
+            try {
+                const res = await fetch(`${backendURL}/tasks/self?${params.toString()}`, {
+                    method: 'GET',
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        Accept: 'application/json',
+                    },
+                });
+                if (!res.ok) return null;
+                const raw = (await res.json()) as TaskPublicRow[];
+                const list = Array.isArray(raw) ? raw : [];
+                return list.map((row) => ({
+                    ...taskPublicJsonToRow(row),
+                    calendarDateISO: forLocalDateISO,
+                }));
+            } catch {
+                return null;
+            }
+        },
+        [session.token, userTimeZone],
+    );
 
     useEffect(() => {
         const token = session.token;
@@ -253,7 +268,8 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         let cancelled = false;
         setTasksError(null);
 
-        void reloadTasksFromApi().then((list) => {
+        const requestedDate = selectedDateISO;
+        void reloadTasksFromApi(requestedDate).then((list) => {
             if (cancelled) return;
             if (list === null) {
                 setTasksError('Could not load tasks.');
@@ -269,7 +285,7 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         return () => {
             cancelled = true;
         };
-    }, [session.token, tasksBootstrapReady, reloadTasksFromApi]);
+    }, [session.token, tasksBootstrapReady, selectedDateISO, reloadTasksFromApi]);
 
     const cancelTaskEntry = useCallback(() => {
         setTaskEntryOpen(false);
@@ -379,14 +395,14 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
             }
 
             const createdJson = (await createRes.json()) as Parameters<typeof taskPublicJsonToRow>[0];
-            const refreshed = await reloadTasksFromApi();
+            const refreshed = await reloadTasksFromApi(taskDateISO);
             if (refreshed !== null) {
                 setTasks(refreshed);
                 setTasksError(null);
             } else {
                 setTasks((prev) => [
                     ...prev.filter((t) => t.id !== tempId),
-                    taskPublicJsonToRow(createdJson),
+                    {...taskPublicJsonToRow(createdJson), calendarDateISO: taskDateISO},
                 ]);
                 setTasksError('Task saved; could not refresh the list.');
             }
@@ -533,8 +549,9 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
               ? `${t.duration_mins} minute${t.duration_mins === 1 ? '' : 's'}`
               : `${t.duration_mins} min`;
 
-        const isFutureDay = selectedDateISO > todayISOValue;
-        const isPastDay = selectedDateISO < todayISOValue;
+        const rowDateISO = effectiveCalendarDateISO(t, selectedDateISO);
+        const isFutureDay = rowDateISO > todayISOValue;
+        const isPastDay = rowDateISO < todayISOValue;
         const showCheckbox = !isFutureDay;
         const checkAriaLabel = isPastDay
             ? t.completed
