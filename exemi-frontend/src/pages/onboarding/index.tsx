@@ -208,9 +208,9 @@ export default function Onboarding({session, setSession, setMagicValid, logOut} 
           />
         ) : null}
 
-        <button className="primary" className="back" onClick={back}>{"<"} Back</button>
+        <button className="primary back" onClick={back}>{"<"} Back</button>
         {!disableNextButton ? (
-          <button className="primary" className="next" onClick={next}>Next {">"}</button>
+          <button className="primary next" onClick={next}>Next {">"}</button>
         ) : null}
       </div>
       <div style={{minHeight:100}}></div>
