@@ -17,6 +17,7 @@ import {
     completedTaskBackgroundFromSafe,
     safeTaskBackgroundFromColourRaw,
     saturatedProgressBarFromSafe,
+    saturatedProgressBarBorderFromSafe,
     utcIsoForLocalCalendarDate,
 } from '../../utils/taskBoardUtils';
 import {call_task_deconstruction} from './taskDeconstruction';
@@ -764,6 +765,7 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         void doingTick;
         const safeBg = safeTaskBackgroundFromColourRaw(t.colour_raw);
         const barColor = saturatedProgressBarFromSafe(safeBg);
+        const barBorderColor = saturatedProgressBarBorderFromSafe(safeBg);
         const extra = doingExtraSecsRef.current[t.id] ?? 0;
         const effectiveProgress = t.progress_secs + extra;
         const totalSecs = Math.max(t.duration_mins * 60, 1);
@@ -776,11 +778,11 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
             <div
                 key={t.id}
                 className="tasks-panel-task-row tasks-panel-task-row--doing"
-                style={{backgroundColor: '#ccc'}}
+                style={{backgroundColor: safeBg, borderColor: barBorderColor}}
             >
                 <div
                     className="tasks-panel-doing-progress-fill"
-                    style={{width: `${progressPct}%`, backgroundColor: barColor}}
+                    style={{width: `calc(${progressPct}% - 46px)`, backgroundColor: barColor, borderRadius: progressPct === 100 ? 0 : "4px"}}
                     aria-hidden
                 />
                 <div className="tasks-panel-doing-row-content">
@@ -795,11 +797,15 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
                     <div className="tasks-panel-task-name-outer">
                         <span className="tasks-panel-task-name-inner">{t.name}</span>
                     </div>
-                    <span className="tasks-panel-task-duration tasks-panel-doing-timer">{timeLabel}</span>
+                    <span
+                        className="tasks-panel-task-duration tasks-panel-doing-timer"
+                        style={{fontWeight: playing ? 800 : 500, fontSize: playing ? "1.25em" : "1em"}}
+                    >{timeLabel}</span>
                     <button
                         type="button"
                         className="tasks-panel-doing-play-toggle"
                         aria-label={playing ? 'Pause timer' : 'Resume timer'}
+                        style={{borderColor: barBorderColor}}
                         onClick={() => toggleDoingPlayPause(t.id)}
                     >
                         {playing ? <MdPause aria-hidden /> : <MdPlayArrow aria-hidden />}

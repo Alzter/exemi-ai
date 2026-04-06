@@ -935,7 +935,7 @@ button.tasks-panel-doing-play-toggle{
   padding: 0;
   border: 2px solid #999;
   border-radius: 8px;
-  background-color: #fff;
+  background-color: transparent;
   color: #1a1a1a;
   cursor: pointer;
   font-size: 1.5em;
@@ -946,14 +946,15 @@ button.tasks-panel-doing-play-toggle svg{
 }
 
 button.tasks-panel-doing-play-toggle:hover{
-  background-color: #eee;
+  background-color: transparent;
   font-size: 1.9em;
   box-shadow:none;
+  transform: none;
 }
 
 button.tasks-panel-doing-play-toggle:active{
-  background-color: #ccc;
-  transform: scale(0.98);
+  background-color: transparent;
+  transform: none;
   font-size:1.2em;
   box-shadow: none;
 }
@@ -1278,7 +1279,7 @@ span.tasks-panel-task-duration{
 span.tasks-panel-doing-timer{
   font-variant-numeric: tabular-nums;
   font-size: 1em;
-  font-weight: 900;
+  transition: font-weight 0.1s ease, font-size 0.1s ease;
 }
 
 div.tasks-panel-task-row.tasks-panel-task-row--done span.tasks-panel-task-name-inner,
