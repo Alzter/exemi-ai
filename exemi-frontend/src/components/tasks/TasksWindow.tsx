@@ -100,9 +100,11 @@ function taskPublicJsonToRow(t: {
 type TasksWindowProps = {
     session: Session;
     layoutContainerRef: RefObject<HTMLDivElement | null>;
+    /** False until Canvas curriculum sync has completed for this load (see LoggedInFlow `/canvas/all`). */
+    canvasSyncReady: boolean;
 };
 
-export default function TasksWindow({session, layoutContainerRef}: TasksWindowProps) {
+export default function TasksWindow({session, layoutContainerRef, canvasSyncReady}: TasksWindowProps) {
     const lastExpandedRef = useRef(getDefaultExpandedHeightPx());
     const [heightPx, setHeightPx] = useState(COLLAPSED_PX);
     const [dragging, setDragging] = useState(false);
@@ -114,7 +116,7 @@ export default function TasksWindow({session, layoutContainerRef}: TasksWindowPr
 
     const [tasks, setTasks] = useState<TaskPublicRow[]>([]);
     const [tasksError, setTasksError] = useState<string | null>(null);
-    /** After LLM task generation (`/tasks_generate/self`); gates date picker and `/tasks/self`. */
+    /** After Canvas sync + LLM task generation (`/tasks_generate/self`); gates date picker and `/tasks/self`. */
     const [tasksBootstrapReady, setTasksBootstrapReady] = useState(() => !session.token);
 
     const [taskEntryOpen, setTaskEntryOpen] = useState(false);
@@ -158,6 +160,11 @@ export default function TasksWindow({session, layoutContainerRef}: TasksWindowPr
             return;
         }
 
+        if (!canvasSyncReady) {
+            setTasksBootstrapReady(false);
+            return;
+        }
+
         let cancelled = false;
         setTasksBootstrapReady(false);
         setTasksError(null);
@@ -188,7 +195,7 @@ export default function TasksWindow({session, layoutContainerRef}: TasksWindowPr
         return () => {
             cancelled = true;
         };
-    }, [session.token]);
+    }, [session.token, canvasSyncReady]);
 
     const reloadTasksFromApi = useCallback(async (): Promise<TaskPublicRow[] | null> => {
         const token = session.token;

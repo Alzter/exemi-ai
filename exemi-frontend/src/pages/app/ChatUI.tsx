@@ -8,9 +8,11 @@ type ChatUIParams = {
   session : Session,
   isViewing : boolean,
   logOut : any,
+  /** When false, Tasks panel waits for a successful `/canvas/all` sync before calling `/tasks_generate/self`. */
+  canvasSyncReady : boolean,
 }
 
-export default function ChatUI({session, isViewing, logOut} : ChatUIParams){
+export default function ChatUI({session, isViewing, logOut, canvasSyncReady} : ChatUIParams){
 
     const chatMainRef = useRef<HTMLDivElement>(null);
 
@@ -43,7 +45,7 @@ export default function ChatUI({session, isViewing, logOut} : ChatUIParams){
                     error={error}
                     setError={setError}
                 />
-                <TasksWindow session={session} layoutContainerRef={chatMainRef}/>
+                <TasksWindow session={session} layoutContainerRef={chatMainRef} canvasSyncReady={canvasSyncReady}/>
             </div>
         </div>
     )

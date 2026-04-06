@@ -13,7 +13,15 @@ import {
   isExemiExtensionIframe,
 } from "../../extensionAutomationMessages";
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
-const canvasSyncIntervalHours = import.meta.env.VITE_CANVAS_SYNC_INTERVAL_HOURS;
+const canvasSyncIntervalHours = Number(import.meta.env.VITE_CANVAS_SYNC_INTERVAL_HOURS) || 6;
+
+function computeCanvasSyncRequired(session: {last_canvas_sync_date: Date | null}): boolean {
+    if (session.last_canvas_sync_date == null) return true;
+    const last = session.last_canvas_sync_date as Date;
+    const now = new Date();
+    const sync_hours_ago = Math.abs(now.getTime() - last.getTime()) / (60 * 60 * 1000);
+    return sync_hours_ago >= canvasSyncIntervalHours;
+}
 
 export default function LoggedInFlow({session, setSession, setError, logOut} : any) {
     const navigate = useNavigate();
@@ -49,10 +57,6 @@ export default function LoggedInFlow({session, setSession, setError, logOut} : a
 
     // Call the backend API to retrieve the user's units.
     async function fetchUserUnits() {
-        setSession(
-            (prev : any) => ({...prev, last_canvas_sync_date : new Date()})
-        );
-
         const response = await fetch(backendURL + "/canvas/all", {
             headers: {"Authorization" : "Bearer " + session.token},
             method: "POST",
@@ -69,7 +73,11 @@ export default function LoggedInFlow({session, setSession, setError, logOut} : a
                 setError(message);
                 logOut();
             };
-        };
+            return;
+        }
+        setSession(
+            (prev : any) => ({...prev, last_canvas_sync_date : new Date()})
+        );
     };
 
     useEffect(() => {
@@ -78,10 +86,9 @@ export default function LoggedInFlow({session, setSession, setError, logOut} : a
         }
     }, [isMagicValid]);
 
-    const last_canvas_sync_date = session.last_canvas_sync_date ? session.last_canvas_sync_date as Date : new Date();
-    const now = new Date();
-    const sync_hours_ago : number = Math.abs(now.getTime() - last_canvas_sync_date.getTime()) / (60*60*1000);
-    const syncRequired : boolean = (session.last_canvas_sync_date == null || sync_hours_ago >= canvasSyncIntervalHours)
+    const syncRequired : boolean = computeCanvasSyncRequired(session);
+    /** Derived: false until `last_canvas_sync_date` reflects a completed `/canvas/all` (sync no longer required). */
+    const canvasSyncReady = !syncRequired;
 
     useEffect(() => {
         if (isMagicValid == true && syncRequired) {
@@ -95,7 +102,7 @@ export default function LoggedInFlow({session, setSession, setError, logOut} : a
 
     function ChatUIOrOnboarding() {
         if (isMagicValid){
-            return (<ChatUI session={session} isViewing={false} logOut={logOut}/>);
+            return (<ChatUI session={session} isViewing={false} logOut={logOut} canvasSyncReady={canvasSyncReady}/>);
         } else {
             return (<Onboarding session={session} setSession={setSession} setMagicValid={setMagicValid} logOut={logOut}/>);
         };
@@ -107,7 +114,7 @@ export default function LoggedInFlow({session, setSession, setError, logOut} : a
                 <Routes>
                   <Route path="/" element={<AdminDashboard session={session} setSession={setSession} logOut={logOut}/>}/>
                   <Route path="chat/" element={<ChatUIOrOnboarding/>}/>
-                  <Route path="chat_viewer/" element={<ChatUI session={session} isViewing={true} logOut={logOut}/>}/>
+                  <Route path="chat_viewer/" element={<ChatUI session={session} isViewing={true} logOut={logOut} canvasSyncReady={canvasSyncReady}/>}/>
                   <Route path="user_create/" element={<UserCreate session={session}/>}/>
                   <Route path="user_delete/" element={<UserDelete session={session}/>}/>
                   <Route path="uni_aliases/" element={<EditUniAliases session={session}/>}/>
