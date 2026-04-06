@@ -1279,7 +1279,7 @@ span.tasks-panel-task-duration{
 span.tasks-panel-doing-timer{
   font-variant-numeric: tabular-nums;
   font-size: 1em;
-  transition: font-weight 0.1s ease, font-size 0.1s ease;
+  transition: font-weight 0.1s ease, font-size 0.1s ease, opacity 0.1s ease;
 }
 
 div.tasks-panel-task-row.tasks-panel-task-row--done span.tasks-panel-task-name-inner,

@@ -799,7 +799,7 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
                     </div>
                     <span
                         className="tasks-panel-task-duration tasks-panel-doing-timer"
-                        style={{fontWeight: playing ? 800 : 500, fontSize: playing ? "1.25em" : "1em"}}
+                        style={{fontWeight: playing ? 800 : 500, fontSize: playing ? "1.25em" : "1em", opacity: playing ? 1 : 0.85}}
                     >{timeLabel}</span>
                     <button
                         type="button"
