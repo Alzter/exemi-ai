@@ -444,7 +444,7 @@ class TaskBase(SQLModel):
 class Task(TaskBase, table=True):
     id : int | None = Field(primary_key=True, default=None)
     created_at : datetime
-    progress_mins : int = 0
+    progress_secs : int = 0
     user_id : int = Field(foreign_key="user.id", ondelete="CASCADE")
     user : User = Relationship(back_populates="tasks")
     assignment : Assignment | None = Relationship(back_populates="tasks")
@@ -506,7 +506,7 @@ class TaskUpdate(SQLModel):
     name : str | None = None
     description : str | None = None
     duration_mins : int | None = None
-    progress_mins : int | None = None
+    progress_secs : int | None = None
     assignment_id : int | None = None
     due_at : datetime | None = None
     completed : bool | None = None
@@ -516,7 +516,7 @@ class TaskPublic(TaskBase, UTCModel):
     created_at : datetime
     user_id : int
     assignment : AssignmentPublic | None = None
-    progress_mins : int
+    progress_secs : int
     completed : bool
     colour_raw : str | None = None
 
