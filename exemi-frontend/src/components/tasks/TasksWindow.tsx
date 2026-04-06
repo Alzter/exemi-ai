@@ -554,13 +554,13 @@ export default function TasksWindow({session, layoutContainerRef}: TasksWindowPr
             style={{height: heightPx}}
             aria-expanded={open}
         >   
-            <div
+            {/* <div
                 className="tasks-panel-resize-handle"
                 onPointerDown={onResizeHandlePointerDown}
                 role="separator"
                 aria-orientation="horizontal"
                 aria-label="Resize tasks panel"
-            />
+            /> */}
 
             <div className="tasks-panel-header">
                 <button type="button" className="tasks-panel-header-toggle" onClick={toggleOpen}>
@@ -626,7 +626,7 @@ export default function TasksWindow({session, layoutContainerRef}: TasksWindowPr
             </div>
 
             <div
-                className="tasks-panel-resize-handle"
+                className="tasks-panel-resize-handle-large"
                 onPointerDown={onResizeHandlePointerDown}
                 role="separator"
                 aria-orientation="horizontal"
