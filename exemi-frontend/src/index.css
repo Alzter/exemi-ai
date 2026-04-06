@@ -678,6 +678,7 @@ button.tasks-panel-add-task{
   border-radius: 8px;
   cursor: pointer;
   box-shadow: none;
+  transition: transform 0.05s ease;
 }
 
 button.tasks-panel-add-task:hover{
@@ -848,6 +849,14 @@ div.tasks-panel-task-row{
   border: 2px solid rgba(0, 0, 0, 0.14);
   border-radius: 8px;
   color: #1a1a1a;
+  transition: transform 0.1s ease;
+}
+
+div.tasks-panel-task-row:not(.tasks-panel-task-row--done):hover{
+  transform:scale(1.01);
+}
+div.tasks-panel-task-row:not(.tasks-panel-task-row--done):active{
+  transform:scale(0.99);
 }
 
 button.tasks-panel-task-check{
