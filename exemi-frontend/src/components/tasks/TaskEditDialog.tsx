@@ -19,7 +19,7 @@ export type TaskPublicApi = {
     name: string;
     description: string;
     duration_mins: number;
-    break_every_mins?: number;
+    break_interval_mins?: number;
     assignment_id: number | null;
     assignment?: {id: number; name: string | null} | null;
     due_at: string;
@@ -32,7 +32,7 @@ export type TaskPublicRowPatch = Partial<{
     name: string;
     description: string;
     duration_mins: number;
-    break_every_mins: number;
+    break_interval_mins: number;
     assignment_id: number | null;
     due_at: string;
     completed: boolean;
@@ -65,7 +65,7 @@ export function mergeTaskFromApiResponse(
         name: api.name,
         description: api.description,
         duration_mins: api.duration_mins,
-        break_every_mins: api.break_every_mins ?? 25,
+        break_interval_mins: api.break_interval_mins ?? 25,
         assignment_id: api.assignment_id,
         due_at: api.due_at,
         completed: api.completed,
@@ -127,7 +127,7 @@ export function TaskEditDialog({
             setTitleDraft(api.name);
             setDescDraft(api.description ?? '');
             setDurDraft(String(api.duration_mins));
-            setBreakDraft(String(api.break_every_mins ?? 25));
+            setBreakDraft(String(api.break_interval_mins ?? 25));
         },
         [],
     );
@@ -288,11 +288,11 @@ export function TaskEditDialog({
         if (!detail) return;
         const n = Number.parseInt(breakDraft, 10);
         if (!Number.isFinite(n) || n < 1) {
-            setBreakDraft(String(detail.break_every_mins ?? 25));
+            setBreakDraft(String(detail.break_interval_mins ?? 25));
             return;
         }
-        if (n === (detail.break_every_mins ?? 25)) return;
-        await persistAndMerge({break_every_mins: n});
+        if (n === (detail.break_interval_mins ?? 25)) return;
+        await persistAndMerge({break_interval_mins: n});
     }, [detail, breakDraft, persistAndMerge]);
 
     const onToggleComplete = useCallback(async () => {

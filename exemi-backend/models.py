@@ -99,6 +99,7 @@ class User(UserBase, table=True):
     university : University = Relationship(back_populates="users")
     biographies : list["UserBiography"] = Relationship(back_populates="user", cascade_delete=True)
     active_university_name : str | None = Field(default=None, max_length=255, index=True)
+    task_break_interval_mins : int | None = Field(default=None)
     tasks_generation_assignments_snapshot : str | None = Field(
         default=None,
         sa_column=Column(TEXT),
@@ -170,6 +171,7 @@ class UserPublic(UserBase):
     active_university_name : str | None
     actual_university_name : str | None
     fallback_university_names : list[str]
+    task_break_interval_mins : int | None
     tasks_generation_assignments_snapshot : str | None = None
 
 class UserCreate(UserBase):
@@ -181,6 +183,7 @@ class UserUpdate(SQLModel):
     magic : str | None = None
     university_name : str | None = None
     active_university_name : str | None = None
+    task_break_interval_mins : int | None = None
 
 class UserBiographyBase(SQLModel):
     content : str = Field(sa_column=Column(TEXT),default="")
@@ -438,8 +441,6 @@ class TaskBase(SQLModel):
     name : str = Field(max_length=255)
     description : str = Field(default="", sa_column=Column(TEXT))
     duration_mins : int = Field(default=15)
-    # Suggested break interval when working in one sitting (minutes); meaningful when duration_mins > 25.
-    break_every_mins : int | None = Field(default=None)
     assignment_id : int | None = Field(default=None, foreign_key='assignment.id', ondelete="CASCADE")
     due_at : datetime
 
@@ -451,7 +452,11 @@ class Task(TaskBase, table=True):
     user : User = Relationship(back_populates="tasks")
     assignment : Assignment | None = Relationship(back_populates="tasks")
     completed : bool
-
+    
+    @property
+    def break_interval_mins(self) -> int:
+        return self.user.task_break_interval_mins or 25
+    
     @property
     def colour_raw(self) -> str | None:
         """
@@ -508,7 +513,6 @@ class TaskUpdate(SQLModel):
     name : str | None = None
     description : str | None = None
     duration_mins : int | None = None
-    break_every_mins : int | None = None
     progress_secs : int | None = None
     assignment_id : int | None = None
     due_at : datetime | None = None
@@ -521,12 +525,8 @@ class TaskPublic(TaskBase, UTCModel):
     assignment : AssignmentPublic | None = None
     progress_secs : int
     completed : bool
+    break_interval_mins : int
     colour_raw : str | None = None
-
-    @computed_field
-    @property
-    def break_every_mins_safe(self) -> int:
-        return self.break_every_mins or 25
 
 class TaskPublicWithUser(TaskPublic):
     user : UserPublic | None = None

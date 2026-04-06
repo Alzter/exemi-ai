@@ -80,7 +80,7 @@ type TaskPublicRow = {
     description?: string;
     assignment_id?: number | null;
     due_at?: string;
-    break_every_mins?: number;
+    break_interval_mins: number;
     /** Local calendar date (YYYY-MM-DD) this row was fetched or created for; checkbox past/future rules use this, not the picker */
     calendarDateISO?: string;
     /** Optimistic row while autofill/create is in flight */
@@ -107,7 +107,7 @@ function taskPublicJsonToRow(t: {
     description?: string;
     assignment_id?: number | null;
     due_at?: string;
-    break_every_mins?: number;
+    break_interval_mins: number;
 }): TaskPublicRow {
     return {
         id: t.id,
@@ -119,7 +119,7 @@ function taskPublicJsonToRow(t: {
         description: t.description,
         assignment_id: t.assignment_id,
         due_at: t.due_at,
-        break_every_mins: t.break_every_mins,
+        break_interval_mins: t.break_interval_mins,
     };
 }
 
