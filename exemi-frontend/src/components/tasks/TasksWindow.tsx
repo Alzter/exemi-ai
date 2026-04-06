@@ -21,6 +21,7 @@ import {
     utcIsoForLocalCalendarDate,
 } from '../../utils/taskBoardUtils';
 import {call_task_deconstruction} from './taskDeconstruction';
+import {TaskEditDialog} from './TaskEditDialog';
 
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 
@@ -151,6 +152,7 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
 
     const [doingCloseDialogOpen, setDoingCloseDialogOpen] = useState(false);
     const [playingDoingIds, setPlayingDoingIds] = useState<number[]>([]);
+    const [todoEditTask, setTodoEditTask] = useState<TaskPublicRow | null>(null);
 
     const dragStartY = useRef(0);
     const dragStartHeight = useRef(0);
@@ -731,9 +733,17 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
                 className={
                     'tasks-panel-task-row' +
                     (column === 'done' ? ' tasks-panel-task-row--done' : '') +
-                    (t.clientPending ? ' tasks-panel-task-row--pending' : '')
+                    (t.clientPending ? ' tasks-panel-task-row--pending' : '') +
+                    (column === 'todo' ? ' tasks-panel-task-row--todo-editable' : '')
                 }
                 style={{backgroundColor: bg}}
+                onClick={
+                    column === 'todo'
+                        ? () => {
+                              setTodoEditTask(t);
+                          }
+                        : undefined
+                }
             >
                 {showCheckbox ? (
                     <button
@@ -741,7 +751,10 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
                         className="tasks-panel-task-check"
                         aria-label={checkAriaLabel}
                         disabled={isPastDay || !!t.clientPending}
-                        onClick={() => onToggleTask(t)}
+                        onClick={(ev) => {
+                            ev.stopPropagation();
+                            onToggleTask(t);
+                        }}
                     >
                         {t.completed ? <MdCheckBox aria-hidden /> : <MdCheckBoxOutlineBlank aria-hidden />}
                     </button>
@@ -1141,6 +1154,15 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
                     </div>
                 )}
             </div>
+            <TaskEditDialog
+                open={todoEditTask !== null}
+                onClose={() => setTodoEditTask(null)}
+                backgroundColor={
+                    todoEditTask
+                        ? safeTaskBackgroundFromColourRaw(todoEditTask.colour_raw)
+                        : '#eee'
+                }
+            />
         </div>
     );
 }

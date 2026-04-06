@@ -1590,3 +1590,68 @@ button.next{
     transform: rotate(360deg);
   }
 }
+
+/* Reusable modal: frosted white overlay + centered panel (see DialogBox) */
+div.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  box-sizing: border-box;
+  background: #fffe;
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  border-radius: 0px;
+}
+
+div.dialog-panel {
+  position: relative;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  box-shadow: 0 4px 4px rgba(0, 0, 0, 0.12);
+  border: 2px solid rgba(0, 0, 0, 0.14);
+}
+
+button.dialog-close {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: #000a;
+  cursor: pointer;
+}
+button.dialog-close svg{
+  margin:0;
+}
+
+button.dialog-close:hover {
+  background-color: transparent;
+  color: #000f;
+  box-shadow: none;
+}
+
+button.dialog-close:active {
+  background-color: transparent;
+  box-shadow: none;
+}
+
+button.dialog-close svg {
+  font-size: 24px;
+}
+
+div.tasks-panel-task-row.tasks-panel-task-row--todo-editable {
+  cursor: pointer;
+}
