@@ -1,5 +1,6 @@
 from ..models import TaskAutofillCreate, User, UsersAssignments
 from ..models import Task, TaskCreate, TaskUpdate, TaskPublic, TaskList, TaskLLM
+from ..models import Assignment, AssignmentGroup, Unit
 from typing import Literal
 from sqlmodel import Session, select
 from sqlalchemy import and_, or_
@@ -137,6 +138,7 @@ def get_task(
 @router.get("/tasks_all/self", response_model=list[TaskPublic])
 def get_all_tasks_for_self(
     incomplete_only : bool = False,
+    unit_id : int | None = None,
     offset: int = 0,
     limit: int = Query(default=100, le=100),
     user: User = Depends(get_current_user),
@@ -147,6 +149,7 @@ def get_all_tasks_for_self(
 
     Args:
         incomplete_only (booll, optional): Whether to only return incomplete tasks.
+        unit_id (int | None, optional): If given, only select tasks for this unit. Defaults to None.
         offset (int, optional): Pagination start index. Defaults to 0.
         limit (int, optional): Maximum number of tasks to obtain. Defaults to 100. Max of 100.
         user (User, optional): The currently logged in user.
@@ -158,6 +161,7 @@ def get_all_tasks_for_self(
     return get_all_tasks_for_user(
         username=user.username,
         incomplete_only=incomplete_only,
+        unit_id=unit_id,
         offset=offset,
         limit=limit,
         user=user,
@@ -168,6 +172,7 @@ def get_all_tasks_for_self(
 def get_all_tasks_for_user(
     username : str,
     incomplete_only : bool = False,
+    unit_id : int | None = None,
     offset: int = 0,
     limit: int = Query(default=100, le=100),
     user: User = Depends(get_current_user),
@@ -179,6 +184,7 @@ def get_all_tasks_for_user(
     Args:
         username (str): Which user to obtain task list for.
         incomplete_only (bool, optional): Whether to only return incomplete tasks.
+        unit_id (int | None, optional): If given, only select tasks for this unit. Defaults to None.
         offset (int, optional): Pagination start index. Defaults to 0.
         limit (int, optional): Maximum number of tasks to obtain. Defaults to 100. Max of 100.
         user (User, optional): The currently logged in user.
@@ -196,6 +202,12 @@ def get_all_tasks_for_user(
 
     if incomplete_only:
         query = query.where(Task.completed == False)
+
+    if unit_id:
+        query = query.join(Assignment)
+        query = query.join(AssignmentGroup)
+        query = query.join(Unit)
+        query = query.where(Unit.id == unit_id)
 
     query = query.order_by(Task.due_at)
     query = query.offset(offset)
@@ -219,6 +231,7 @@ tasks_list_adapter = TypeAdapter(list[TaskJSON])
 @router.get("/tool/tasks_json/self", response_model=str)
 def get_tasks_list_for_self_json(
     incomplete_only : bool = False,
+    unit_id : int | None = None,
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session)
 ) -> str:
@@ -229,6 +242,7 @@ def get_tasks_list_for_self_json(
 
     Args:
         incomplete_only (bool, optional): Whether to only return incomplete tasks. Defaults to False.
+        unit_id (int | None, optional): If given, only select tasks for this unit. Defaults to None.
         user (User, optional): The currently logged in user.
         session (Session, optional): Connection to SQL database.
 
@@ -238,6 +252,7 @@ def get_tasks_list_for_self_json(
     return get_tasks_list_for_user_json(
         username=user.username,
         incomplete_only=incomplete_only,
+        unit_id=unit_id,
         user=user,
         session=session
     )
@@ -246,6 +261,7 @@ def get_tasks_list_for_self_json(
 def get_tasks_list_for_user_json(
     username : str,
     incomplete_only : bool = False,
+    unit_id : int | None = None,
     user : User = Depends(get_current_user),
     session : Session = Depends(get_session)
 ) -> str:
@@ -257,6 +273,7 @@ def get_tasks_list_for_user_json(
     Args:
         username (str): User to obtain task list for.
         incomplete_only (bool, optional): Whether to only return incomplete tasks. Defaults to False.
+        unit_id (int | None, optional): If given, only select tasks for this unit. Defaults to None.
         user (User, optional): The currently logged in user.
         session (Session, optional): Connection to SQL database.
 
@@ -266,6 +283,7 @@ def get_tasks_list_for_user_json(
     tasks = get_all_tasks_for_user(
         username=username,
         incomplete_only=incomplete_only,
+        unit_id=unit_id,
         offset=0,
         limit=100,
         user=user,
@@ -291,6 +309,7 @@ def get_tasks_for_self(
     date: datetime = datetime.now(timezone.utc),
     current_date: datetime = datetime.now(timezone.utc),
     timezone_name: str = "Australia/Sydney",
+    unit_id : int | None = None,
     offset: int = 0,
     limit: int = Query(default=100, le=100),
     user: User = Depends(get_current_user),
@@ -325,6 +344,7 @@ def get_tasks_for_self(
             What timezone the user is located in.
             Needed so that each day starts at 12:00 AM
             for the user. Defaults to "Australia/Sydney".
+        unit_id (int | None, optional): If given, only select tasks for this unit. Defaults to None.
         offset (int, optional): Pagination start index. Defaults to 0.
         limit (int, optional): Maximum number of tasks to obtain. Defaults to 100. Max of 100.
         user (User, optional): The currently logged in user.
@@ -338,12 +358,12 @@ def get_tasks_for_self(
         date=date,
         current_date=current_date,
         timezone_name=timezone_name,
+        unit_id=unit_id,
         offset=offset,
         limit=limit,
         user=user,
         session=session,
     )
-
 
 @router.get("/tasks/{username}", response_model=list[TaskPublic])
 def get_tasks_for_user(
@@ -351,6 +371,7 @@ def get_tasks_for_user(
     date: datetime = datetime.now(timezone.utc),
     current_date: datetime = datetime.now(timezone.utc),
     timezone_name: str = "Australia/Sydney",
+    unit_id : int | None = None,
     offset: int = 0,
     limit: int = Query(default=100, le=100),
     user: User = Depends(get_current_user),
@@ -386,6 +407,7 @@ def get_tasks_for_user(
             What timezone the user is located in.
             Needed so that each day starts at 12:00 AM
             for the user. Defaults to "Australia/Sydney".
+        unit_id (int | None, optional): If given, only select tasks for this unit. Defaults to None.
         offset (int, optional): Pagination start index. Defaults to 0.
         limit (int, optional): Maximum number of tasks to obtain. Defaults to 100. Max of 100.
         user (User, optional): The currently logged in user.
@@ -420,6 +442,12 @@ def get_tasks_for_user(
         .where(User.username == username)
         .options(selectinload(Task.user), selectinload(Task.assignment))
     )
+
+    if unit_id:
+        query = query.join(Assignment)
+        query = query.join(AssignmentGroup)
+        query = query.join(Unit)
+        query = query.where(Unit.id == unit_id)
 
     if is_present:
         today_start, today_end = _utc_naive_bounds_for_local_calendar_day(

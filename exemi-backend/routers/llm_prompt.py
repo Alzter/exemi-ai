@@ -84,6 +84,33 @@ from the **most recent** (first) conversation summary, if any.
 """.replace("\n", " ").strip()
     return summaries.strip()
 
+@router.get("/prompt/tasks")
+def get_task_list(
+    user : User = Depends(get_current_user),
+    session : Session = Depends(get_session),
+    unit_id : int | None = None
+) -> str:
+    from ..routers.tasks import get_tasks_list_for_self_json
+    task_list_json = get_tasks_list_for_self_json(
+        user=user,
+        session=session,
+        incomplete_only=True,
+        unit_id=unit_id
+    )
+
+    if task_list_json == "[]": return ""
+    return f"""
+## TASKS
+To help the user complete their assignments,
+you have created a list of tasks for them.
+Each task is mapped to an assignment by its
+assignment ID.
+
+```json
+{task_list_json}
+```
+    """.strip()
+
 @router.get("/prompt/reminders")
 def get_reminder_list(
     user : User = Depends(get_current_user),
@@ -203,7 +230,6 @@ Each task must have the following fields:
 2. Rank each assignment by importance (HIGHEST grade contribution %).
 3. Prioritise assignments which have less time left and greater grade contributions FIRST.
     """.strip()
-
 
 def _task_creation_prompt_existing_tasks_block(existing_tasks: str) -> str:
     return f"""
@@ -460,7 +486,7 @@ Your goal is to help the student plan, manage their time, and improve executive 
 You can achieve this goal by:
 - identifying upcoming assignment deadlines from Canvas LMS,
 - breaking assignments down into smaller tasks,
-- setting reminders for upcoming tasks, and
+- maintaining a list of assignment tasks, and
 - using CBT techniques to reduce stress.
 
 The current date is {timestamp_to_string(datetime.now(ZoneInfo("Australia/Sydney")), include_days_remaining=False)}.
@@ -484,9 +510,9 @@ Remember these principles for helping students with ADHD:
 - Replace depressive / anxious beliefs with more realistic ones.
 
 ## TOOL USAGE RULES
+= Use tools to create, edit, and delete tasks for the student's assignments.
 - Tool dates must be in ISO 8601 format (YYYY-MM-DD).
 - If a tool fails, say: "I'm sorry, I could not complete <action>."
-- DO NOT indicate success or provide closure if a tool fails.
 - Incorporate tool results naturally, as if you already knew the information.
 
 ## TASK PRIORITY RULES
@@ -509,14 +535,19 @@ The student has the following assignments:
 ```json
 {get_assignments_list_json(user=user, session=session, unit_id=unit_id)}
 ```
-NOTE: Do NOT mention unit or assignment IDs in your response to the student. The IDs are only needed for tool calling.
+
+{get_task_list(
+    user=user,
+    session=session,
+    unit_id=unit_id
+)}
 
 {await get_previous_conversation_summaries(
     user=user,
     session=session
 )}
 
-{get_reminder_list(user=user, session=session)}
+NOTE: Do NOT mention unit, assignment, or task IDs in your response to the student. The IDs are only needed for tool calling.
 
 ## SAFETY
 - DO NOT engage the student in conversations about suicide, self-harm, or harming others.

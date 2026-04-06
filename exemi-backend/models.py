@@ -1,4 +1,4 @@
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, computed_field, field_validator
 from sqlalchemy.orm import object_session
 from sqlmodel import SQLModel, Field, Relationship, Column, select
 from datetime import datetime, timezone
@@ -522,7 +522,8 @@ class TaskPublic(TaskBase, UTCModel):
     progress_secs : int
     completed : bool
     colour_raw : str | None = None
-    break_every_mins : int | None = None
+
+    @computed_field
     @property
     def break_every_mins_safe(self) -> int:
         return self.break_every_mins or 25
