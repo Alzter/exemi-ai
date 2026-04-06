@@ -430,6 +430,9 @@ export function TaskEditDialog({
         </button>
     );
 
+    // Don't display dialog box until content is ready
+    if (loading) return null;
+
     return (
         <>
             <DialogBox
