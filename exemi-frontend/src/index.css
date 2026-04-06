@@ -495,11 +495,19 @@ div.tasks-panel-bootstrap-spinner{
 
 div.tasks-panel-bootstrap-spinner .loading-spinner{
   margin: 0;
-
   border: 3px solid #b2b7c8;
   border-top-color: #4f46e5;
   width: 64px;
   height: 64px;
+}
+
+div.dialog-panel .loading-spinner{
+  margin: 0;
+  border: 3px solid #b2b7c8;
+  border-top-color: #4f46e5;
+  width: 96px;
+  height: 96px;
+  border-width: 4px;
 }
 
 p.tasks-panel-placeholder{
@@ -1679,9 +1687,6 @@ div.dialog-panel {
 }
 
 div.dialog-panel-title{
-  /* position: absolute; */
-  /* top: 14px;
-  left: 14px; */
   margin:14px;
   margin-right: calc(80px + 14px);
   margin-bottom: 0;
@@ -1702,6 +1707,12 @@ div.dialog-panel-title *{
   overflow: hidden;
   text-overflow: ellipsis;
   font-weight: 800;
+  height:100%;
+  align-content: center;
+}
+
+div.dialog-panel-title *:not(.checkbox){
+  font-size: 1.2em;
 }
 
 div.dialog-panel-top-actions {
@@ -1791,6 +1802,7 @@ div.task-edit-break-group {
   display: inline-flex;
   flex-direction: row;
   align-items: center;
+  justify-content: flex-end;
   gap: 6px;
   flex: 1 1 auto;
   min-width: 0;

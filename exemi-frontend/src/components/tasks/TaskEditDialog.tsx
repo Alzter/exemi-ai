@@ -213,6 +213,7 @@ export function TaskEditDialog({
                 setLoadError(e instanceof Error ? e.message : 'Could not load task.');
             })
             .finally(() => {
+                // setLoadError('Could not load task.');
                 if (!cancelled) setLoading(false);
             });
 
@@ -463,49 +464,52 @@ export function TaskEditDialog({
                             )}
                         </button>
 
-                        <div>
-                            {titleEditing ? (
-                                <input
-                                    ref={titleInputRef}
-                                    // className="task-edit-dialog-title-input"
-                                    value={titleDraft}
-                                    aria-label="Task title"
-                                    onChange={(e) => setTitleDraft(e.target.value)}
-                                    onBlur={() => void onTitleBlur()}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                            e.preventDefault();
-                                            (e.target as HTMLInputElement).blur();
-                                        }
-                                    }}
-                                />
-                            ) : (
-                                <h3
-                                    role="button"
-                                    tabIndex={0}
-                                    onClick={() => {
+                        {titleEditing ? (
+                            <input
+                                ref={titleInputRef}
+                                // className="task-edit-dialog-title-input"
+                                value={titleDraft}
+                                aria-label="Task title"
+                                onChange={(e) => setTitleDraft(e.target.value)}
+                                onBlur={() => void onTitleBlur()}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        (e.target as HTMLInputElement).blur();
+                                    }
+                                }}
+                            />
+                        ) : (
+                            <h3
+                                role="button"
+                                tabIndex={0}
+                                onClick={() => {
+                                    setTitleDraft(detail.name);
+                                    setTitleEditing(true);
+                                }}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault();
                                         setTitleDraft(detail.name);
                                         setTitleEditing(true);
-                                    }}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter' || e.key === ' ') {
-                                            e.preventDefault();
-                                            setTitleDraft(detail.name);
-                                            setTitleEditing(true);
-                                        }
-                                    }}
-                                >
-                                    {detail.name}
-                                </h3>
-                            )}
-                        </div>
+                                    }
+                                }}
+                            >
+                                {detail.name}
+                            </h3>
+                        )}
                     </div>
                 ) : null}
 
+                {loading || loadError ? 
+                <div className="dialog-panel-body" style={{
+                    alignItems:"center",
+                    justifyContent:"center"
+                }}>
+                    {loadError ? 
+                    <p>{loadError}</p> : <div className='loading-spinner'/>}
+                </div> : 
                 <div className="dialog-panel-body" style={{paddingLeft:60}}>
-                    {loading ? <p>Loading…</p> : null}
-                    {loadError ? <p>{loadError}</p> : null}
-
                     {!loading && !loadError && detail ? (
                         <>
                             <div className="task-edit-duration-row">
@@ -614,6 +618,7 @@ export function TaskEditDialog({
                         </>
                     ) : null}
                 </div>
+                }
             </DialogBox>
 
             <DialogBox
