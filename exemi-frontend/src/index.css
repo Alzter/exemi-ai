@@ -1102,6 +1102,10 @@ button.checkbox{
   transition: transform 0.1s ease;
 }
 
+button.checkbox, button.checkbox svg{
+  font-size: 24px;
+}
+
 button.checkbox:disabled{
   background-color: transparent;
 }
@@ -1127,10 +1131,6 @@ button.checkbox:disabled{
 button.checkbox:disabled:hover,
 button.checkbox:disabled:active{
   transform: none;
-}
-
-button.checkbox svg{
-  font-size: 1.35em;
 }
 
 div.tasks-panel-task-name-outer{
