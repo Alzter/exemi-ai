@@ -71,6 +71,8 @@ type TaskPublicRow = {
     colour_raw: string | null;
     /** Optimistic row while autofill/create is in flight */
     clientPending?: boolean;
+    /** Local calendar date (YYYY-MM-DD) the pending task was created for; controls visibility when the date picker changes */
+    clientPendingForDateISO?: string;
 };
 
 type TaskCreateFromApi = {
@@ -146,12 +148,21 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
     const showAddTaskButton =
         selectedDateISO >= todayISOValue && Boolean(session.token && session.user?.username);
 
+    const pendingVisibleForSelectedDate = tasks.some(
+        (t) => t.clientPending// && t.clientPendingForDateISO === selectedDateISO,
+    );
+    const addTaskBlockedByPending = pendingVisibleForSelectedDate;
+
     const userTimeZone =
         typeof Intl !== 'undefined'
             ? Intl.DateTimeFormat().resolvedOptions().timeZone || 'Australia/Sydney'
             : 'Australia/Sydney';
 
-    const incompleteTasks = tasks.filter((t) => !t.completed);
+    const incompleteTasks = tasks.filter((t) => {
+        if (t.completed) return false;
+        if (t.clientPending && t.clientPendingForDateISO !== selectedDateISO) return false;
+        return true;
+    });
     const completeTasks = tasks.filter((t) => t.completed);
 
     useEffect(() => {
@@ -246,9 +257,12 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
             if (cancelled) return;
             if (list === null) {
                 setTasksError('Could not load tasks.');
-                setTasks([]);
+                setTasks((prev) => prev.filter((t) => t.clientPending));
             } else {
-                setTasks(list);
+                setTasks((prev) => {
+                    const pendingAll = prev.filter((t) => t.clientPending);
+                    return [...list, ...pendingAll];
+                });
             }
         });
 
@@ -302,6 +316,8 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         const username = session.user?.username;
         if (!token || !username) return;
 
+        const taskDateISO = selectedDateISO;
+
         setTaskEntryOpen(false);
         setNewTaskTitle('');
 
@@ -315,10 +331,11 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
                 completed: false,
                 colour_raw: null,
                 clientPending: true,
+                clientPendingForDateISO: taskDateISO,
             },
         ]);
 
-        const due_at = utcIsoForLocalCalendarDate(selectedDateISO, userTimeZone);
+        const due_at = utcIsoForLocalCalendarDate(taskDateISO, userTimeZone);
 
         const removePlaceholder = () => {
             setTasks((prev) => prev.filter((t) => t.id !== tempId));
@@ -532,7 +549,8 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
                 key={t.id}
                 className={
                     'tasks-panel-task-row' +
-                    (column === 'done' ? ' tasks-panel-task-row--done' : '')
+                    (column === 'done' ? ' tasks-panel-task-row--done' : '') +
+                    (t.clientPending ? ' tasks-panel-task-row--pending' : '')
                 }
                 style={{backgroundColor: bg}}
             >
@@ -726,6 +744,7 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
                                                 <button
                                                     type="button"
                                                     className="tasks-panel-add-task"
+                                                    disabled={addTaskBlockedByPending}
                                                     onClick={() => setTaskEntryOpen(true)}
                                                 >
                                                     <MdAdd aria-hidden />
