@@ -572,7 +572,7 @@ div.tasks-panel-column{
   min-height: 0;
   overflow: hidden;
   flex: 0 1 0;
-  transition: flex 0.2s ease-in-out;
+  /* Avoid `transition: flex` — it animates layout every frame and makes the page feel sluggish */
   /* Override global `div { border-radius: 8px }` — otherwise overflow:hidden clips the card to a fully rounded rect */
   border-radius: 0;
 }
@@ -614,10 +614,262 @@ div.tasks-panel-column-card{
   overflow: hidden;
 }
 
-/* Flush junction when To-Do and Done sit side by side: square inner corners, single divider */
-div.tasks-panel-board--both div.tasks-panel-column--adjacent-left div.tasks-panel-column-card{
+/* To-Do + Done wide: To-Do alone in stack — outward left corners only */
+div.tasks-panel-board--both div.tasks-panel-column--adjacent-left div.tasks-panel-todo-main-card.tasks-panel-column-card{
   border-radius: 8px 0 0 8px;
   border-right: none;
+}
+
+/* To-Do under Doing: only bottom-left rounded; flush with Doing */
+div.tasks-panel-board--both
+  div.tasks-panel-column--adjacent-left
+  div.tasks-panel-todo-column-stack--with-doing
+  div.tasks-panel-todo-main-card.tasks-panel-column-card{
+  border-radius: 0 0 0 8px;
+  border-top: none;
+  border-right: none;
+}
+
+/* Doing flush against Done column (same width as To-Do) */
+div.tasks-panel-board--both div.tasks-panel-column--adjacent-left div.tasks-panel-doing-card.tasks-panel-column-card{
+  border-right: none;
+}
+
+div.tasks-panel-todo-column-stack{
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  align-self: stretch;
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
+  gap: 0;
+}
+
+/* Doing + To-Do: no gap, shared inside edge */
+div.tasks-panel-todo-column-stack--with-doing div.tasks-panel-doing-card.tasks-panel-column-card{
+  /* border-bottom: none; */
+  border-radius: 8px 0 0 0;
+}
+
+div.tasks-panel-todo-column-stack--with-doing div.tasks-panel-todo-main-card.tasks-panel-column-card{
+  border-top: none;
+}
+
+div.tasks-panel-doing-card-wrap{
+  flex: 0 0 auto;
+}
+
+div.tasks-panel-todo-main-card{
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Doing: only top-left corner rounded */
+div.tasks-panel-doing-card.tasks-panel-column-card{
+  flex: 0 0 auto;
+  min-height: 0;
+  border-radius: 8px 0 0 0;
+}
+
+/* To-Do only column, no Doing: outward left corners only */
+div.tasks-panel-board--todo-only div.tasks-panel-todo-main-card.tasks-panel-column-card{
+  border-radius: 8px 0 0 8px;
+}
+
+div.tasks-panel-board--todo-only
+  div.tasks-panel-todo-column-stack--with-doing
+  div.tasks-panel-todo-main-card.tasks-panel-column-card{
+  border-radius: 0 0 0 8px;
+}
+
+div.tasks-panel-doing-card-head.tasks-panel-column-head{
+  background-color: transparent;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35em;
+}
+
+div.tasks-panel-doing-card-head h3.tasks-panel-column-title{
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+button.tasks-panel-doing-close{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0.2em;
+  height: fit-content;
+  width: fit-content;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #222;
+  cursor: pointer;
+}
+
+
+button.tasks-panel-doing-close svg{
+  margin:0;
+}
+
+button.tasks-panel-doing-close:hover:not(:disabled){
+  background-color: transparent;
+  box-shadow: none;
+  transform: none;
+}
+
+button.tasks-panel-doing-close:disabled{
+  opacity: 0.45;
+  cursor: default;
+}
+
+button.tasks-panel-doing-close svg{
+  font-size: 1.35em;
+}
+
+div.tasks-panel-doing-card-body.tasks-panel-column-body{
+  flex: 0 0 auto;
+  min-height: 0;
+}
+
+div.tasks-panel-doing-body-stack{
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 0.65em 0.65em;
+  box-sizing: border-box;
+}
+
+div.tasks-panel-doing-rows--invisible{
+  visibility: hidden;
+}
+
+div.tasks-panel-doing-dialog{
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  padding: 0.5em 0.65em 0.65em;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: stretch;
+}
+
+p.tasks-panel-doing-dialog-question{
+  margin: 0;
+  font-size: 0.92em;
+  font-weight: 700;
+  color: #1a1a1a;
+  text-align: left;
+}
+
+div.tasks-panel-doing-dialog-actions{
+  display: flex;
+  flex-direction: row;
+  gap: 0.5em;
+  margin-top: 0.65em;
+  width: 100%;
+}
+
+div.tasks-panel button.tasks-panel-doing-dialog-btn{
+  flex: 1 1 0;
+  min-width: 0;
+  margin: 0;
+  padding: 0.5em 0.35em;
+  font-size: 0.88em;
+  font-weight: 600;
+  color: #000;
+  background-color: #fff;
+  border: 2px solid #000;
+  border-radius: 6px;
+  cursor: pointer;
+  box-shadow: none;
+  transform: none;
+}
+
+div.tasks-panel button.tasks-panel-doing-dialog-btn:hover{
+  background-color: #f5f5f5;
+}
+
+div.tasks-panel-task-row.tasks-panel-task-row--doing{
+  position: relative;
+  overflow: hidden;
+  padding-right:0;
+  border-color: #999;
+}
+
+div.tasks-panel-task-row.tasks-panel-task-row--doing:hover,
+div.tasks-panel-task-row.tasks-panel-task-row--doing:active{
+  transform: none;
+}
+
+div.tasks-panel-doing-progress-fill{
+  position: absolute;
+  left: -2px;
+  top: -2px;
+  bottom: -2px;
+  z-index: 0;
+  border-radius: 8px;
+  pointer-events: none;
+}
+
+div.tasks-panel-doing-row-content{
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.35em;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+button.tasks-panel-doing-play-toggle{
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height:50px;
+  width:50px;
+  margin: 2px;
+  margin-right: -2px;
+  padding: 0;
+  border: 2px solid #999;
+  border-radius: 8px;
+  background-color: #fff;
+  color: #1a1a1a;
+  cursor: pointer;
+  font-size: 1.5em;
+}
+
+button.tasks-panel-doing-play-toggle svg{
+  margin:0;
+}
+
+button.tasks-panel-doing-play-toggle:hover{
+  background-color: #eee;
+  font-size: 1.9em;
+  box-shadow:none;
+}
+
+button.tasks-panel-doing-play-toggle:active{
+  background-color: #ccc;
+  transform: scale(0.98);
+  font-size:1.2em;
+  box-shadow: none;
+}
+
+button.tasks-panel-doing-play-toggle svg{
+  font-size: 1.25em;
 }
 
 div.tasks-panel-board--both div.tasks-panel-column--adjacent-right div.tasks-panel-column-card{
@@ -931,6 +1183,12 @@ span.tasks-panel-task-duration{
   color: inherit;
   opacity: 0.85;
   white-space: nowrap;
+}
+
+span.tasks-panel-doing-timer{
+  font-variant-numeric: tabular-nums;
+  font-size: 1em;
+  font-weight: 900;
 }
 
 div.tasks-panel-task-row.tasks-panel-task-row--done span.tasks-panel-task-name-inner,

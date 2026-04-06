@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useRef, useState, type RefObject} from 'react';
+import {useCallback, useEffect, useMemo, useRef, useState, type RefObject} from 'react';
 import {
     MdArrowLeft,
     MdArrowRight,
@@ -9,13 +9,17 @@ import {
     MdKeyboardArrowUp,
     MdRefresh,
     MdAdd,
+    MdPause,
+    MdPlayArrow,
 } from 'react-icons/md';
 import {type Session} from '../../models';
 import {
     completedTaskBackgroundFromSafe,
     safeTaskBackgroundFromColourRaw,
+    saturatedProgressBarFromSafe,
     utcIsoForLocalCalendarDate,
 } from '../../utils/taskBoardUtils';
+import {call_task_deconstruction} from './taskDeconstruction';
 
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 
@@ -68,6 +72,8 @@ type TaskPublicRow = {
     name: string;
     duration_mins: number;
     completed: boolean;
+    /** Seconds worked; only surfaced in UI for incomplete tasks due today. */
+    progress_secs: number;
     colour_raw: string | null;
     /** Local calendar date (YYYY-MM-DD) this row was fetched or created for; checkbox past/future rules use this, not the picker */
     calendarDateISO?: string;
@@ -90,6 +96,7 @@ function taskPublicJsonToRow(t: {
     name: string;
     duration_mins: number;
     completed: boolean;
+    progress_secs?: number;
     colour_raw?: string | null;
 }): TaskPublicRow {
     return {
@@ -97,6 +104,7 @@ function taskPublicJsonToRow(t: {
         name: t.name,
         duration_mins: t.duration_mins,
         completed: t.completed,
+        progress_secs: t.progress_secs ?? 0,
         colour_raw: t.colour_raw ?? null,
     };
 }
@@ -136,6 +144,11 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
     const newTaskInputRef = useRef<HTMLInputElement>(null);
     const pendingTempIdRef = useRef(0);
     const prevSelectedDateISORef = useRef(selectedDateISO);
+    const doingExtraSecsRef = useRef<Record<number, number>>({});
+    const [, doingTick] = useState(0);
+
+    const [doingCloseDialogOpen, setDoingCloseDialogOpen] = useState(false);
+    const [playingDoingIds, setPlayingDoingIds] = useState<number[]>([]);
 
     const dragStartY = useRef(0);
     const dragStartHeight = useRef(0);
@@ -171,7 +184,72 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         if (t.clientPending && t.clientPendingForDateISO !== selectedDateISO) return false;
         return true;
     });
+
+    const isTaskInDoingColumn = (t: TaskPublicRow) =>
+        !t.clientPending &&
+        selectedDateISO === todayISOValue &&
+        t.progress_secs > 0;
+
+    const doingTasks = incompleteTasks.filter(isTaskInDoingColumn);
+    const todoIncompleteTasks = incompleteTasks.filter((t) => !isTaskInDoingColumn(t));
+    const showDoingCard = showTodoColumn && doingTasks.length > 0;
+
     const completeTasks = tasks.filter((t) => t.completed);
+
+    /** Stable key so effects do not run every render (doingTasks is a new [] each time). */
+    const doingTaskIdsKey = useMemo(() => {
+        const ids: number[] = [];
+        for (const t of tasks) {
+            if (t.completed) continue;
+            if (t.clientPending && t.clientPendingForDateISO !== selectedDateISO) continue;
+            if (
+                !t.clientPending &&
+                selectedDateISO === todayISOValue &&
+                t.progress_secs > 0
+            ) {
+                ids.push(t.id);
+            }
+        }
+        ids.sort((a, b) => a - b);
+        return ids.join(',');
+    }, [tasks, selectedDateISO, todayISOValue]);
+
+    useEffect(() => {
+        if (doingTaskIdsKey === '') {
+            setDoingCloseDialogOpen(false);
+            setPlayingDoingIds([]);
+            doingExtraSecsRef.current = {};
+            return;
+        }
+        const idSet = new Set<number>();
+        for (const part of doingTaskIdsKey.split(',')) {
+            const n = Number(part);
+            if (Number.isFinite(n)) idSet.add(n);
+        }
+        setPlayingDoingIds((prev) => {
+            const next = prev.filter((id) => idSet.has(id));
+            if (next.length === prev.length && next.every((id, i) => id === prev[i])) {
+                return prev;
+            }
+            return next;
+        });
+        const ref = doingExtraSecsRef.current;
+        for (const k of Object.keys(ref)) {
+            const n = Number(k);
+            if (!idSet.has(n)) delete ref[n];
+        }
+    }, [doingTaskIdsKey]);
+
+    useEffect(() => {
+        if (playingDoingIds.length === 0) return;
+        const t = window.setInterval(() => {
+            for (const id of playingDoingIds) {
+                doingExtraSecsRef.current[id] = (doingExtraSecsRef.current[id] ?? 0) + 1;
+            }
+            doingTick((x) => x + 1);
+        }, 1000);
+        return () => window.clearInterval(t);
+    }, [playingDoingIds]);
 
     useEffect(() => {
         if (!session.token) {
@@ -345,6 +423,7 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
                 name,
                 duration_mins: 0,
                 completed: false,
+                progress_secs: 0,
                 colour_raw: null,
                 clientPending: true,
                 clientPendingForDateISO: taskDateISO,
@@ -437,6 +516,24 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         [session.token],
     );
 
+    const patchTaskProgressSecs = useCallback(
+        async (taskId: number, progress_secs: number) => {
+            const token = session.token;
+            if (!token) return false;
+            const res = await fetch(`${backendURL}/task/${taskId}`, {
+                method: 'PATCH',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                },
+                body: JSON.stringify({progress_secs}),
+            });
+            return res.ok;
+        },
+        [session.token],
+    );
+
     const onToggleTask = (task: TaskPublicRow) => {
         const next = !task.completed;
         setTasks((prev) =>
@@ -451,6 +548,42 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
             }
         });
     };
+
+    const toggleDoingPlayPause = useCallback((taskId: number) => {
+        setPlayingDoingIds((prev) =>
+            prev.includes(taskId) ? prev.filter((id) => id !== taskId) : [...prev, taskId],
+        );
+    }, []);
+
+    const onDoingDialogYes = useCallback(() => {
+        const first = doingTasks[0];
+        if (first) call_task_deconstruction(first.id);
+        setDoingCloseDialogOpen(false);
+    }, [doingTasks]);
+
+    const onDoingDialogNo = useCallback(() => {
+        const ids = doingTasks.map((t) => t.id);
+        if (ids.length === 0) {
+            setDoingCloseDialogOpen(false);
+            return;
+        }
+        setDoingCloseDialogOpen(false);
+        setPlayingDoingIds([]);
+        for (const id of ids) {
+            delete doingExtraSecsRef.current[id];
+        }
+        setTasks((prev) =>
+            prev.map((t) => (ids.includes(t.id) ? {...t, progress_secs: 0} : t)),
+        );
+        void Promise.all(ids.map((id) => patchTaskProgressSecs(id, 0))).then((results) => {
+            if (results.some((ok) => !ok)) {
+                setTasksError('Could not reset task progress.');
+                void reloadTasksFromApi(selectedDateISO).then((list) => {
+                    if (list !== null) setTasks(list);
+                });
+            }
+        });
+    }, [doingTasks, patchTaskProgressSecs, reloadTasksFromApi, selectedDateISO]);
 
     let boardLayoutClass = 'tasks-panel-board--none';
     if (showTodoColumn && showDoneColumn) {
@@ -590,6 +723,67 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         );
     }
 
+    function formatMmSs(totalSeconds: number): string {
+        const s = Math.max(0, Math.floor(totalSeconds));
+        const m = Math.floor(s / 60);
+        const r = s % 60;
+        return `${m}:${String(r).padStart(2, '0')}`;
+    }
+
+    function renderDoingTaskRow(t: TaskPublicRow) {
+        void doingTick;
+        const safeBg = safeTaskBackgroundFromColourRaw(t.colour_raw);
+        const barColor = saturatedProgressBarFromSafe(safeBg);
+        const extra = doingExtraSecsRef.current[t.id] ?? 0;
+        const effectiveProgress = t.progress_secs + extra;
+        const totalSecs = Math.max(t.duration_mins * 60, 1);
+        const progressPct = Math.min(100, (effectiveProgress / totalSecs) * 100);
+        const remainingSecs = Math.max(0, totalSecs - effectiveProgress);
+        const timeLabel = formatMmSs(remainingSecs);
+        const playing = playingDoingIds.includes(t.id);
+
+        return (
+            <div
+                key={t.id}
+                className="tasks-panel-task-row tasks-panel-task-row--doing"
+                style={{backgroundColor: '#ccc'}}
+            >
+                <div
+                    className="tasks-panel-doing-progress-fill"
+                    style={{width: `${progressPct}%`, backgroundColor: barColor}}
+                    aria-hidden
+                />
+                <div className="tasks-panel-doing-row-content">
+                    <button
+                        type="button"
+                        className="tasks-panel-task-check"
+                        aria-label={t.completed ? 'Mark incomplete' : 'Mark complete'}
+                        onClick={() => onToggleTask(t)}
+                    >
+                        {t.completed ? <MdCheckBox aria-hidden /> : <MdCheckBoxOutlineBlank aria-hidden />}
+                    </button>
+                    <div className="tasks-panel-task-name-outer">
+                        <span className="tasks-panel-task-name-inner">{t.name}</span>
+                    </div>
+                    <span className="tasks-panel-task-duration tasks-panel-doing-timer">{timeLabel}</span>
+                    <button
+                        type="button"
+                        className="tasks-panel-doing-play-toggle"
+                        aria-label={playing ? 'Pause timer' : 'Resume timer'}
+                        onClick={() => toggleDoingPlayPause(t.id)}
+                    >
+                        {playing ? <MdPause aria-hidden /> : <MdPlayArrow aria-hidden />}
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    const doingCardBackground =
+        doingTasks[0] !== undefined
+            ? safeTaskBackgroundFromColourRaw(doingTasks[0].colour_raw)
+            : '#eee';
+
     return (
         <div
             className={'tasks-panel' + (dragging ? ' tasks-panel--dragging' : '')}
@@ -703,15 +897,92 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
                             }
                             aria-hidden={!showTodoColumn}
                         >
-                            <div ref={todoEntryContainerRef} className="tasks-panel-column-card">
+                            <div
+                                className={
+                                    'tasks-panel-todo-column-stack' +
+                                    (showDoingCard ? ' tasks-panel-todo-column-stack--with-doing' : '')
+                                }
+                            >
+                                {showDoingCard ? (
+                                    <div className="tasks-panel-doing-card-wrap">
+                                        <div
+                                            className="tasks-panel-column-card tasks-panel-doing-card"
+                                            style={{backgroundColor: doingCardBackground}}
+                                        >
+                                            <div className="tasks-panel-column-head tasks-panel-doing-card-head">
+                                                <h3 className="tasks-panel-column-title">
+                                                    Doing: {doingTasks.length}
+                                                </h3>
+                                                <button
+                                                    type="button"
+                                                    className="tasks-panel-doing-close"
+                                                    aria-label="Close doing tasks"
+                                                    disabled={doingCloseDialogOpen}
+                                                    onClick={() => setDoingCloseDialogOpen(true)}
+                                                >
+                                                    <MdClose aria-hidden />
+                                                </button>
+                                            </div>
+                                            <div className="tasks-panel-column-body tasks-panel-doing-card-body">
+                                                <div className="tasks-panel-doing-body-stack">
+                                                    <div
+                                                        className={
+                                                            'tasks-panel-doing-rows' +
+                                                            (doingCloseDialogOpen
+                                                                ? ' tasks-panel-doing-rows--invisible'
+                                                                : '')
+                                                        }
+                                                    >
+                                                        {doingTasks.map((t) => renderDoingTaskRow(t))}
+                                                    </div>
+                                                    {doingCloseDialogOpen ? (
+                                                        <div
+                                                            className="tasks-panel-doing-dialog"
+                                                            role="dialog"
+                                                            aria-modal="true"
+                                                            aria-labelledby="tasks-doing-dialog-title"
+                                                        >
+                                                            <p
+                                                                id="tasks-doing-dialog-title"
+                                                                className="tasks-panel-doing-dialog-question"
+                                                            >
+                                                                Would you like help breaking the task down?
+                                                            </p>
+                                                            <div className="tasks-panel-doing-dialog-actions">
+                                                                <button
+                                                                    type="button"
+                                                                    className="tasks-panel-add-task"
+                                                                    onClick={onDoingDialogYes}
+                                                                >
+                                                                    Yes
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    className="tasks-panel-add-task"
+                                                                    onClick={onDoingDialogNo}
+                                                                >
+                                                                    No
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    ) : null}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : null}
+                                <div
+                                    ref={todoEntryContainerRef}
+                                    className="tasks-panel-column-card tasks-panel-todo-main-card"
+                                >
                                 <div className="tasks-panel-column-head">
                                     <h3 className="tasks-panel-column-title">
-                                        To-Do: {incompleteTasks.length}
+                                        To-Do: {todoIncompleteTasks.length}
                                     </h3>
                                 </div>
                                 <div className="tasks-panel-column-body">
                                     <div ref={todoColumnScrollRef} className="tasks-panel-column-scroll">
-                                        {incompleteTasks.map((t) => renderTaskRow(t, 'todo'))}
+                                        {todoIncompleteTasks.map((t) => renderTaskRow(t, 'todo'))}
                                         {taskEntryOpen ? (
                                             <input
                                                 ref={newTaskInputRef}
@@ -770,6 +1041,7 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
                                             )}
                                         </div>
                                     ) : null}
+                                </div>
                                 </div>
                             </div>
                         </div>

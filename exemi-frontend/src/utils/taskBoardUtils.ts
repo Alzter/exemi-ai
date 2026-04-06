@@ -84,3 +84,15 @@ export function completedTaskBackgroundFromSafe(safeCss: string): string {
     const L2 = Math.max(0, L * 0.8);
     return `oklch(${L2} ${c} ${h})`;
 }
+
+/** Stronger chroma and slightly lower L than the soft task tile colour — for in-progress bar fill. */
+export function saturatedProgressBarFromSafe(safeCss: string): string {
+    const m = safeCss.match(/oklch\(\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)\s*\)/i);
+    if (!m) return 'oklch(0.72 0.14 95)';
+    const L = Number(m[1]);
+    const c = Number(m[2]);
+    const h = m[3];
+    const c2 = Math.min(0.19, Math.max(c * 4, c + 0.06));
+    const L2 = Math.max(0.58, Math.min(0.82, L - 0.14));
+    return `oklch(${L2} ${c2} ${h})`;
+}
