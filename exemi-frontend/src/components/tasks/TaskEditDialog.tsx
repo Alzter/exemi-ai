@@ -107,7 +107,7 @@ export function TaskEditDialog({
 }: TaskEditDialogProps) {
     const [detail, setDetail] = useState<TaskPublicApi | null>(null);
     const [loadError, setLoadError] = useState<string | null>(null);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [assignments, setAssignments] = useState<AssignmentOption[]>([]);
@@ -183,7 +183,7 @@ export function TaskEditDialog({
         if (!open || !taskId || taskId <= 0 || !sessionToken) {
             setDetail(null);
             setLoadError(null);
-            setLoading(false);
+            setLoading(true);
             setTitleEditing(false);
             setDeleteOpen(false);
             return;
