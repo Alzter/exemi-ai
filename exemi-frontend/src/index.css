@@ -646,10 +646,17 @@ div.tasks-panel-todo-column-stack{
   gap: 0;
 }
 
-/* Doing + To-Do: no gap, shared inside edge */
-div.tasks-panel-todo-column-stack--with-doing div.tasks-panel-doing-card.tasks-panel-column-card{
-  /* border-bottom: none; */
+/* Doing + To-Do: no gap; TL round always, TR round only when Done column hidden */
+div.tasks-panel-board--both
+  div.tasks-panel-todo-column-stack--with-doing
+  div.tasks-panel-doing-card.tasks-panel-column-card{
   border-radius: 8px 0 0 0;
+}
+
+div.tasks-panel-board--todo-only
+  div.tasks-panel-todo-column-stack--with-doing
+  div.tasks-panel-doing-card.tasks-panel-column-card{
+  border-radius: 8px 8px 0 0;
 }
 
 div.tasks-panel-todo-column-stack--with-doing div.tasks-panel-todo-main-card.tasks-panel-column-card{
@@ -674,15 +681,18 @@ div.tasks-panel-doing-card.tasks-panel-column-card{
   border-radius: 8px 0 0 0;
 }
 
-/* To-Do only column, no Doing: outward left corners only */
+/*
+ * To-Do when Done column hidden (board--todo-only): right edge faces outward.
+ * Solo To-Do: all corners rounded. Under Doing: bottom-left + bottom-right only.
+ */
 div.tasks-panel-board--todo-only div.tasks-panel-todo-main-card.tasks-panel-column-card{
-  border-radius: 8px 0 0 8px;
+  border-radius: 8px;
 }
 
 div.tasks-panel-board--todo-only
   div.tasks-panel-todo-column-stack--with-doing
   div.tasks-panel-todo-main-card.tasks-panel-column-card{
-  border-radius: 0 0 0 8px;
+  border-radius: 0 0 8px 8px;
 }
 
 div.tasks-panel-doing-card-head.tasks-panel-column-head{
@@ -697,6 +707,10 @@ div.tasks-panel-doing-card-head.tasks-panel-column-head{
 div.tasks-panel-doing-card-head h3.tasks-panel-column-title{
   flex: 1 1 auto;
   min-width: 0;
+}
+
+div.tasks-panel-doing-card-head--dialog-open h3.tasks-panel-column-title{
+  visibility: hidden;
 }
 
 button.tasks-panel-doing-close{
@@ -714,7 +728,6 @@ button.tasks-panel-doing-close{
   cursor: pointer;
 }
 
-
 button.tasks-panel-doing-close svg{
   margin:0;
 }
@@ -725,9 +738,16 @@ button.tasks-panel-doing-close:hover:not(:disabled){
   transform: none;
 }
 
+button.tasks-panel-doing-close:active{
+  background-color: transparent;
+  transform: none;
+  box-shadow: none;
+}
+
 button.tasks-panel-doing-close:disabled{
   opacity: 0.45;
   cursor: default;
+  background-color: transparent;
 }
 
 button.tasks-panel-doing-close svg{

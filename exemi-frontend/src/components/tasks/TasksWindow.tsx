@@ -909,16 +909,33 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
                                             className="tasks-panel-column-card tasks-panel-doing-card"
                                             style={{backgroundColor: doingCardBackground}}
                                         >
-                                            <div className="tasks-panel-column-head tasks-panel-doing-card-head">
-                                                <h3 className="tasks-panel-column-title">
+                                            <div
+                                                className={
+                                                    'tasks-panel-column-head tasks-panel-doing-card-head' +
+                                                    (doingCloseDialogOpen
+                                                        ? ' tasks-panel-doing-card-head--dialog-open'
+                                                        : '')
+                                                }
+                                            >
+                                                <h3
+                                                    className="tasks-panel-column-title"
+                                                    aria-hidden={doingCloseDialogOpen}
+                                                >
                                                     Doing: {doingTasks.length}
                                                 </h3>
                                                 <button
                                                     type="button"
                                                     className="tasks-panel-doing-close"
-                                                    aria-label="Close doing tasks"
-                                                    disabled={doingCloseDialogOpen}
-                                                    onClick={() => setDoingCloseDialogOpen(true)}
+                                                    aria-label={
+                                                        doingCloseDialogOpen
+                                                            ? 'Decline help and reset progress'
+                                                            : 'Close doing tasks'
+                                                    }
+                                                    onClick={() =>
+                                                        doingCloseDialogOpen
+                                                            ? onDoingDialogNo()
+                                                            : setDoingCloseDialogOpen(true)
+                                                    }
                                                 >
                                                     <MdClose aria-hidden />
                                                 </button>
