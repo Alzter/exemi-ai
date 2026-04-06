@@ -6,8 +6,13 @@ export type DialogBoxProps = {
     open: boolean;
     onClose: () => void;
     children?: ReactNode;
+    /** Rendered to the left of the close control (e.g. overflow menu). */
+    beforeClose?: ReactNode;
+    /** When false, Escape is not handled here (parent may handle stacking). */
+    closeOnEscape?: boolean;
     panelClassName?: string;
     panelStyle?: CSSProperties;
+    backdropClassName?: string;
     'aria-label'?: string;
 };
 
@@ -15,24 +20,27 @@ export function DialogBox({
     open,
     onClose,
     children,
+    beforeClose,
+    closeOnEscape = true,
     panelClassName = '',
     panelStyle,
+    backdropClassName = '',
     'aria-label': ariaLabel = 'Dialog',
 }: DialogBoxProps) {
     useEffect(() => {
-        if (!open) return;
+        if (!open || !closeOnEscape) return;
         const onKey = (e: KeyboardEvent) => {
             if (e.key === 'Escape') onClose();
         };
         window.addEventListener('keydown', onKey);
         return () => window.removeEventListener('keydown', onKey);
-    }, [open, onClose]);
+    }, [open, onClose, closeOnEscape]);
 
     if (!open || typeof document === 'undefined') return null;
 
     return createPortal(
         <div
-            className="dialog-backdrop"
+            className={'dialog-backdrop ' + backdropClassName}
             role="presentation"
             aria-hidden={!open}
         >
@@ -43,14 +51,17 @@ export function DialogBox({
                 className={'dialog-panel ' + panelClassName}
                 style={panelStyle}
             >
-                <button
-                    type="button"
-                    className="dialog-close"
-                    aria-label="Close"
-                    onClick={onClose}
-                >
-                    <MdClose aria-hidden />
-                </button>
+                <div className="dialog-panel-top-actions">
+                    {beforeClose}
+                    <button
+                        type="button"
+                        className="dialog-close"
+                        aria-label="Close"
+                        onClick={onClose}
+                    >
+                        <MdClose aria-hidden />
+                    </button>
+                </div>
                 {children}
             </div>
         </div>,

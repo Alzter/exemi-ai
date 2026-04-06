@@ -21,7 +21,7 @@ import {
     utcIsoForLocalCalendarDate,
 } from '../../utils/taskBoardUtils';
 import {call_task_deconstruction} from './taskDeconstruction';
-import {TaskEditDialog} from './TaskEditDialog';
+import {TaskEditDialog, type TaskPublicRowPatch} from './TaskEditDialog';
 
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 
@@ -77,6 +77,10 @@ type TaskPublicRow = {
     /** Seconds worked; only surfaced in UI for incomplete tasks due today. */
     progress_secs: number;
     colour_raw: string | null;
+    description?: string;
+    assignment_id?: number | null;
+    due_at?: string;
+    break_every_mins?: number;
     /** Local calendar date (YYYY-MM-DD) this row was fetched or created for; checkbox past/future rules use this, not the picker */
     calendarDateISO?: string;
     /** Optimistic row while autofill/create is in flight */
@@ -100,6 +104,10 @@ function taskPublicJsonToRow(t: {
     completed: boolean;
     progress_secs?: number;
     colour_raw?: string | null;
+    description?: string;
+    assignment_id?: number | null;
+    due_at?: string;
+    break_every_mins?: number;
 }): TaskPublicRow {
     return {
         id: t.id,
@@ -108,6 +116,10 @@ function taskPublicJsonToRow(t: {
         completed: t.completed,
         progress_secs: t.progress_secs ?? 0,
         colour_raw: t.colour_raw ?? null,
+        description: t.description,
+        assignment_id: t.assignment_id,
+        due_at: t.due_at,
+        break_every_mins: t.break_every_mins,
     };
 }
 
@@ -567,6 +579,30 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         [session.token],
     );
 
+    const handleTaskMerged = useCallback((patch: TaskPublicRowPatch) => {
+        setTasks((prev) => prev.map((t) => (t.id === patch.id ? {...t, ...patch} : t)));
+        setTodoEditTask((prev) => (prev && prev.id === patch.id ? {...prev, ...patch} : prev));
+    }, []);
+
+    const handleTaskRemoved = useCallback((id: number) => {
+        setTasks((prev) => prev.filter((t) => t.id !== id));
+        setTodoEditTask((prev) => (prev && prev.id === id ? null : prev));
+    }, []);
+
+    const handleEditBoardReload = useCallback(() => {
+        void reloadTasksFromApi(selectedDateISO).then((list) => {
+            if (list === null) return;
+            setTasks((prev) => {
+                const pending = prev.filter((t) => t.clientPending);
+                return [...list, ...pending];
+            });
+        });
+    }, [reloadTasksFromApi, selectedDateISO]);
+
+    const handleStartWorkFromEdit = useCallback((taskId: number) => {
+        setPlayingDoingIds((prev) => (prev.includes(taskId) ? prev : [...prev, taskId]));
+    }, []);
+
     const onToggleTask = (task: TaskPublicRow) => {
         const next = !task.completed;
         setTasks((prev) =>
@@ -734,11 +770,13 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
                     'tasks-panel-task-row' +
                     (column === 'done' ? ' tasks-panel-task-row--done' : '') +
                     (t.clientPending ? ' tasks-panel-task-row--pending' : '') +
-                    (column === 'todo' ? ' tasks-panel-task-row--todo-editable' : '')
+                    (column === 'todo' && !t.clientPending
+                        ? ' tasks-panel-task-row--todo-editable'
+                        : '')
                 }
                 style={{backgroundColor: bg}}
                 onClick={
-                    column === 'todo'
+                    column === 'todo' && !t.clientPending
                         ? () => {
                               setTodoEditTask(t);
                           }
@@ -1157,11 +1195,19 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
             <TaskEditDialog
                 open={todoEditTask !== null}
                 onClose={() => setTodoEditTask(null)}
-                backgroundColor={
+                taskId={todoEditTask?.id ?? null}
+                sessionToken={session.token ?? undefined}
+                userTimeZone={userTimeZone}
+                surfaceBackgroundColor={
                     todoEditTask
                         ? safeTaskBackgroundFromColourRaw(todoEditTask.colour_raw)
                         : '#eee'
                 }
+                onTaskMerged={handleTaskMerged}
+                onTaskRemoved={handleTaskRemoved}
+                onBoardReload={handleEditBoardReload}
+                onStartWork={handleStartWorkFromEdit}
+                onError={(msg) => setTasksError(msg)}
             />
         </div>
     );

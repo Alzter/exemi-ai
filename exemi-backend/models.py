@@ -438,6 +438,8 @@ class TaskBase(SQLModel):
     name : str = Field(max_length=255)
     description : str = Field(default="", sa_column=Column(TEXT))
     duration_mins : int = Field(default=15)
+    # Suggested break interval when working in one sitting (minutes); meaningful when duration_mins > 25.
+    break_every_mins : int | None = Field(default=None)
     assignment_id : int | None = Field(default=None, foreign_key='assignment.id', ondelete="CASCADE")
     due_at : datetime
 
@@ -506,6 +508,7 @@ class TaskUpdate(SQLModel):
     name : str | None = None
     description : str | None = None
     duration_mins : int | None = None
+    break_every_mins : int | None = None
     progress_secs : int | None = None
     assignment_id : int | None = None
     due_at : datetime | None = None
@@ -519,6 +522,10 @@ class TaskPublic(TaskBase, UTCModel):
     progress_secs : int
     completed : bool
     colour_raw : str | None = None
+    break_every_mins : int | None = None
+    @property
+    def break_every_mins_safe(self) -> int:
+        return self.break_every_mins or 25
 
 class TaskPublicWithUser(TaskPublic):
     user : UserPublic | None = None
