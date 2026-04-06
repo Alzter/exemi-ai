@@ -786,7 +786,7 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
                 {showCheckbox ? (
                     <button
                         type="button"
-                        className="tasks-panel-task-check"
+                        className="checkbox"
                         aria-label={checkAriaLabel}
                         disabled={isPastDay || !!t.clientPending}
                         onClick={(ev) => {
@@ -839,7 +839,7 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
                 <div className="tasks-panel-doing-row-content">
                     <button
                         type="button"
-                        className="tasks-panel-task-check"
+                        className="checkbox"
                         aria-label={t.completed ? 'Mark incomplete' : 'Mark complete'}
                         onClick={() => onToggleTask(t)}
                     >
@@ -1133,7 +1133,7 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
                                                 <div className="tasks-panel-task-entry-actions">
                                                     <button
                                                         type="button"
-                                                        className="tasks-panel-task-entry-confirm"
+                                                        className="secondary"
                                                         disabled={!newTaskTitle.trim()}
                                                         onClick={() => void confirmNewTask()}
                                                         aria-label="Add task"

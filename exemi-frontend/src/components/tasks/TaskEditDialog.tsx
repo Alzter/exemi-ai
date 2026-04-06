@@ -415,9 +415,10 @@ export function TaskEditDialog({
 
                     {!loading && !loadError && detail ? (
                         <>
+                            <div className="input-row">
                             <button
                                 type="button"
-                                className="tasks-panel-task-check"
+                                className="checkbox"
                                 aria-label={detail.completed ? 'Mark incomplete' : 'Mark complete'}
                                 onClick={() => void onToggleComplete()}
                             >
@@ -465,6 +466,7 @@ export function TaskEditDialog({
                                     </span>
                                 )}
                             </div>
+                            </div>
 
                             <div className="task-edit-dialog-indent">
                                 <div className="task-edit-duration-row">
@@ -504,6 +506,7 @@ export function TaskEditDialog({
                                 </label>
                                 <textarea
                                     id="task-edit-desc"
+                                    style={{flexGrow:1}}
                                     // className="task-edit-description"
                                     value={descDraft}
                                     placeholder="Task description (supports markdown in storage)"
@@ -539,19 +542,17 @@ export function TaskEditDialog({
 
                                     <div
                                         className="chip"
-                                        style={{display: 'flex', alignItems: 'center', gap: 8}}
                                     >
                                         <MdAssignment
                                             aria-hidden
                                         />
                                         <select
-                                            className="chip"
-                                            style={{flex: '1 1 0', minWidth: 0}}
+                                            // style={{flex: '1 1 0', minWidth: 0}}
                                             aria-label="Assignment"
                                             value={detail.assignment_id ?? ''}
                                             onChange={(e) => void onAssignmentChange(e)}
                                         >
-                                            <option value="">No assignment</option>
+                                            <option value="">No Assignment</option>
                                             {assignmentSelectOptions.map((a) => (
                                                 <option key={a.id} value={a.id}>
                                                     {a.name?.trim() || `Assignment ${a.id}`}
@@ -563,7 +564,7 @@ export function TaskEditDialog({
 
                                 <button
                                     type="button"
-                                    className="secondary"
+                                    className="primary"
                                     onClick={() => void onStartClick()}
                                 >
                                     <MdPlayArrow aria-hidden />
