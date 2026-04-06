@@ -1348,6 +1348,7 @@ input, button, textarea, select {
 }
 
 .short {
+  margin-top:0;
   width:auto;
 }
 
@@ -1673,6 +1674,7 @@ div.dialog-panel {
   box-sizing: border-box;
   box-shadow: 0 4px 4px rgba(0, 0, 0, 0.12);
   border: 2px solid rgba(0, 0, 0, 0.14);
+  font-weight: 600;
 }
 
 div.dialog-panel-top-actions {
