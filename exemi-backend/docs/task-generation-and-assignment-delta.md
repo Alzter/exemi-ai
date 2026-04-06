@@ -42,10 +42,10 @@ Prompt data (units, assignments, snapshot) uses the **target** `User` resolved b
 ALTER TABLE user ADD COLUMN tasks_generation_assignments_snapshot TEXT NULL;
 ```
 
-For the task edit UI (`break_interval_mins` on `Task` / `TaskBase` in `models.py`), existing databases may need:
+For the task edit UI (`task_break_interval_mins` on `User` in `models.py`), existing databases may need:
 
 ```sql
-ALTER TABLE task ADD COLUMN break_interval_mins INTEGER NOT NULL DEFAULT 25;
+ALTER TABLE user ADD COLUMN task_break_interval_mins INT NULL;
 ```
 
 ## Code map

@@ -19,7 +19,7 @@ export type TaskPublicApi = {
     name: string;
     description: string;
     duration_mins: number;
-    break_interval_mins?: number;
+    break_interval_mins: number;
     assignment_id: number | null;
     assignment?: {id: number; name: string | null} | null;
     due_at: string;
@@ -65,7 +65,7 @@ export function mergeTaskFromApiResponse(
         name: api.name,
         description: api.description,
         duration_mins: api.duration_mins,
-        break_interval_mins: api.break_interval_mins ?? 25,
+        break_interval_mins: api.break_interval_mins,
         assignment_id: api.assignment_id,
         due_at: api.due_at,
         completed: api.completed,
@@ -127,7 +127,7 @@ export function TaskEditDialog({
             setTitleDraft(api.name);
             setDescDraft(api.description ?? '');
             setDurDraft(String(api.duration_mins));
-            setBreakDraft(String(api.break_interval_mins ?? 25));
+            setBreakDraft(String(api.break_interval_mins));
         },
         [],
     );
@@ -151,6 +151,30 @@ export function TaskEditDialog({
                 return null;
             }
             return (await res.json()) as TaskPublicApi;
+        },
+        [sessionToken, onError],
+    );
+
+    const patchUserTaskBreakInterval = useCallback(
+        async (taskBreakIntervalMins: number): Promise<number | null> => {
+            const token = sessionToken;
+            if (!token) return null;
+            const res = await fetch(`${backendURL}/users/self`, {
+                method: 'PATCH',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                },
+                body: JSON.stringify({task_break_interval_mins: taskBreakIntervalMins}),
+            });
+            if (!res.ok) {
+                const t = await res.text();
+                onError(t || res.statusText || 'Could not update break interval.');
+                return null;
+            }
+            const data = (await res.json()) as {task_break_interval_mins?: number | null};
+            return data.task_break_interval_mins || 25;
         },
         [sessionToken, onError],
     );
@@ -288,12 +312,25 @@ export function TaskEditDialog({
         if (!detail) return;
         const n = Number.parseInt(breakDraft, 10);
         if (!Number.isFinite(n) || n < 1) {
-            setBreakDraft(String(detail.break_interval_mins ?? 25));
+            setBreakDraft(String(detail.break_interval_mins));
             return;
         }
-        if (n === (detail.break_interval_mins ?? 25)) return;
-        await persistAndMerge({break_interval_mins: n});
-    }, [detail, breakDraft, persistAndMerge]);
+        if (n === detail.break_interval_mins) return;
+        const effective = await patchUserTaskBreakInterval(n);
+        if (effective === null) return;
+        const next: TaskPublicApi = {...detail, break_interval_mins: effective};
+        applyApiToState(next);
+        onTaskMerged(mergeTaskFromApiResponse(next, userTimeZone));
+        onBoardReload();
+    }, [
+        detail,
+        breakDraft,
+        patchUserTaskBreakInterval,
+        applyApiToState,
+        onTaskMerged,
+        userTimeZone,
+        onBoardReload,
+    ]);
 
     const onToggleComplete = useCallback(async () => {
         if (!detail || !taskId) return;
