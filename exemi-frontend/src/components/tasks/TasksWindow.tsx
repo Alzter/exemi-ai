@@ -472,6 +472,7 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
                 colour_raw: null,
                 clientPending: true,
                 clientPendingForDateISO: taskDateISO,
+                break_interval_mins: session.user?.task_break_interval_mins || 25,
             },
         ]);
 
