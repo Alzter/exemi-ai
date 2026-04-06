@@ -405,7 +405,7 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
             <ErrorDisplay/>
             { isViewing ? (
               <div className="chatbox">
-                <button disabled={loading || !conversationID} onClick={deleteConversation}>Delete Chat</button>
+                <button className="primary" disabled={loading || !conversationID} onClick={deleteConversation}>Delete Chat</button>
               </div>
             ) : (
                 <form className="chatbox" ref={chatboxRef} onSubmit={sendMessage}>
@@ -429,7 +429,7 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
                         onKeyDown={handleTextKeyDown}
                         value={userText}
                     />
-                    <button type="submit" disabled={loading}>Send</button>
+                    <button className="primary" type="submit" disabled={loading}>Send</button>
                 </form>
             )}
         </div>

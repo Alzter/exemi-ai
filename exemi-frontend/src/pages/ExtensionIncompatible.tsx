@@ -69,7 +69,7 @@ export default function ExtensionIncompatible() {
           </p>
         ) : null}
         <p style={{ marginTop: '1.5rem' }}>
-          <button type="button" className="send" onClick={dismiss}>
+          <button type="button" className="primary send" onClick={dismiss}>
             Back to sign-in
           </button>
         </p>

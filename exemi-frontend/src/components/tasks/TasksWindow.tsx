@@ -1073,14 +1073,14 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
                                                             <div className="tasks-panel-doing-dialog-actions">
                                                                 <button
                                                                     type="button"
-                                                                    className="tasks-panel-add-task"
+                                                                    className="secondary"
                                                                     onClick={onDoingDialogYes}
                                                                 >
                                                                     Yes
                                                                 </button>
                                                                 <button
                                                                     type="button"
-                                                                    className="tasks-panel-add-task"
+                                                                    className="secondary"
                                                                     onClick={onDoingDialogNo}
                                                                 >
                                                                     No
@@ -1153,7 +1153,7 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
                                             ) : (
                                                 <button
                                                     type="button"
-                                                    className="tasks-panel-add-task"
+                                                    className="secondary"
                                                     disabled={addTaskBlockedByPending}
                                                     onClick={() => setTaskEntryOpen(true)}
                                                 >

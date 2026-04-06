@@ -172,7 +172,7 @@ export default function MagicForm({
                     onChange={handleChange}
                 />
             </label>
-            <button type="submit" disabled={loading || form.magic == ""}>Sign In</button>
+            <button className="primary" type="submit" disabled={loading || form.magic == ""}>Sign In</button>
             {error ? (<div className='error'><p>{error}</p></div>) : null}
         </form>
     );

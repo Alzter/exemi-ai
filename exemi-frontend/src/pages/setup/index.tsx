@@ -123,7 +123,7 @@ export default function CreateAdminAccount({error, setError} : any){
                         onChange={handleChange}
                     />
                 </div>
-                <button type="submit" disabled={loading}>Create Account</button>
+                <button className="primary" type="submit" disabled={loading}>Create Account</button>
                 {error ? (<div className='error'><p>{error}</p></div>) : null}
             </form>
         </div>

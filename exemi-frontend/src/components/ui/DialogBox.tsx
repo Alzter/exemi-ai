@@ -55,7 +55,7 @@ export function DialogBox({
                     {beforeClose}
                     <button
                         type="button"
-                        className="dialog-close"
+                        className="floating"
                         aria-label="Close"
                         onClick={onClose}
                     >

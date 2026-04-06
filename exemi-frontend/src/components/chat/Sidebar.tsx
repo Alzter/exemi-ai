@@ -106,8 +106,8 @@ export default function ChatSidebar({session, enabled, setEnabled, isViewing, lo
             setConversationID(ID);
         };
 
-        let className = conversationID==ID ? "conversation-selected" : "conversation";
-        if (!conversation) {className = "";}
+        let className = conversationID==ID ? "primary conversation-selected" : "primary conversation";
+        if (!conversation) {className = "primary";}
 
         return (
             <button
@@ -152,9 +152,9 @@ export default function ChatSidebar({session, enabled, setEnabled, isViewing, lo
                 
                 <div className="chat-sidebar-footer">
                 {session.user?.admin ? (
-                    <button onClick={() => {navigate("/");}}>Back to Dashboard</button>
+                    <button className="primary" onClick={() => {navigate("/");}}>Back to Dashboard</button>
                 ) : (
-                    <button onClick={logOut}>Log Out</button>
+                    <button className="primary" onClick={logOut}>Log Out</button>
                 )}
                 </div>
             </div>

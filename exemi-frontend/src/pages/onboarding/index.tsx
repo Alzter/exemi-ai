@@ -105,11 +105,11 @@ export default function Onboarding({session, setSession, setMagicValid, logOut} 
           Are you a Swinburne Online student?
           </p>
           <div className="input-row" style={{minHeight:"4em"}}>
-            <button onClick={() => {
+            <button className="primary" onClick={() => {
               setIsSwinburneOnlineStudent(false);
               next();
             }}>No</button>
-            <button onClick={() => {
+            <button className="primary" onClick={() => {
               setIsSwinburneOnlineStudent(true);
               next();
             }}>Yes</button>
@@ -208,9 +208,9 @@ export default function Onboarding({session, setSession, setMagicValid, logOut} 
           />
         ) : null}
 
-        <button className="back" onClick={back}>{"<"} Back</button>
+        <button className="primary" className="back" onClick={back}>{"<"} Back</button>
         {!disableNextButton ? (
-          <button className="next" onClick={next}>Next {">"}</button>
+          <button className="primary" className="next" onClick={next}>Next {">"}</button>
         ) : null}
       </div>
       <div style={{minHeight:100}}></div>

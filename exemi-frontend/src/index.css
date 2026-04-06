@@ -191,6 +191,7 @@ button.sidebar-button{
   border-radius: 0px 8px 8px 0px;
   background-color: #aaa;
   color: #222;
+  border: 0;
 }
 
 button.sidebar-button:hover{
@@ -272,46 +273,6 @@ div.conversation-container{
   border: 2px solid #aaa;
   border-radius: 8px;
   padding: 0.5em;
-}
-
-button.conversation{
-  width:100%;
-  font-size: 0.9em;
-  background-color: #eee;
-  color:#222;
-  font-weight: normal;
-  border-radius: 8px;
-  padding: 0.5em 0.3em;
-}
-
-button.conversation-selected:disabled{
-  width:100%;
-  font-size: 0.9em;
-  background-color: #aaa;
-  color:#222;
-  font-weight: normal;
-  border-radius: 8px;
-  padding: 0.5em 0.3em;
-  cursor:auto;
-}
-
-button.conversation:hover{
-  background-color: #ccc;
-  transform: none;
-  box-shadow: none;
-}
-
-button.conversation:active{
-  background-color: #aaa;
-  transform: none;
-  box-shadow: none;
-}
-
-button.conversation:disabled{
-  cursor:auto;
-  background-color: #eee;
-  transform: none;
-  box-shadow: none;
 }
 
 div.chat-messages{
@@ -1009,45 +970,6 @@ div.tasks-panel-column-foot{
   background-color: #eee;
 }
 
-button.tasks-panel-add-task{
-  width: 100%;
-  margin: 0;
-  padding: 0.45em 0.5em;
-  /* font-size: 0.9em; */
-  font-weight: 600;
-  color: #000;
-  background-color: #ddd;
-  border: 2px solid #999;
-  border-radius: 8px;
-  cursor: pointer;
-  box-shadow: none;
-  transition: transform 0.05s ease;
-}
-
-button.tasks-panel-add-task:hover{
-  background-color: #ccc;
-  transform: scale(1.01);
-}
-
-button.tasks-panel-add-task:active{
-  background-color: #bbb;
-  transform: scale(0.99);
-}
-
-button.tasks-panel-add-task:disabled{
-  cursor: not-allowed;
-  /* opacity: 0.55; */
-  transform: none;
-  background-color: #bbb;
-  color: #666;
-}
-
-button.tasks-panel-add-task:disabled:hover,
-button.tasks-panel-add-task:disabled:active{
-  /* background-color: #ddd; */
-  transform: none;
-}
-
 @keyframes tasks-panel-pending-gradient-shift{
   from{
     background-position: 0 0;
@@ -1424,9 +1346,8 @@ input, button, textarea, select {
   border-radius: 4px;
 }
 
-input, textarea {
-  padding:0.4em 0.5em;
-  transition:box-shadow 0.1s ease, border-color 0.1s ease;
+.short {
+  width:auto;
 }
 
 div.double-column-buttons {
@@ -1479,11 +1400,7 @@ div.input-row input, div.input-row select{
 div.input-row button{
   /* max-width: fit-content; */
   padding: 0.5rem 1rem;
-}
-
-div.input-row button{
-  /* max-width: fit-content; */
-  padding: 0.5rem 1rem;
+  height: auto
 }
 
 div.input-row :not(button)+ button{
@@ -1498,23 +1415,6 @@ div.input-row p{
   padding: 0.5em 0.4em;
 }
 
-button svg {
-  vertical-align: middle;
-  font-size:2em;
-  margin-right: 5px;
-  /* padding-bottom: 0.15em; */
-  margin-left:-7%;
-}
-
-button {
-  height:60px;
-  padding: 1em 1em;
-  transition: transform 0.15s ease, box-shadow 0.1s ease, background-color 0.1s ease;
-  display:flex;
-  align-items: center;
-  justify-content: center;
-}
-
 select{
   padding: 0.5em 0.5em;
 }
@@ -1523,6 +1423,9 @@ input, textarea {
   margin-top: 0.5em;
   border: 2px solid #aaa;
   box-shadow: 0 0px 0px rgba(0, 0, 0, 0);
+  padding:0.4em 0.5em;
+  transition:box-shadow 0.1s ease, border-color 0.1s ease;
+  resize: none;
 }
 
 input:focus, textarea:focus {
@@ -1531,31 +1434,132 @@ input:focus, textarea:focus {
   box-shadow: 0 3px 3px rgba(0, 0, 0, 0.2);
 }
 
-button {
+button.primary {
   border: none;
   cursor: pointer;
   background-color: #4f46e5;
   color: #ffffff;
   font-weight: 600;
   box-shadow: 0 0px 0px rgba(0, 0, 0, 0);
+  height:60px;
+  padding: 1em 1em;
+  transition: transform 0.15s ease, box-shadow 0.1s ease, background-color 0.1s ease;
+  display:flex;
+  align-items: center;
+  justify-content: center;
 }
 
-button:hover {
+button svg {
+  vertical-align: middle;
+  font-size:2em;
+  margin-right: 5px;
+  /* padding-bottom: 0.15em; */
+  margin-left:-7%;
+}
+
+button.primary:hover {
   background-color: #4338ca;
   transform: scale(1.03);
   box-shadow: 0 3px 3px rgba(0, 0, 0, 0.2);
 }
 
-button:active{
+button.primary:active{
   background-color: #2a218f;
   transform: scale(0.98);
   box-shadow: 0 3px 3px rgba(0, 0, 0, 0.5);
 }
 
-button:disabled{
+button.primary:disabled{
   background-color:#bcb8e0;
   cursor:not-allowed;
   transform:none;
+  box-shadow: none;
+}
+
+button.secondary{
+  border: 2px solid #999;
+  cursor: pointer;
+  background-color: #ddd;
+  color: #000;
+  font-weight: 600;
+  box-shadow: 0 0px 0px rgba(0, 0, 0, 0);
+  height:60px;
+  padding: 1em 1em;
+  transition: transform 0.15s ease, box-shadow 0.1s ease, background-color 0.1s ease;
+  display:flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0px 0px rgba(0, 0, 0, 0);
+  /* width: 100%;
+  margin: 0;
+  padding: 0.45em 0.5em;
+  font-weight: 600;
+  color: #000;
+  background-color: #ddd;
+  border: 2px solid #999;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: none;
+  transition: transform 0.05s ease; */
+}
+
+button.secondary:hover{
+  background-color: #ccc;
+  transform: scale(1.01);
+  box-shadow: 0 3px 3px rgba(0, 0, 0, 0.2);
+}
+
+button.secondary:active{
+  background-color: #bbb;
+  transform: scale(0.98);
+  box-shadow: 0 3px 3px rgba(0, 0, 0, 0.5);
+}
+
+button.secondary:disabled{
+  transform: none;
+  background-color: #bbb;
+  color: #666;
+  cursor:not-allowed;
+  box-shadow: none;
+}
+
+button.primary.conversation{
+  width:100%;
+  font-size: 0.9em;
+  background-color: #eee;
+  color:#222;
+  font-weight: normal;
+  border-radius: 8px;
+  padding: 0.5em 0.3em;
+}
+
+button.primary.conversation-selected:disabled{
+  width:100%;
+  font-size: 0.9em;
+  background-color: #aaa;
+  color:#222;
+  font-weight: normal;
+  border-radius: 8px;
+  padding: 0.5em 0.3em;
+  cursor:auto;
+}
+
+button.primary.conversation:hover{
+  background-color: #ccc;
+  transform: none;
+  box-shadow: none;
+}
+
+button.primary.conversation:active{
+  background-color: #aaa;
+  transform: none;
+  box-shadow: none;
+}
+
+button.primary.conversation:disabled{
+  cursor:auto;
+  background-color: #eee;
+  transform: none;
   box-shadow: none;
 }
 
@@ -1589,6 +1593,38 @@ button.next{
   to {
     transform: rotate(360deg);
   }
+}
+
+.chip{
+  width:auto;
+  height:40px;
+  font-size:1em;
+  display:flex;
+  flex-direction: row;
+  gap:0px;
+  align-items: flex-start;
+  justify-content: center;
+  padding:0em 0.4em;
+  margin:0;
+  color:#222;
+  font-weight: 500;
+  background-color: #fff;
+  border: 2px solid #aaa;
+  border-radius: 16px;
+}
+
+.chip svg{
+  color: #222;
+  vertical-align: middle;
+  font-size:2em;
+  margin-right: 5px;
+  /* padding-bottom: 0.15em; */
+  margin-left:-7%;
+}
+
+.chip select{
+  background-color: transparent;
+  border:none;
 }
 
 /* Reusable modal: frosted white overlay + centered panel (see DialogBox) */
@@ -1629,7 +1665,7 @@ div.dialog-panel-top-actions {
   align-items: center;
 }
 
-button.dialog-close {
+button.floating {
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -1645,46 +1681,22 @@ button.dialog-close {
   cursor: pointer;
 }
 
-button.dialog-more {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  margin: 0;
-  padding: 0;
-  border: none;
-  border-radius: 50%;
-  background: transparent;
-  color: rgba(0, 0, 0, 0.54);
-  cursor: pointer;
-}
-
-button.dialog-more:hover {
-  background: rgba(0, 0, 0, 0.04);
-  color: rgba(0, 0, 0, 0.87);
-}
-
-button.dialog-more svg {
-  font-size: 24px;
-}
-button.dialog-close svg{
+button.floating svg{
   margin:0;
 }
 
-button.dialog-close:hover {
+button.floating:hover {
   background-color: transparent;
   color: #000f;
   box-shadow: none;
 }
 
-button.dialog-close:active {
+button.floating:active {
   background-color: transparent;
   box-shadow: none;
 }
 
-button.dialog-close svg {
+button.floating svg {
   font-size: 24px;
 }
 
@@ -1736,14 +1748,15 @@ button.task-edit-dialog-checkbox svg {
 div.task-edit-dialog-header-title-row {
   position: relative;
   min-height: 24px;
-  padding: 0 88px 0 47px;
+  /* padding: 0 88px 0 47px; */
   margin-bottom: 12px;
+  width:auto;
   display: flex;
   align-items: center;
 }
 
 span.task-edit-dialog-title-display {
-  font-size: 1em;
+  font-size: 1.2em;
   font-weight: 700;
   cursor: text;
   line-height: 1.3;
@@ -1763,7 +1776,7 @@ input.task-edit-dialog-title-input {
 }
 
 div.task-edit-dialog-indent {
-  margin-left: 43px;
+  margin-left: 24px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -1786,48 +1799,6 @@ div.task-edit-break-group {
   gap: 6px;
   flex: 1 1 auto;
   min-width: 0;
-}
-
-span.task-edit-break-label {
-  font-size: 0.88em;
-  font-weight: 600;
-  color: inherit;
-  opacity: 0.85;
-  white-space: nowrap;
-}
-
-input.task-edit-number-input {
-  width: 120px;
-  max-width: 100%;
-  box-sizing: border-box;
-  padding: 0.45em 0.5em;
-  font-size: 0.9em;
-  font-weight: 600;
-  border: 2px solid rgba(0, 0, 0, 0.16);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.92);
-  color: #1a1a1a;
-}
-
-label.task-edit-desc-label {
-  font-size: 0.9em;
-  font-weight: 700;
-  color: inherit;
-}
-
-textarea.task-edit-description {
-  width: 100%;
-  min-height: 120px;
-  box-sizing: border-box;
-  padding: 0.5em 0.55em;
-  font-size: 0.88em;
-  line-height: 1.4;
-  border: 2px solid rgba(0, 0, 0, 0.16);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.95);
-  color: #1a1a1a;
-  resize: vertical;
-  font-family: inherit;
 }
 
 input.task-edit-dialog-title-input{
@@ -1892,33 +1863,6 @@ select.task-edit-assignment-select {
   cursor: pointer;
   appearance: none;
   min-height: 38px;
-}
-
-button.task-edit-start {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
-  margin-top: auto;
-  padding: 0.65em 1em;
-  border: 2px solid rgba(0, 0, 0, 0.18);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.95);
-  color: #1a1a1a;
-  font-size: 0.95em;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-button.task-edit-start:hover {
-  background: #fff;
-  border-color: rgba(0, 0, 0, 0.28);
-}
-
-button.task-edit-start svg {
-  font-size: 1.35em;
 }
 
 input.task-edit-date-native {

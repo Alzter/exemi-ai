@@ -383,7 +383,7 @@ export function TaskEditDialog({
     const overflowMenu = (
         <button
             type="button"
-            className="dialog-more"
+            className="floating"
             aria-label="More actions"
             onClick={() => setDeleteOpen(true)}
         >
@@ -417,7 +417,7 @@ export function TaskEditDialog({
                         <>
                             <button
                                 type="button"
-                                className="task-edit-dialog-checkbox"
+                                className="tasks-panel-task-check"
                                 aria-label={detail.completed ? 'Mark incomplete' : 'Mark complete'}
                                 onClick={() => void onToggleComplete()}
                             >
@@ -432,7 +432,7 @@ export function TaskEditDialog({
                                 {titleEditing ? (
                                     <input
                                         ref={titleInputRef}
-                                        className="task-edit-dialog-title-input"
+                                        // className="task-edit-dialog-title-input"
                                         value={titleDraft}
                                         aria-label="Task title"
                                         onChange={(e) => setTitleDraft(e.target.value)}
@@ -470,7 +470,8 @@ export function TaskEditDialog({
                                 <div className="task-edit-duration-row">
                                     <input
                                         type="number"
-                                        className="task-edit-number-input"
+                                        className="short"
+                                        // className="task-edit-number-input"
                                         min={1}
                                         max={24 * 60}
                                         value={durDraft}
@@ -478,14 +479,14 @@ export function TaskEditDialog({
                                         onChange={(e) => setDurDraft(e.target.value)}
                                         onBlur={() => void onDurBlur()}
                                     />
-                                    <span className="task-edit-break-label">minutes</span>
+                                    <span>minutes</span>
                                     {showBreak ? (
                                         <div className="task-edit-break-group">
-                                            <MdPause aria-hidden style={{fontSize: 22, opacity: 0.75}} />
-                                            <span className="task-edit-break-label">Break every</span>
+                                            <MdPause aria-hidden/>
+                                            <span>Break every</span>
                                             <input
                                                 type="number"
-                                                className="task-edit-number-input"
+                                                className="short"
                                                 min={1}
                                                 max={240}
                                                 value={breakDraft}
@@ -493,17 +494,17 @@ export function TaskEditDialog({
                                                 onChange={(e) => setBreakDraft(e.target.value)}
                                                 onBlur={() => void onBreakBlur()}
                                             />
-                                            <span className="task-edit-break-label">minutes</span>
+                                            <span>minutes</span>
                                         </div>
                                     ) : null}
                                 </div>
 
-                                <label className="task-edit-desc-label" htmlFor="task-edit-desc">
+                                <label htmlFor="task-edit-desc">
                                     Description
                                 </label>
                                 <textarea
                                     id="task-edit-desc"
-                                    className="task-edit-description"
+                                    // className="task-edit-description"
                                     value={descDraft}
                                     placeholder="Task description (supports markdown in storage)"
                                     onChange={(e) => setDescDraft(e.target.value)}
@@ -522,7 +523,7 @@ export function TaskEditDialog({
                                     />
                                     <button
                                         type="button"
-                                        className="task-edit-date-chip"
+                                        className="chip"
                                         onClick={() => {
                                             const el = dateInputRef.current;
                                             if (el && 'showPicker' in el && typeof el.showPicker === 'function') {
@@ -537,15 +538,14 @@ export function TaskEditDialog({
                                     </button>
 
                                     <div
-                                        className="task-edit-assignment-chip-wrap"
+                                        className="chip"
                                         style={{display: 'flex', alignItems: 'center', gap: 8}}
                                     >
                                         <MdAssignment
                                             aria-hidden
-                                            style={{fontSize: 20, flexShrink: 0, opacity: 0.7}}
                                         />
                                         <select
-                                            className="task-edit-assignment-select"
+                                            className="chip"
                                             style={{flex: '1 1 0', minWidth: 0}}
                                             aria-label="Assignment"
                                             value={detail.assignment_id ?? ''}
@@ -563,7 +563,7 @@ export function TaskEditDialog({
 
                                 <button
                                     type="button"
-                                    className="task-edit-start"
+                                    className="secondary"
                                     onClick={() => void onStartClick()}
                                 >
                                     <MdPlayArrow aria-hidden />
