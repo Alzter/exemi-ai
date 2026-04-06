@@ -1,0 +1,14 @@
+---
+description: How to build the Exemi backend (Nix + Python)
+alwaysApply: true
+---
+
+# Backend build
+
+To build the backend, use the Nix shell (provides Python and dependencies), then run the development build:
+
+1. `cd exemi-backend`
+2. `nix-shell`
+3. `fastapi dev main.py`
+
+Do not assume `python` or a global Python install; use this sequence unless the user specifies otherwise.
