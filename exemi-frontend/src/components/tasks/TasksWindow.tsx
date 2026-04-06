@@ -1021,15 +1021,18 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
                                                                 : '')
                                                         }
                                                     >
+                                                        {!doingCloseDialogOpen ?
                                                         <h3
-                                                            className="tasks-panel-column-title"
                                                             aria-hidden={doingCloseDialogOpen}
                                                         >
                                                             Doing: {doingTasksForUi.length}
-                                                        </h3>
+                                                        </h3> : null }
                                                         <button
                                                             type="button"
-                                                            className="tasks-panel-doing-close"
+                                                            className="floating"
+                                                            style={{
+                                                                height:"auto", width:"fit-content"
+                                                            }}
                                                             aria-label={
                                                                 doingCloseDialogOpen
                                                                     ? 'Decline help and reset progress'
@@ -1099,7 +1102,7 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
                                     className="tasks-panel-column-card tasks-panel-todo-main-card"
                                 >
                                 <div className="tasks-panel-column-head">
-                                    <h3 className="tasks-panel-column-title">
+                                    <h3>
                                         To-Do: {todoIncompleteTasks.length}
                                     </h3>
                                 </div>
@@ -1179,7 +1182,7 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
                         >
                             <div className="tasks-panel-column-card">
                                 <div className="tasks-panel-column-head">
-                                    <h3 className="tasks-panel-column-title">
+                                    <h3>
                                         Done: {completeTasks.length}
                                     </h3>
                                 </div>

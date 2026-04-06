@@ -723,11 +723,6 @@ div.tasks-panel-doing-card-head.tasks-panel-column-head{
   gap: 0.35em;
 }
 
-div.tasks-panel-doing-card-head h3.tasks-panel-column-title{
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
 /* Dialog open: title off-layout (no gap above prompt); header band height unchanged */
 div.tasks-panel-doing-card-head--dialog-open.tasks-panel-column-head{
   position: relative;
@@ -747,47 +742,6 @@ div.tasks-panel-doing-card-head--dialog-open h3.tasks-panel-column-title{
   white-space: nowrap;
   border-width: 0;
   flex: none;
-}
-
-button.tasks-panel-doing-close{
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0;
-  padding: 0.2em;
-  height: fit-content;
-  width: fit-content;
-  border: none;
-  border-radius: 8px;
-  background: transparent;
-  color: #222;
-  cursor: pointer;
-}
-
-button.tasks-panel-doing-close svg{
-  margin:0;
-}
-
-button.tasks-panel-doing-close:hover:not(:disabled){
-  background-color: transparent;
-  box-shadow: none;
-  transform: none;
-}
-
-button.tasks-panel-doing-close:active{
-  background-color: transparent;
-  transform: none;
-  box-shadow: none;
-}
-
-button.tasks-panel-doing-close:disabled{
-  opacity: 0.45;
-  cursor: default;
-  background-color: transparent;
-}
-
-button.tasks-panel-doing-close svg{
-  font-size: 1.35em;
 }
 
 div.tasks-panel-doing-card-body.tasks-panel-column-body{
@@ -939,15 +893,20 @@ div.tasks-panel-board--both div.tasks-panel-column--adjacent-right div.tasks-pan
 div.tasks-panel-column-head{
   flex-shrink: 0;
   margin: 0;
-  padding: 0.45em 0.65em;
+  /* padding: 0.45em 0.65em; */
+  padding: 0em 0.65em;
+  padding-top:0.1em;
   /* padding-bottom: 0; */
   /* border-bottom: 2px solid #aaa; */
   background-color: #eee;
+  height:2.4em;
+  display:flex;
+  align-items: center;
 }
 
-h3.tasks-panel-column-title{
+.tasks-panel-column-head h3{
   margin: 0;
-  font-size: 0.95em;
+  font-size: 1em;
   font-weight: 600;
   text-align: left;
   color: #222;
@@ -1140,6 +1099,7 @@ button.checkbox{
   background: transparent;
   color: inherit;
   cursor: pointer;
+  transition: transform 0.1s ease;
 }
 
 button.checkbox:disabled{
@@ -1739,25 +1699,25 @@ button.floating {
   background: transparent;
   color: #000a;
   cursor: pointer;
+  transition: transform 0.1s ease;
 }
 
 button.floating svg{
   margin:0;
+  font-size: 24px;
 }
 
 button.floating:hover {
   background-color: transparent;
   color: #000f;
   box-shadow: none;
+  transform: scale(1.1);
 }
 
 button.floating:active {
   background-color: transparent;
   box-shadow: none;
-}
-
-button.floating svg {
-  font-size: 24px;
+  transform: scale(0.9);
 }
 
 div.tasks-panel-task-row.tasks-panel-task-row--todo-editable {
