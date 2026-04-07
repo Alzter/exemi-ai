@@ -1,4 +1,4 @@
-import {useEffect, useState} from 'react';
+import {useEffect, useRef, useState} from 'react';
 import {DialogBox} from '../ui/DialogBox';
 import {TaskCountdown} from './TaskCountdown';
 
@@ -11,6 +11,7 @@ export type TaskBreakProps = {
 
 export function TaskBreak({open, onClose, durationSeconds, onNextTask}: TaskBreakProps) {
     const [elapsed, setElapsed] = useState(0);
+    const previousTitleRef = useRef<string | null>(null);
 
     useEffect(() => {
         if (!open) {
@@ -25,6 +26,24 @@ export function TaskBreak({open, onClose, durationSeconds, onNextTask}: TaskBrea
     }, [open, durationSeconds]);
 
     const total = Math.max(1, durationSeconds);
+    const remaining = Math.max(0, total - elapsed);
+
+    useEffect(() => {
+        if (typeof document === 'undefined') return;
+        if (!open) {
+            if (previousTitleRef.current !== null) {
+                document.title = previousTitleRef.current;
+                previousTitleRef.current = null;
+            }
+            return;
+        }
+        if (previousTitleRef.current === null) {
+            previousTitleRef.current = document.title;
+        }
+        const mins = Math.floor(remaining / 60);
+        const secs = String(remaining % 60).padStart(2, '0');
+        document.title = `Break: ${mins}:${secs}`;
+    }, [open, remaining]);
 
     return (
         <DialogBox
