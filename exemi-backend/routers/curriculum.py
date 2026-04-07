@@ -657,9 +657,24 @@ def build_assignments_list_json(
     user: User,
     session: Session,
     unit_id: int | None = None,
+    *,
+    include_assignment_descriptions: bool = True,
 ) -> str:
     payload = build_assignments_payload(user=user, session=session, unit_id=unit_id)
-    return assignments_list_adapter.dump_json(payload).decode("utf-8")
+    if include_assignment_descriptions:
+        return assignments_list_adapter.dump_json(payload).decode("utf-8")
+    compact = [
+        {
+            "unit_id": u.unit_id,
+            "unit_name": u.unit_name,
+            "assignments": [
+                a.model_dump(mode="json", exclude={"description"})
+                for a in u.assignments
+            ],
+        }
+        for u in payload
+    ]
+    return json.dumps(compact, ensure_ascii=False)
 
 
 def strip_days_remaining_from_payload(

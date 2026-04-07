@@ -447,7 +447,7 @@ You must return the following fields for the user's task:
 Use the student's list of assignments to decide which assignment this task should be created for,
 what steps are necessary to complete it, and how long it should take to complete in minutes.
 ```json
-{get_assignments_list_json(user=existing_user, session=session)}
+{build_assignments_list_json(user=existing_user, session=session, include_assignment_descriptions=False)}
 ```
     """.strip()
 
