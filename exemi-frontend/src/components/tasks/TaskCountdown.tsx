@@ -56,16 +56,18 @@ export function TaskCountdown({totalTimeSeconds, progressTimeSeconds, label}: Ta
                         stroke="rgba(0,0,0,0.12)"
                         strokeWidth={strokeTrack}
                     />
-                    <circle
-                        r={r}
-                        cx={0}
-                        cy={0}
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth={strokeProgress}
-                        strokeLinecap="round"
-                        strokeDasharray={`${dashProgress} ${c}`}
-                    />
+                    {progressTimeSeconds > 0 ? 
+                        <circle
+                            r={r}
+                            cx={0}
+                            cy={0}
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth={strokeProgress}
+                            strokeLinecap="round"
+                            strokeDasharray={`${dashProgress} ${c}`}
+                        />
+                    : null}
                 </g>
             </svg>
             <div

@@ -53,41 +53,51 @@ export function TaskBreakConfirm({
                 </h3>
             </div>
             <div className="dialog-panel-body">
-                <p style={{margin: 0, fontWeight: 500}}>
-                    Would you like to continue with the next task or take a break?
-                </p>
                 {nextTask ? (
-                    <div
-                        className="tasks-panel-task-row"
-                        style={{
-                            backgroundColor: safeTaskBackgroundFromColourRaw(nextTask.colour_raw),
-                            cursor: 'default',
-                            marginTop: 4,
-                        }}
-                    >
-                        <div className="tasks-panel-task-name-outer">
-                            <span className="tasks-panel-task-name-inner">{nextTask.name}</span>
+                    <>
+                        <p style={{margin: 0, fontWeight: 500}}>
+                            Would you like to continue with the next task or take a break?
+                        </p>
+                        <div
+                            className="tasks-panel-task-row"
+                            style={{
+                                backgroundColor: safeTaskBackgroundFromColourRaw(nextTask.colour_raw),
+                                cursor: 'default',
+                                marginTop: 4,
+                            }}
+                        >
+                            <div className="tasks-panel-task-name-outer">
+                                <span className="tasks-panel-task-name-inner">{nextTask.name}</span>
+                            </div>
+                            <span className="tasks-panel-task-duration">{durLabel}</span>
                         </div>
-                        <span className="tasks-panel-task-duration">{durLabel}</span>
-                    </div>
+                        <div className="double-column-buttons" style={{marginTop: 12}}>
+                            <button type="button" className="secondary" onClick={onTakeBreak}>
+                                Take a break
+                            </button>
+                            <button
+                                type="button"
+                                className="primary"
+                                onClick={onKeepGoing}
+                            >
+                                Keep going
+                            </button>
+                        </div>
+                    </>
                 ) : (
-                    <p style={{margin: '8px 0 0', opacity: 0.8, fontWeight: 500}}>
-                        No more tasks on your To-Do for this view.
-                    </p>
+                    <>
+                        <p>
+                            You completed all your tasks for today!
+                        </p>
+                        <button
+                            type="button"
+                            className="primary"
+                            onClick={onClose}
+                        >
+                            OK
+                        </button>
+                    </>
                 )}
-                <div className="double-column-buttons" style={{marginTop: 12}}>
-                    <button type="button" className="secondary" onClick={onTakeBreak}>
-                        Take a break
-                    </button>
-                    <button
-                        type="button"
-                        className="primary"
-                        onClick={onKeepGoing}
-                        disabled={!nextTask}
-                    >
-                        Keep going
-                    </button>
-                </div>
             </div>
         </DialogBox>
     );

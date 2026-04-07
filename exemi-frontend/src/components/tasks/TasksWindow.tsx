@@ -1083,7 +1083,7 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
             >
                 <div
                     className="tasks-panel-doing-progress-fill"
-                    style={{width: `calc(${progressPct}% - 46px)`, backgroundColor: barColor, borderRadius: progressPct === 100 ? 0 : "4px"}}
+                    style={{width: `calc(${progressPct}% - ${46 * progressPct / 100}px)`, backgroundColor: barColor, borderRadius: progressPct === 100 ? 0 : "4px"}}
                     aria-hidden
                 />
                 <div className="tasks-panel-doing-row-content">
@@ -1278,13 +1278,12 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
                                                                 : '')
                                                         }
                                                     >
-                                                        
-                                                        <h3>
-                                                            {!doingCloseDialogOpen ? 
-                                                                "Doing:" + doingTasksForUi.length :
-                                                                "Would you like help breaking the task down?"
-                                                            }
-                                                        </h3>
+                                                        {!doingCloseDialogOpen ?
+                                                        <h3
+                                                            aria-hidden={doingCloseDialogOpen}
+                                                        >
+                                                            Doing: {doingTasksForUi.length}
+                                                        </h3> : null }
                                                         <button
                                                             type="button"
                                                             className="floating"
@@ -1326,6 +1325,12 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
                                                             aria-modal="true"
                                                             aria-labelledby="tasks-doing-dialog-title"
                                                         >
+                                                            <p
+                                                                id="tasks-doing-dialog-title"
+                                                                className="tasks-panel-doing-dialog-question"
+                                                            >
+                                                                Would you like help breaking the task down?
+                                                            </p>
                                                             <div className="tasks-panel-doing-dialog-actions">
                                                                 <button
                                                                     type="button"
