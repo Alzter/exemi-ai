@@ -1819,6 +1819,7 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
                         justifyContent: 'center',
                         gap: 12,
                         fontWeight:700,
+                        fontSize:'1.25em',
                     }}
                 >
                     <p>

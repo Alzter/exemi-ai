@@ -1203,7 +1203,7 @@ div.user-message{
   display: block;
   padding:0 1em;
   text-align: left;
-  box-shadow: 0 3px 3px rgba(0, 0, 0, 0.08);
+  border: 2px solid rgba(0, 0, 0, 0.14);
   margin-left:auto;
   overflow-wrap: break-word;
 }
