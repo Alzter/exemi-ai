@@ -52,15 +52,6 @@ function localCalendarISOFromDueAtUtc(isoUtc: string, timeZone: string): string 
     }).format(d);
 }
 
-function localTodayCalendarISO(timeZone: string): string {
-    return new Intl.DateTimeFormat('en-CA', {
-        timeZone,
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-    }).format(new Date());
-}
-
 function formatChipDate(isoUtc: string, timeZone: string): string {
     const d = new Date(isoUtc);
     return d.toLocaleDateString('en-US', {month: 'long', day: 'numeric', timeZone});
@@ -375,11 +366,7 @@ export function TaskEditDialog({
             const v = e.target.value;
             if (!v || !detail) return;
             const due = utcIsoForLocalCalendarDate(v, userTimeZone);
-            const body: Record<string, unknown> = {due_at: due};
-            if (v === localTodayCalendarISO(userTimeZone)) {
-                body.created_at = new Date().toISOString();
-            }
-            await persistAndMerge(body);
+            await persistAndMerge({due_at: due});
             onBoardReload();
         },
         [detail, persistAndMerge, userTimeZone, onBoardReload],
