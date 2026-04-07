@@ -1073,11 +1073,28 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
 
     const startTaskFromTodoRow = useCallback(
         async (taskId: number) => {
+            const live =
+                tasksRef.current.find((t) => t.id === taskId && !t.clientPending) ?? null;
+            const seededProgress = Math.max(1, live?.progress_secs ?? 0);
+            const progressOk = await patchTaskProgressSecs(taskId, seededProgress);
+            if (!progressOk) {
+                setTasksError('Could not start task.');
+                return;
+            }
+            setTasks((prev) =>
+                prev.map((t) =>
+                    t.id === taskId ? {...t, progress_secs: Math.max(1, t.progress_secs)} : t,
+                ),
+            );
             const ready = await prepareTaskForForegroundStart(taskId);
             if (!ready) return;
             openFocusConfirmForTask(taskId);
         },
-        [openFocusConfirmForTask, prepareTaskForForegroundStart],
+        [
+            openFocusConfirmForTask,
+            patchTaskProgressSecs,
+            prepareTaskForForegroundStart,
+        ],
     );
 
     const onToggleTask = (task: TaskPublicRow) => {
