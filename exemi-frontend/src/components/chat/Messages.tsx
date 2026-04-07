@@ -24,6 +24,11 @@ type Message = {
     id : number
 }
 
+function dispatchTasksRefreshRequested() {
+    if (typeof window === 'undefined') return;
+    window.dispatchEvent(new CustomEvent('tasks-refresh-requested'));
+}
+
 export default function ChatMessagesUI({
     session,
     isViewing,
@@ -246,6 +251,7 @@ export default function ChatMessagesUI({
                 ]);
                 
             };
+            dispatchTasksRefreshRequested();
         } catch {
             setError("Error retrieving LLM response.");
             setAwaitingLLMResponse(false);

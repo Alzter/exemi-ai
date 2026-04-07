@@ -602,6 +602,23 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
     }, [session.token, tasksBootstrapReady, selectedDateISO, reloadTasksFromApi]);
 
     useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const onTasksRefreshRequested = () => {
+            if (!session.token || !tasksBootstrapReady) return;
+            void reloadTasksFromApi(selectedDateISORef.current).then((list) => {
+                if (list === null) return;
+                setTasks((prev) => {
+                    const pending = prev.filter((t) => t.clientPending);
+                    return [...list, ...pending];
+                });
+            });
+        };
+        window.addEventListener('tasks-refresh-requested', onTasksRefreshRequested);
+        return () =>
+            window.removeEventListener('tasks-refresh-requested', onTasksRefreshRequested);
+    }, [reloadTasksFromApi, session.token, tasksBootstrapReady]);
+
+    useEffect(() => {
         const token = session.token;
         const username = session.user?.username;
         if (!token || !username || !tasksBootstrapReady) return;
