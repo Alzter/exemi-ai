@@ -5,6 +5,8 @@ export type TaskCountdownProps = {
     progressTimeSeconds: number;
     /** Optional label above the remaining time (e.g. "Focus"). */
     label?: string;
+    /** Optional max rendered size in px; defaults to 300. */
+    maxSizePx?: number;
 };
 
 function formatMmSs(totalSeconds: number): string {
@@ -17,7 +19,12 @@ function formatMmSs(totalSeconds: number): string {
 /**
  * Circular countdown: remaining time in the centre; progress ring fills counter-clockwise from 12 o'clock.
  */
-export function TaskCountdown({totalTimeSeconds, progressTimeSeconds, label}: TaskCountdownProps) {
+export function TaskCountdown({
+    totalTimeSeconds,
+    progressTimeSeconds,
+    label,
+    maxSizePx = 300,
+}: TaskCountdownProps) {
     const total = Math.max(1, totalTimeSeconds);
     const progressed = Math.max(0, progressTimeSeconds);
     const remaining = Math.max(0, total - progressed);
@@ -33,8 +40,8 @@ export function TaskCountdown({totalTimeSeconds, progressTimeSeconds, label}: Ta
         <div
             style={{
                 position: 'relative',
-                width: 'min(300px, 100%)',
-                maxWidth: 300,
+                width: `min(${maxSizePx}px, 100%)`,
+                maxWidth: maxSizePx,
                 aspectRatio: '1 / 1',
                 display: 'flex',
                 alignItems: 'center',

@@ -43,8 +43,18 @@ export function TaskBreak({open, onClose, durationSeconds, onNextTask}: TaskBrea
             <div className="dialog-panel-title">
                 <h3>Break time</h3>
             </div>
-            <div className="dialog-panel-body" style={{alignItems: 'center'}}>
-                <div style={{display: 'flex', justifyContent: 'center', margin: '4px 0 8px'}}>
+            <div className="dialog-panel-body" style={{alignItems: 'center', minHeight: 0}}>
+                <div
+                    style={{
+                        width: '100%',
+                        flex: 1,
+                        minHeight: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        margin: '4px 0 8px',
+                    }}
+                >
                     <TaskCountdown
                         totalTimeSeconds={total}
                         progressTimeSeconds={elapsed}
