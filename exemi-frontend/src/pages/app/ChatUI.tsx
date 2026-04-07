@@ -43,7 +43,7 @@ export default function ChatUI({session, isViewing, logOut, canvasSyncReady} : C
             requestIdCounter += 1;
             setTaskDeconstructionRequest({
                 requestId: requestIdCounter,
-                text: `Can you help me break down the task: **${taskName}** into smaller steps? Please create new tasks today for each step and keep each step under 10 minutes in length.`,
+                text: `Can you help me break down the task: **${taskName}** into smaller steps? Please create new tasks for each step. Have the due date of each task be the same as the original task and have each task be no longer than 10 minutes in length.`,
                 unitId,
             });
         };
