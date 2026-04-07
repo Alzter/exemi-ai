@@ -13,6 +13,39 @@ def create_tools(
     user : User,
     session : Session
 ) -> list[BaseTool]:
+    def _resolve_task_id_for_user(
+        task_id: int | None,
+        task_name: str | None,
+        session: Session,
+    ) -> tuple[int | None, str | None]:
+        """
+        Resolve a task ID from explicit ID or exact task name for the current user.
+        Returns (task_id, error_message). If error_message is not None, the caller should abort.
+        """
+        if task_id is not None:
+            return task_id, None
+
+        if not task_name:
+            return None, "Error: missing task identifier. Provide task_id or task_name."
+
+        candidates = session.exec(
+            select(Task)
+            .where(Task.user_id == user.id)
+            .where(Task.name == task_name)
+            .where(Task.completed == False)
+            .order_by(Task.due_at)
+        ).all()
+
+        if len(candidates) == 0:
+            return None, f'Error: no incomplete task found with name "{task_name}".'
+        if len(candidates) > 1:
+            return None, (
+                f'Error: multiple incomplete tasks found with name "{task_name}". '
+                "Please provide task_id."
+            )
+
+        return candidates[0].id, None
+
     """
     Create LLM tools to manage database
     entities for the current user.
@@ -73,7 +106,8 @@ def create_tools(
         name : str,
         description : str,
         duration_mins : int,
-        due_date : str
+        due_at : str | None = None,
+        due_date : str | None = None
     ) -> str:
         """
         Create a task representing a small chunk
@@ -86,7 +120,8 @@ def create_tools(
             name (str): The name of the task in the format "<Shortened assignment name>: <Task name>".
             description (str): Summary of what steps are needed to complete the task.
             duration_mins (int): An estimation of how many minutes the student will need to complete this task.
-            due_date (str): Which date the student must work on this task in ISO 8601 format (YYYY-MM-DD).
+            due_at (str | None): Which date the student must work on this task in ISO 8601 format (YYYY-MM-DD).
+            due_date (str | None): Deprecated alias of `due_at` for backward compatibility.
 
         Returns:
             str: Task creation success or failure message.
@@ -97,25 +132,30 @@ def create_tools(
             select(UsersAssignments)
             .where(UsersAssignments.user_id == user.id)
             .where(UsersAssignments.assignment_id == assignment_id)
-        )
+        ).first()
 
         if not user_assignment:
             return f"Error creating task: the student does not have the assignment with ID {assignment_id}."
 
+        due_value = due_at or due_date
+        if not due_value:
+            return "Error creating task: missing due date. Use due_at in YYYY-MM-DD format."
+
         # Convert due date into an Australian timestamp
         try:
-            due_at = datetime.fromisoformat(due_date)
+            due_at_timestamp = datetime.fromisoformat(due_value)
         except ValueError:
-            return f"Error creating task: your due date {due_date} was not in the format YYYY-MM-DD."
+            return f"Error creating task: your due date {due_value} was not in the format YYYY-MM-DD."
         
-        due_at = parse_timestamp(due_at)
-        if not due_at:
-            return f"Error creating task: your due date {due_date} was not in the format YYYY-MM-DD."
+        due_at_timestamp = parse_timestamp(due_at_timestamp)
+        if not due_at_timestamp:
+            return f"Error creating task: your due date {due_value} was not in the format YYYY-MM-DD."
 
         data = TaskCreate(
+            name = name,
             assignment_id = assignment_id,
             description = description,
-            due_at = due_at,
+            due_at = due_at_timestamp,
             duration_mins = duration_mins
         )
 
@@ -135,7 +175,8 @@ def create_tools(
 
     @tool
     def update_assignment_task_for_student(
-        task_id : int,
+        task_id : int | None = None,
+        task_name : str | None = None,
         name : str | None = None,
         description : str | None = None,
         duration_mins : int | None = None,
@@ -147,7 +188,8 @@ def create_tools(
         fields with new values.
 
         Args:
-            task_id (int): ID of the task to modify.
+            task_id (int | None): ID of the task to modify.
+            task_name (str | None): Exact task name to resolve task ID when `task_id` is unknown.
             name (str | None, optional): New name for the task in the format "<Shortened assignment name>: <Task name>". Defaults to None.
             description (str | None, optional): New summary of what steps are needed to complete the task. Defaults to None.
             duration_mins (int | None, optional): New estimation of how many minutes the student will need to complete this task. Defaults to None.
@@ -166,8 +208,18 @@ def create_tools(
 
         try:
             with Session(get_engine()) as tool_session:
+                resolved_task_id, resolve_error = _resolve_task_id_for_user(
+                    task_id=task_id,
+                    task_name=task_name,
+                    session=tool_session,
+                )
+                if resolve_error:
+                    return f"Error updating task: {resolve_error}"
+                if resolved_task_id is None:
+                    return "Error updating task: task ID resolution failed."
+
                 update_task(
-                    id=task_id,
+                    id=resolved_task_id,
                     new_data=new_data,
                     user=user,
                     session=tool_session
@@ -175,26 +227,38 @@ def create_tools(
             return "Task updated successfully!"
         except HTTPException as e:
             return f"Error updating task: {e.detail}"
-        except Exception:
-            return "Error updating task. Do NOT try again."
+        except Exception as e:
+            return f"Error updating task: {str(e)}"
 
     @tool
     def delete_assignment_task_for_student(
-        task_id : int
+        task_id : int | None = None,
+        task_name : str | None = None
     ) -> str:
         """
         Delete one of the student's assignment tasks.
 
         Args:
-            task_id (int): ID of the task to delete.
+            task_id (int | None): ID of the task to delete.
+            task_name (str | None): Exact task name to resolve task ID when `task_id` is unknown.
 
         Returns:
             str: Task deletion success or failure message.
         """
         try:
             with Session(get_engine()) as tool_session:
+                resolved_task_id, resolve_error = _resolve_task_id_for_user(
+                    task_id=task_id,
+                    task_name=task_name,
+                    session=tool_session,
+                )
+                if resolve_error:
+                    return f"Error deleting task: {resolve_error}"
+                if resolved_task_id is None:
+                    return "Error deleting task: task ID resolution failed."
+
                 delete_task(
-                    id=task_id,
+                    id=resolved_task_id,
                     user=user,
                     session=tool_session
                 )
