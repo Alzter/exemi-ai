@@ -1,4 +1,4 @@
-import {useCallback, useRef, useState} from 'react';
+import {useCallback, useEffect, useRef, useState} from 'react';
 import {MdAdd, MdClose, MdDelete} from 'react-icons/md';
 import {safeTaskBackgroundFromColourRaw} from '../../utils/taskBoardUtils';
 
@@ -23,7 +23,9 @@ export function TaskInbox({
     onToggleMinimized,
 }: TaskInboxProps) {
     const [draft, setDraft] = useState('');
+    const [taskEntryOpen, setTaskEntryOpen] = useState(false);
     const tempIdRef = useRef(0);
+    const entryInputRef = useRef<HTMLInputElement>(null);
     const neutralBg = safeTaskBackgroundFromColourRaw(null);
 
     const addItem = useCallback(() => {
@@ -40,6 +42,21 @@ export function TaskInbox({
         },
         [items, onItemsChange],
     );
+
+    const cancelTaskEntry = useCallback(() => {
+        setTaskEntryOpen(false);
+        setDraft('');
+    }, []);
+
+    const confirmTaskEntry = useCallback(() => {
+        addItem();
+        setTaskEntryOpen(false);
+    }, [addItem]);
+
+    useEffect(() => {
+        if (!taskEntryOpen || minimized) return;
+        entryInputRef.current?.focus();
+    }, [taskEntryOpen, minimized]);
 
     return (
         <div
@@ -121,42 +138,64 @@ export function TaskInbox({
                         );
                     })}
                 </div>
-                <div style={{padding: '8px 10px 12px', display: 'flex', flexDirection: 'column', gap: 8}}>
-                    <input
-                        type="text"
-                        value={draft}
-                        onChange={(e) => setDraft(e.target.value)}
-                        onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                                e.preventDefault();
-                                addItem();
-                            }
-                        }}
-                        placeholder="Task name"
-                        aria-label="New inbox task name"
-                        className="tasks-panel-task-entry-input"
-                        style={{width: '100%', boxSizing: 'border-box'}}
-                    />
-                    <div className="tasks-panel-task-entry-actions" style={{width: '100%'}}>
-                        <button
-                            type="button"
-                            className="secondary"
-                            disabled={!draft.trim()}
-                            onClick={addItem}
-                            aria-label="Add inbox task"
-                        >
+                <div
+                    style={{
+                        flexShrink: 0,
+                        padding: '14px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 8,
+                    }}
+                >
+                    {taskEntryOpen ? (
+                        <>
+                            <input
+                                ref={entryInputRef}
+                                type="text"
+                                value={draft}
+                                onChange={(e) => setDraft(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        if (draft.trim()) confirmTaskEntry();
+                                    }
+                                    if (e.key === 'Escape') {
+                                        e.preventDefault();
+                                        cancelTaskEntry();
+                                    }
+                                }}
+                                placeholder="Task name"
+                                aria-label="New inbox task name"
+                                className="tasks-panel-task-entry-input"
+                                style={{width: '100%', boxSizing: 'border-box'}}
+                            />
+                            <div className="tasks-panel-task-entry-actions" style={{width: '100%'}}>
+                                <button
+                                    type="button"
+                                    className="secondary"
+                                    disabled={!draft.trim()}
+                                    onClick={confirmTaskEntry}
+                                    aria-label="Add inbox task"
+                                >
+                                    <MdAdd aria-hidden />
+                                    <span>Add</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    className="tasks-panel-task-entry-cancel"
+                                    aria-label="Cancel adding inbox task"
+                                    onClick={cancelTaskEntry}
+                                >
+                                    <MdClose aria-hidden />
+                                </button>
+                            </div>
+                        </>
+                    ) : (
+                        <button type="button" className="secondary" onClick={() => setTaskEntryOpen(true)}>
                             <MdAdd aria-hidden />
-                            <span>Add</span>
+                            Add Task
                         </button>
-                        <button
-                            type="button"
-                            className="tasks-panel-task-entry-cancel"
-                            aria-label="Clear inbox task name"
-                            onClick={() => setDraft('')}
-                        >
-                            <MdClose aria-hidden />
-                        </button>
-                    </div>
+                    )}
                 </div>
             </div>
         </div>

@@ -1,5 +1,5 @@
 import {useState} from 'react';
-import {MdCheck, MdPause, MdClose} from 'react-icons/md';
+import {MdCheck, MdClose} from 'react-icons/md';
 import {DialogBox} from '../ui/DialogBox';
 import {TaskCountdown} from './TaskCountdown';
 import {TaskInbox, type TaskInboxItem} from './TaskInbox';

@@ -48,7 +48,7 @@ export function TaskForegroundConfirm({
                 <div style={{display: 'flex', justifyContent: 'center', margin: '8px 0 4px'}}>
                     <TaskCountdown
                         totalTimeSeconds={totalSecs}
-                        progressTimeSeconds={0}
+                        progressTimeSeconds={taskProgressSecs}
                         label="Focus"
                     />
                 </div>
