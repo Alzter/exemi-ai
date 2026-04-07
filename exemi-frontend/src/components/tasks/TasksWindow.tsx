@@ -292,6 +292,15 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
     foregroundTaskIdRef.current = foregroundTaskId;
     selectedDateISORef.current = selectedDateISO;
 
+    /** When lightweight modals are open (not full TaskForeground), skip 1Hz setDoingTick to avoid whole-panel re-renders; timer refs still advance. */
+    const skipDoingTickForLightModalRef = useRef(false);
+    skipDoingTickForLightModalRef.current =
+        foregroundTaskId === null &&
+        (focusConfirmTaskId !== null ||
+            breakConfirmOpen ||
+            breakSetupOpen ||
+            breakRunOpen);
+
     const dragStartY = useRef(0);
     const dragStartHeight = useRef(0);
     const activePointerId = useRef<number | null>(null);
@@ -888,7 +897,9 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
                     clearActiveTaskTimer();
                 }
             }
-            setDoingTick((x) => x + 1);
+            if (!skipDoingTickForLightModalRef.current) {
+                setDoingTick((x) => x + 1);
+            }
             syncActiveTaskTimerPersist();
         }, 1000);
         return () => window.clearInterval(t);

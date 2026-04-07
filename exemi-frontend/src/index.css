@@ -1628,10 +1628,13 @@ div.dialog-backdrop {
   justify-content: center;
   padding: 1rem;
   box-sizing: border-box;
-  background: #fffe;
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
+  /* Solid overlay instead of backdrop-filter: blur — full-viewport blur forces
+     the browser to sample and filter the entire page every frame and is a common
+     source of jank when modals are open over a complex layout (tasks + chat). */
+  background: rgba(255, 255, 255, 0.96);
   border-radius: 0px;
+  contain: layout paint;
+  isolation: isolate;
 }
 
 div.dialog-panel {
