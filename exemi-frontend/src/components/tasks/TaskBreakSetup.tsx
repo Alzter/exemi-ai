@@ -46,29 +46,16 @@ export function TaskBreakSetup({open, onClose, onConfirmBreak}: TaskBreakSetupPr
             </div>
             <div className="dialog-panel-body">
                 <p style={{margin: 0, fontWeight: 500}}>How long would you like to take a break for?</p>
-                <div
-                    className="input-row"
-                    style={{
-                        alignItems: 'center',
-                        minHeight: 48,
-                        height: 'auto',
-                        border: '2px solid rgba(0,0,0,0.14)',
-                        borderRadius: 8,
-                        padding: '6px 10px',
-                        boxSizing: 'border-box',
-                        background: '#fff',
-                    }}
-                >
-                    <MdTimer aria-hidden style={{fontSize: 28, flexShrink: 0, opacity: 0.75}} />
-                    <span style={{flex: 1, fontWeight: 700, paddingLeft: 8}}>
+                <div className="task-break-setup-duration-row">
+                    <MdTimer aria-hidden className="task-break-setup-duration-icon" />
+                    <span className="task-break-setup-duration-label">
                         {mins} minute{mins === 1 ? '' : 's'}
                     </span>
-                    <div style={{display: 'flex', flexDirection: 'column', gap: 2}}>
+                    <div className="task-break-bump-stack">
                         <button
                             type="button"
-                            className="floating"
+                            className="task-break-bump-btn"
                             aria-label="Increase break length"
-                            style={{width: 36, height: 32}}
                             onClick={() => bump(STEP)}
                             disabled={mins >= MAX_MINS}
                         >
@@ -76,9 +63,8 @@ export function TaskBreakSetup({open, onClose, onConfirmBreak}: TaskBreakSetupPr
                         </button>
                         <button
                             type="button"
-                            className="floating"
+                            className="task-break-bump-btn"
                             aria-label="Decrease break length"
-                            style={{width: 36, height: 32}}
                             onClick={() => bump(-STEP)}
                             disabled={mins <= MIN_MINS}
                         >

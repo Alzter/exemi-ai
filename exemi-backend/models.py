@@ -455,7 +455,7 @@ class Task(TaskBase, table=True):
     
     @property
     def break_interval_mins(self) -> int:
-        return self.user.task_break_interval_mins or 25
+        return self.user.task_break_interval_mins or 10
     
     @property
     def colour_raw(self) -> str | None:

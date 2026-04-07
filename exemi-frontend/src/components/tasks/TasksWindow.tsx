@@ -77,6 +77,7 @@ const MIN_EXPANDED_PX = 160;
 /** Default height when expanding before the user has resized (50% of viewport). */
 const DEFAULT_EXPANDED_VIEWPORT_RATIO = 0.5;
 const MAX_VIEWPORT_RATIO = 0.78;
+const FOREGROUND_BREAK_COUNTDOWN_THRESHOLD_SECS = 25 * 60;
 
 const BOARD_WIDE_BREAKPOINT_MQ = '(min-width: 600px)';
 
@@ -94,6 +95,39 @@ function formatRemainingMmSs(totalSeconds: number): string {
     const m = Math.floor(s / 60);
     const r = s % 60;
     return `${m}:${String(r).padStart(2, '0')}`;
+}
+
+function computeForegroundBreakSegment(
+    taskDurationMins: number,
+    breakIntervalMins: number,
+    effectiveProgressSeconds: number,
+): {total: number; progress: number; remaining: number} {
+    const durationSecs = Math.max(1, taskDurationMins * 60);
+    const elapsed = Math.max(0, Math.floor(effectiveProgressSeconds));
+    const remainingToFinish = Math.max(0, durationSecs - elapsed);
+    const breakIntervalSecs = Math.max(60, breakIntervalMins * 60);
+    const useSegmentCountdown =
+        durationSecs > FOREGROUND_BREAK_COUNTDOWN_THRESHOLD_SECS &&
+        breakIntervalSecs < durationSecs;
+    if (!useSegmentCountdown) {
+        return {
+            total: durationSecs,
+            progress: Math.min(durationSecs, elapsed),
+            remaining: remainingToFinish,
+        };
+    }
+    const segmentStart = Math.floor(elapsed / breakIntervalSecs) * breakIntervalSecs;
+    const segmentEnd = Math.min(durationSecs, segmentStart + breakIntervalSecs);
+    const segmentTotal = Math.max(1, segmentEnd - segmentStart);
+    const segmentProgress = Math.max(
+        0,
+        Math.min(segmentTotal, elapsed - segmentStart),
+    );
+    return {
+        total: segmentTotal,
+        progress: segmentProgress,
+        remaining: Math.max(0, segmentEnd - elapsed),
+    };
 }
 
 type TaskPublicRow = {
@@ -225,6 +259,7 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
     const [breakDurationSecs, setBreakDurationSecs] = useState(15 * 60);
     const [breakFlowNextTask, setBreakFlowNextTask] = useState<NextTaskPreview | null>(null);
     const [breakCompletedCount, setBreakCompletedCount] = useState(1);
+    const [breakResumeForegroundTaskId, setBreakResumeForegroundTaskId] = useState<number | null>(null);
     const prevFocusConfirmTaskIdRef = useRef<number | null>(null);
     const playingDoingIdsRef = useRef<number[]>([]);
     playingDoingIdsRef.current = playingDoingIds;
@@ -239,6 +274,8 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
     const activeTimerTaskSnapshotRef = useRef<TaskPublicRow | null>(null);
     const didAutoExpandForActiveTimerRef = useRef(false);
     const appDocumentTitleRef = useRef('');
+    const foregroundBreakTriggerInFlightRef = useRef(false);
+    const previousForegroundProgressRef = useRef<{taskId: number; value: number} | null>(null);
     foregroundTaskIdRef.current = foregroundTaskId;
     selectedDateISORef.current = selectedDateISO;
 
@@ -1046,6 +1083,24 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         setForegroundTaskId(null);
     }, [foregroundTaskId, flushDoingProgress]);
 
+    const startForegroundBreakFlow = useCallback(async () => {
+        if (foregroundTaskIdRef.current === null) return;
+        if (foregroundBreakTriggerInFlightRef.current) return;
+        foregroundBreakTriggerInFlightRef.current = true;
+        const tid = foregroundTaskIdRef.current;
+        try {
+            await flushDoingProgress(tid);
+            clearActiveTaskTimer();
+            setPlayingDoingIds((prev) => prev.filter((id) => id !== tid));
+            setForegroundTaskId(null);
+            setBreakConfirmOpen(false);
+            setBreakResumeForegroundTaskId(tid);
+            setBreakSetupOpen(true);
+        } finally {
+            foregroundBreakTriggerInFlightRef.current = false;
+        }
+    }, [flushDoingProgress]);
+
     const onForegroundFinished = useCallback(async () => {
         if (foregroundTaskId === null || !session.token) return;
         const tid = foregroundTaskId;
@@ -1090,6 +1145,7 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         );
         setPlayingDoingIds((prev) => prev.filter((id) => id !== tid));
         setForegroundTaskId(null);
+        setBreakResumeForegroundTaskId(null);
         setForegroundInboxItems([]);
         setBreakFlowNextTask(nextPreview);
         setBreakCompletedCount(1);
@@ -1129,7 +1185,14 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         }
     }, [breakFlowNextTask, startForegroundTask]);
 
-    const onBreakSetupClose = useCallback(() => setBreakSetupOpen(false), []);
+    const onBreakSetupClose = useCallback(() => {
+        setBreakSetupOpen(false);
+        if (breakResumeForegroundTaskId !== null) {
+            const tid = breakResumeForegroundTaskId;
+            setBreakResumeForegroundTaskId(null);
+            void startForegroundTask(tid);
+        }
+    }, [breakResumeForegroundTaskId, startForegroundTask]);
 
     const onBreakSetupConfirm = useCallback((mins: number) => {
         setBreakSetupOpen(false);
@@ -1137,11 +1200,23 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         setBreakRunOpen(true);
     }, []);
 
-    const onBreakRunClose = useCallback(() => setBreakRunOpen(false), []);
+    const onBreakRunClose = useCallback(() => {
+        setBreakRunOpen(false);
+        if (breakResumeForegroundTaskId !== null) {
+            const tid = breakResumeForegroundTaskId;
+            setBreakResumeForegroundTaskId(null);
+            void startForegroundTask(tid);
+        }
+    }, [breakResumeForegroundTaskId, startForegroundTask]);
 
     const onBreakNextTask = useCallback(() => {
         setBreakRunOpen(false);
-    }, []);
+        if (breakResumeForegroundTaskId !== null) {
+            const tid = breakResumeForegroundTaskId;
+            setBreakResumeForegroundTaskId(null);
+            void startForegroundTask(tid);
+        }
+    }, [breakResumeForegroundTaskId, startForegroundTask]);
 
     const onDoingDialogYes = useCallback(() => {
         const first = doingTasks[0];
@@ -1237,8 +1312,14 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         }
         const extra = doingExtraSecsRef.current[id] ?? 0;
         const effectiveProgress = row.progress_secs + extra;
-        const totalSecs = Math.max(row.duration_mins * 60, 1);
-        const remainingSecs = Math.max(0, totalSecs - effectiveProgress);
+        const remainingSecs =
+            foregroundTaskIdRef.current === id
+                ? computeForegroundBreakSegment(
+                      row.duration_mins,
+                      row.break_interval_mins,
+                      effectiveProgress,
+                  ).remaining
+                : Math.max(0, Math.max(row.duration_mins * 60, 1) - effectiveProgress);
         document.title = `${formatRemainingMmSs(remainingSecs)} - ${row.name}`;
     }, [doingTickCount, playingDoingIds, tasks]);
 
@@ -1480,6 +1561,58 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         foregroundTaskRow && foregroundTaskId !== null
             ? foregroundTaskRow.progress_secs + (doingExtraSecsRef.current[foregroundTaskId] ?? 0)
             : 0;
+    const foregroundBreakSegment =
+        foregroundTaskRow && foregroundTaskId !== null
+            ? computeForegroundBreakSegment(
+                  foregroundTaskRow.duration_mins,
+                  foregroundTaskRow.break_interval_mins,
+                  foregroundProgressEffective,
+              )
+            : {total: 1, progress: 0, remaining: 0};
+
+    useEffect(() => {
+        if (foregroundTaskId === null || !foregroundTaskRow) {
+            previousForegroundProgressRef.current = null;
+            return;
+        }
+        const durationSecs = Math.max(1, foregroundTaskRow.duration_mins * 60);
+        const breakIntervalSecs = Math.max(60, foregroundTaskRow.break_interval_mins * 60);
+        if (
+            durationSecs <= FOREGROUND_BREAK_COUNTDOWN_THRESHOLD_SECS ||
+            breakIntervalSecs >= durationSecs
+        ) {
+            previousForegroundProgressRef.current = {
+                taskId: foregroundTaskId,
+                value: foregroundProgressEffective,
+            };
+            return;
+        }
+        if (foregroundProgressEffective >= durationSecs) {
+            previousForegroundProgressRef.current = {
+                taskId: foregroundTaskId,
+                value: foregroundProgressEffective,
+            };
+            return;
+        }
+        const prev =
+            previousForegroundProgressRef.current?.taskId === foregroundTaskId
+                ? previousForegroundProgressRef.current.value
+                : foregroundProgressEffective;
+        const nextBoundary = (Math.floor(prev / breakIntervalSecs) + 1) * breakIntervalSecs;
+        previousForegroundProgressRef.current = {
+            taskId: foregroundTaskId,
+            value: foregroundProgressEffective,
+        };
+        if (nextBoundary >= durationSecs) return;
+        if (prev < nextBoundary && foregroundProgressEffective >= nextBoundary) {
+            void startForegroundBreakFlow();
+        }
+    }, [
+        foregroundTaskId,
+        foregroundTaskRow,
+        foregroundProgressEffective,
+        startForegroundBreakFlow,
+    ]);
 
     return (
         <div
@@ -1838,7 +1971,8 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
                         colour_raw: foregroundTaskRow.colour_raw,
                     }}
                     panelBackgroundColor={safeTaskBackgroundFromColourRaw(foregroundTaskRow.colour_raw)}
-                    progressSecondsEffective={foregroundProgressEffective}
+                    countdownTotalSeconds={foregroundBreakSegment.total}
+                    countdownProgressSeconds={foregroundBreakSegment.progress}
                     inboxItems={foregroundInboxItems}
                     onInboxItemsChange={setForegroundInboxItems}
                     isBoardWideViewport={isBoardWideViewport}

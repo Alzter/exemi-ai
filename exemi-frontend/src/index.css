@@ -1758,6 +1758,75 @@ div.task-edit-duration-row {
   min-width: 0;
 }
 
+/* TaskBreakSetup: avoid global `div.input-row` / `div.input-row *` rules that collapse controls */
+div.task-break-setup-duration-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  border: 2px solid rgba(0, 0, 0, 0.14);
+  border-radius: 8px;
+  padding: 6px 10px;
+  box-sizing: border-box;
+  background: #fff;
+}
+
+svg.task-break-setup-duration-icon {
+  flex-shrink: 0;
+  font-size: 28px;
+  opacity: 0.75;
+}
+
+span.task-break-setup-duration-label {
+  flex: 1;
+  min-width: 0;
+  font-weight: 700;
+  padding-left: 8px;
+}
+
+div.task-break-bump-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+button.task-break-bump-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 32px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.07);
+  color: #1a1a1a;
+  cursor: pointer;
+  transition: background-color 0.12s ease, transform 0.1s ease;
+}
+
+button.task-break-bump-btn svg {
+  display: block;
+  font-size: 24px;
+  margin: 0;
+}
+
+button.task-break-bump-btn:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.12);
+}
+
+button.task-break-bump-btn:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+button.task-break-bump-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
 div.task-edit-break-group {
   display: inline-flex;
   flex-direction: row;

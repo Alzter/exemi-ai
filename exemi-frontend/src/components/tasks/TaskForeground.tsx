@@ -17,8 +17,10 @@ export type TaskForegroundProps = {
     onPauseToBackground: () => void;
     task: TaskLite | null;
     panelBackgroundColor: string;
-    /** progress_secs plus any client-side seconds since the timer resumed. */
-    progressSecondsEffective: number;
+    /** Countdown segment total (either full task or until next break). */
+    countdownTotalSeconds: number;
+    /** Progress within the visible countdown segment. */
+    countdownProgressSeconds: number;
     inboxItems: TaskInboxItem[];
     onInboxItemsChange: (next: TaskInboxItem[]) => void;
     isBoardWideViewport: boolean;
@@ -31,7 +33,8 @@ export function TaskForeground({
     onPauseToBackground,
     task,
     panelBackgroundColor,
-    progressSecondsEffective,
+    countdownTotalSeconds,
+    countdownProgressSeconds,
     inboxItems,
     onInboxItemsChange,
     isBoardWideViewport,
@@ -41,7 +44,8 @@ export function TaskForeground({
     const [inboxMinimized, setInboxMinimized] = useState(true);
     if (!task) return null;
 
-    const totalSecs = Math.max(60, task.duration_mins * 60);
+    const countdownTotal = Math.max(1, countdownTotalSeconds);
+    const countdownProgress = Math.max(0, Math.min(countdownTotal, countdownProgressSeconds));
     const foregroundWidth = inboxMinimized ? 'calc(100% - 72px)' : 'calc(100% - min(300px, 60%))';
     const inboxWidth = inboxMinimized ? '72px' : 'min(300px, 60%)';
 
@@ -156,8 +160,8 @@ export function TaskForeground({
                                 }}
                             >
                                 <TaskCountdown
-                                    totalTimeSeconds={totalSecs}
-                                    progressTimeSeconds={progressSecondsEffective}
+                                    totalTimeSeconds={countdownTotal}
+                                    progressTimeSeconds={countdownProgress}
                                     label="Focus"
                                 />
                             </div>
