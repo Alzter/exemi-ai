@@ -11,7 +11,11 @@ type ChatUIProps = {
     loading : boolean,
     setLoading : any,
     error : string | null,
-    setError : any
+    setError : any,
+    taskDeconstructionRequest?: {
+        requestId: number;
+        text: string;
+    } | null;
 }
 
 type Message = {
@@ -20,7 +24,17 @@ type Message = {
     id : number
 }
 
-export default function ChatMessagesUI({session, isViewing, conversationID, setConversationID, loading, setLoading, error, setError} : ChatUIProps){
+export default function ChatMessagesUI({
+    session,
+    isViewing,
+    conversationID,
+    setConversationID,
+    loading,
+    setLoading,
+    error,
+    setError,
+    taskDeconstructionRequest,
+} : ChatUIProps){
 
     const [units, setUnits] = useState<UserUnit[]>([]);
     // const units : UserUnit[] = session.user.units;
@@ -68,6 +82,7 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
     // The HTML element for the chat text box.
     const chatboxRef = useRef<HTMLFormElement>(null);
     const chatboxTextRef = useRef<HTMLTextAreaElement>(null);
+    const lastHandledTaskDeconstructionIdRef = useRef<number>(0);
 
     function ErrorDisplay() {
         if (!error) return (null)
@@ -238,13 +253,15 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
         };
     };
 
-    async function sendMessage(event : React.SubmitEvent<HTMLFormElement>){
-        event.preventDefault();
-
-        // Prevent the user sending an empty message
-        if (!userText.trim() || loading){
+    async function sendTextMessage(
+        text: string,
+        options?: {forceNewConversation?: boolean},
+    ) {
+        const cleanText = text.trim();
+        if (!cleanText || loading){
             return;
         };
+        const forceNewConversation = Boolean(options?.forceNewConversation);
 
         setLoading(true);
         setUserText("");
@@ -258,15 +275,20 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
         // to contain the new message.
         setMessages(prev => [
             ...prev,
-            {"role":"user","content":userText,"id":1}
+            {"role":"user","content":cleanText,"id":1}
         ]);
 
         // Show a placeholder "Thinking..." message before the LLM responds properly
         setAwaitingLLMResponse(true);
         
-        let body = {"message_text" : userText, "unit_id" : unitID};
+        let body = {
+            "message_text" : cleanText,
+            "unit_id" : forceNewConversation ? null : unitID,
+        };
 
-        let URL = backendURL + "/conversation" + (conversationID ? "/" + conversationID : "")
+        const useExistingConversation = !forceNewConversation && Boolean(conversationID);
+        let URL =
+            backendURL + "/conversation" + (useExistingConversation ? "/" + conversationID : "")
         // console.log(body);
         // console.log(URL);
         
@@ -295,6 +317,8 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
             } catch {
                 setError(message);
             }
+            setAwaitingLLMResponse(false);
+            setLoading(false);
             return;
         };
 
@@ -311,6 +335,11 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
         await handleLLMResponse(conversation.id);
 
         setLoading(false);
+    }
+
+    async function sendMessage(event : React.SubmitEvent<HTMLFormElement>){
+        event.preventDefault();
+        await sendTextMessage(userText);
     }
 
     async function parseMessages(data : Array<any>){
@@ -388,6 +417,14 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
     useEffect(() => {
         loadMessages(conversationID);
     }, [conversationID])
+
+    useEffect(() => {
+        if (isViewing || loading) return;
+        if (!taskDeconstructionRequest) return;
+        if (taskDeconstructionRequest.requestId <= lastHandledTaskDeconstructionIdRef.current) return;
+        lastHandledTaskDeconstructionIdRef.current = taskDeconstructionRequest.requestId;
+        void sendTextMessage(taskDeconstructionRequest.text, {forceNewConversation: true});
+    }, [isViewing, loading, taskDeconstructionRequest]);
     // When loading the conversation,
     // retrieve any existing messages if there are any.
     // useEffect(() => {

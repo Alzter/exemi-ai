@@ -1,4 +1,4 @@
-import {useState, useRef} from 'react'
+import {useEffect, useRef, useState} from 'react'
 import {type Session} from '../../models';
 import ChatSidebar from '../../components/chat/Sidebar';
 import ChatMessages from '../../components/chat/Messages';
@@ -20,6 +20,27 @@ export default function ChatUI({session, isViewing, logOut, canvasSyncReady} : C
     const [conversationID, setConversationID] = useState<number|null>(null);
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string|null>(null);
+    const [taskDeconstructionRequest, setTaskDeconstructionRequest] = useState<{
+        requestId: number;
+        text: string;
+    } | null>(null);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        let requestIdCounter = 0;
+        const onTaskDeconstructionRequest = (event: Event) => {
+            const custom = event as CustomEvent<{taskId?: number; taskName?: string}>;
+            const taskName = custom.detail?.taskName?.trim() || 'this task';
+            requestIdCounter += 1;
+            setTaskDeconstructionRequest({
+                requestId: requestIdCounter,
+                text: `Can you help me break down the task **${taskName}** into smaller steps?`,
+            });
+        };
+        window.addEventListener('task-deconstruction-request', onTaskDeconstructionRequest);
+        return () =>
+            window.removeEventListener('task-deconstruction-request', onTaskDeconstructionRequest);
+    }, []);
 
     return(
         <div className="chat">
@@ -44,6 +65,7 @@ export default function ChatUI({session, isViewing, logOut, canvasSyncReady} : C
                     setLoading={setLoading}
                     error={error}
                     setError={setError}
+                    taskDeconstructionRequest={taskDeconstructionRequest}
                 />
                 <TasksWindow session={session} layoutContainerRef={chatMainRef} canvasSyncReady={canvasSyncReady}/>
             </div>

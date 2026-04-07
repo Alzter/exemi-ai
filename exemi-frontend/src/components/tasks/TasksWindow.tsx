@@ -1133,11 +1133,17 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
     const onForegroundNeedHelp = useCallback(async () => {
         if (foregroundTaskId === null) return;
         const tid = foregroundTaskId;
+        const row =
+            tasksRef.current.find((t) => t.id === tid) ??
+            (activeTimerTaskSnapshotRef.current?.id === tid
+                ? activeTimerTaskSnapshotRef.current
+                : null);
         await flushDoingProgress(tid);
         await persistForegroundInboxItemsToTodo(foregroundInboxItems, tid);
         setForegroundInboxItems([]);
         clearActiveTaskTimer();
-        call_task_deconstruction(tid);
+        setHeightPx(COLLAPSED_PX);
+        call_task_deconstruction(tid, row?.name ?? 'this task');
         setPlayingDoingIds((prev) => prev.filter((id) => id !== tid));
         setForegroundTaskId(null);
     }, [
@@ -1270,7 +1276,10 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
 
     const onDoingDialogYes = useCallback(() => {
         const first = doingTasks[0];
-        if (first) call_task_deconstruction(first.id);
+        if (first) {
+            setHeightPx(COLLAPSED_PX);
+            call_task_deconstruction(first.id, first.name);
+        }
         setDoingCloseDialogOpen(false);
     }, [doingTasks]);
 
