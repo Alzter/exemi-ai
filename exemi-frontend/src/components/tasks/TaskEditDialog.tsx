@@ -563,7 +563,7 @@ export function TaskEditDialog({
                                 style={{flexGrow:1}}
                                 // className="task-edit-description"
                                 value={descDraft}
-                                placeholder="Task description (supports markdown in storage)"
+                                placeholder="What steps are needed to complete this task?"
                                 onChange={(e) => setDescDraft(e.target.value)}
                                 onBlur={() => void onDescBlur()}
                             />

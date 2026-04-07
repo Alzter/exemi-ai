@@ -232,6 +232,8 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
 
     const [tasks, setTasks] = useState<TaskPublicRow[]>([]);
     const [tasksError, setTasksError] = useState<string | null>(null);
+    /** True only while `/tasks_generate/self` is actively in-flight. */
+    const [tasksGenerateLoading, setTasksGenerateLoading] = useState(true);
     /** After Canvas sync + LLM task generation (`/tasks_generate/self`); gates date picker and `/tasks/self`. */
     const [tasksBootstrapReady, setTasksBootstrapReady] = useState(() => !session.token);
 
@@ -450,17 +452,20 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
 
     useEffect(() => {
         if (!session.token) {
+            setTasksGenerateLoading(false);
             setTasksBootstrapReady(true);
             return;
         }
 
         if (!canvasSyncReady) {
+            setTasksGenerateLoading(false);
             setTasksBootstrapReady(false);
             return;
         }
 
         let cancelled = false;
         setTasksBootstrapReady(false);
+        setTasksGenerateLoading(true);
         setTasksError(null);
 
         fetch(`${backendURL}/tasks_generate/self`, {
@@ -483,11 +488,15 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
                 }
             })
             .finally(() => {
-                if (!cancelled) setTasksBootstrapReady(true);
+                if (!cancelled) {
+                    setTasksBootstrapReady(true);
+                    setTasksGenerateLoading(false);
+                }
             });
 
         return () => {
             cancelled = true;
+            setTasksGenerateLoading(false);
         };
     }, [session.token, canvasSyncReady]);
 
@@ -896,6 +905,39 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         [session.token],
     );
 
+    const persistForegroundInboxItemsToTodo = useCallback(
+        async (items: TaskInboxItem[]) => {
+            if (items.length === 0 || !session.token) return;
+            const dueForInbox = utcIsoForLocalCalendarDate(selectedDateISO, userTimeZone);
+            for (const item of items) {
+                const res = await fetch(`${backendURL}/task`, {
+                    method: 'POST',
+                    headers: {
+                        Authorization: `Bearer ${session.token}`,
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json',
+                    },
+                    body: JSON.stringify({
+                        name: item.name,
+                        description: '',
+                        duration_mins: 15,
+                        assignment_id: null,
+                        due_at: dueForInbox,
+                    }),
+                });
+                if (!res.ok) setTasksError('Could not save an inbox task.');
+            }
+            void reloadTasksFromApi(selectedDateISO).then((list) => {
+                if (list === null) return;
+                setTasks((prev) => {
+                    const pending = prev.filter((t) => t.clientPending);
+                    return [...list, ...pending];
+                });
+            });
+        },
+        [reloadTasksFromApi, selectedDateISO, session.token, userTimeZone],
+    );
+
     const flushDoingProgress = useCallback(
         async (taskId: number) => {
             const extra = doingExtraSecsRef.current[taskId] ?? 0;
@@ -1068,20 +1110,34 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         if (foregroundTaskId === null) return;
         const tid = foregroundTaskId;
         await flushDoingProgress(tid);
+        await persistForegroundInboxItemsToTodo(foregroundInboxItems);
+        setForegroundInboxItems([]);
         clearActiveTaskTimer();
         setPlayingDoingIds((prev) => prev.filter((id) => id !== tid));
         setForegroundTaskId(null);
-    }, [foregroundTaskId, flushDoingProgress]);
+    }, [
+        foregroundInboxItems,
+        foregroundTaskId,
+        flushDoingProgress,
+        persistForegroundInboxItemsToTodo,
+    ]);
 
     const onForegroundNeedHelp = useCallback(async () => {
         if (foregroundTaskId === null) return;
         const tid = foregroundTaskId;
         await flushDoingProgress(tid);
+        await persistForegroundInboxItemsToTodo(foregroundInboxItems);
+        setForegroundInboxItems([]);
         clearActiveTaskTimer();
         call_task_deconstruction(tid);
         setPlayingDoingIds((prev) => prev.filter((id) => id !== tid));
         setForegroundTaskId(null);
-    }, [foregroundTaskId, flushDoingProgress]);
+    }, [
+        foregroundInboxItems,
+        foregroundTaskId,
+        flushDoingProgress,
+        persistForegroundInboxItemsToTodo,
+    ]);
 
     const startForegroundBreakFlow = useCallback(async () => {
         if (foregroundTaskIdRef.current === null) return;
@@ -1114,26 +1170,7 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
             return;
         }
         clearActiveTaskTimer();
-
-        const dueForInbox = utcIsoForLocalCalendarDate(selectedDateISO, userTimeZone);
-        for (const item of foregroundInboxItems) {
-            const res = await fetch(`${backendURL}/task`, {
-                method: 'POST',
-                headers: {
-                    Authorization: `Bearer ${session.token}`,
-                    'Content-Type': 'application/json',
-                    Accept: 'application/json',
-                },
-                body: JSON.stringify({
-                    name: item.name,
-                    description: '',
-                    duration_mins: 15,
-                    assignment_id: null,
-                    due_at: dueForInbox,
-                }),
-            });
-            if (!res.ok) setTasksError('Could not save an inbox task.');
-        }
+        await persistForegroundInboxItemsToTodo(foregroundInboxItems);
 
         const hyp = tasks.map((t) =>
             t.id === tid ? {...t, completed: true, progress_secs: 0} : t,
@@ -1164,9 +1201,9 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         tasks,
         foregroundInboxItems,
         patchTaskFields,
+        persistForegroundInboxItemsToTodo,
         selectedDateISO,
         todayISOValue,
-        userTimeZone,
         reloadTasksFromApi,
     ]);
 
@@ -1625,6 +1662,29 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
             style={{height: heightPx}}
             aria-expanded={open}
         >   
+            {tasksGenerateLoading ? (
+                <div
+                    role="status"
+                    aria-live="polite"
+                    aria-label="Generating assignment tasks"
+                    style={{
+                        position: 'fixed',
+                        inset: 0,
+                        zIndex: 3000,
+                        backgroundColor: '#fff',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 12,
+                    }}
+                >
+                    <p>
+                        I am breaking down your assignments into smaller tasks. This may take a few minutes, please wait...
+                    </p>
+                    <div className="loading-spinner" aria-hidden />
+                </div>
+            ) : null}
             {/* <div
                 className="tasks-panel-resize-handle"
                 onPointerDown={onResizeHandlePointerDown}
