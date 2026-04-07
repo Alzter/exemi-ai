@@ -388,6 +388,9 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
     const [doingAnimExpanded, setDoingAnimExpanded] = useState(showDoingCard);
 
     const completeTasks = tasks.filter((t) => t.completed);
+    const todoRowsForDisplay = showDoneColumn
+        ? todoIncompleteTasks
+        : [...todoIncompleteTasks, ...completeTasks];
 
     useEffect(() => {
         if (showDoingCard && doingTasks.length > 0) {
@@ -2084,7 +2087,9 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
                                 </div>
                                 <div className="tasks-panel-column-body">
                                     <div ref={todoColumnScrollRef} className="tasks-panel-column-scroll">
-                                        {todoIncompleteTasks.map((t) => renderTaskRow(t, 'todo'))}
+                                        {todoRowsForDisplay.map((t) =>
+                                            renderTaskRow(t, t.completed ? 'done' : 'todo'),
+                                        )}
                                         {taskEntryOpen ? (
                                             <input
                                                 ref={newTaskInputRef}
