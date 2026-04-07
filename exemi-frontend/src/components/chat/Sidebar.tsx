@@ -3,6 +3,7 @@ const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 import { useNavigate } from 'react-router-dom';
 import {type Session} from '../../models';
 import { parseColourRawToOklch } from '../../utils/taskBoardUtils';
+import { MdCheck, MdEdit } from 'react-icons/md';
 // import UserSelector from '../admin/UserSelector';
 
 type ChatSidebarParams = {
@@ -32,6 +33,9 @@ export default function ChatSidebar({session, enabled, setEnabled, isViewing, lo
     const [username, setUsername] = useState<string>(
         isViewing ? "1" : (session.user?.username ?? "")
     );
+    const [hoveredConversationID, setHoveredConversationID] = useState<number | null>(null);
+    const [editingConversationID, setEditingConversationID] = useState<number | null>(null);
+    const [draftConversationName, setDraftConversationName] = useState<string>("");
 
     function toggleChatSidebar(){
         if (enabled){ setEnabled(false); } else { setEnabled(true); }
@@ -96,6 +100,11 @@ export default function ChatSidebar({session, enabled, setEnabled, isViewing, lo
 
     function ConversationSelector({conversation} : any){
         let ID = conversation ? conversation.id : null;
+        const hasConversationID = typeof ID === "number";
+        const isConversation = !!conversation && hasConversationID;
+        const isSelected = conversationID == ID;
+        const isHovered = hoveredConversationID == ID;
+        const isEditing = isConversation && editingConversationID == ID;
         
         let title = "";
         if (conversation){
@@ -112,10 +121,59 @@ export default function ChatSidebar({session, enabled, setEnabled, isViewing, lo
         };
 
         function assignConversation(){
+            if (isEditing){
+                return;
+            }
             setConversationID(ID);
         };
 
-        let className = conversationID==ID ? "primary conversation-selected" : "primary conversation";
+        async function confirmRename(event : any){
+            event.preventDefault();
+            event.stopPropagation();
+
+            if (!conversation || !hasConversationID){
+                return;
+            }
+
+            const nextName = draftConversationName.trim();
+            setConversations(prev => prev.map(c => c.id === conversation.id ? {...c, name: nextName || null} : c));
+            setEditingConversationID(null);
+            setDraftConversationName("");
+
+            const URL = backendURL + "/conversation/" + ID;
+            const response = await fetch(URL, {
+                headers: {
+                    "Authorization": "Bearer " + session.token,
+                    "Content-Type": "application/json",
+                    accept: "application/json"
+                },
+                method: "PATCH",
+                body: JSON.stringify({name: nextName})
+            });
+
+            if (!response.ok){
+                setError("Error updating conversation name!");
+            }
+        }
+
+        function startRename(event : any){
+            event.preventDefault();
+            event.stopPropagation();
+            if (!conversation || !hasConversationID){
+                return;
+            }
+            setEditingConversationID(ID);
+            setDraftConversationName(conversation.name ?? "");
+        }
+
+        function cancelRename(event : any){
+            event.preventDefault();
+            event.stopPropagation();
+            setEditingConversationID(null);
+            setDraftConversationName("");
+        }
+
+        let className = isSelected ? "primary conversation-selected" : "primary conversation";
         if (!conversation) {className = "primary";}
         
 
@@ -135,13 +193,74 @@ export default function ChatSidebar({session, enabled, setEnabled, isViewing, lo
         if (hoverColor) { buttonStyle["--conversation-hover-bg"] = hoverColor; }
         if (activeColor) { buttonStyle["--conversation-active-bg"] = activeColor; }
 
+        const showRenameButton = isConversation && (isSelected || isHovered) && !isEditing;
+        const showConfirmButton = isEditing && isConversation;
+
+        const actionSlotMirrorPadding = "calc(32px + 0.3em)";
+        const titleParagraphStyle: CSSProperties = {
+            flexGrow: 1,
+            minWidth: 0,
+            margin: 0,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            ...(showRenameButton
+                ? {paddingLeft: actionSlotMirrorPadding, textAlign: "center"}
+                : {}),
+        };
+
         return (
             <button
                 onClick = {assignConversation}
                 className={className}
                 style={buttonStyle}
-                disabled={conversationID==ID || loading}>
-                    {title}
+                onMouseEnter={() => { if (isConversation) { setHoveredConversationID(ID); } }}
+                onMouseLeave={() => { if (isConversation) { setHoveredConversationID(null); } }}
+                disabled={loading}>
+                    {isEditing ? (
+                        <>
+                            <input
+                                value={draftConversationName}
+                                onChange={(event) => { setDraftConversationName(event.target.value); }}
+                                onClick={(event) => { event.stopPropagation(); }}
+                                onBlur={cancelRename}
+                                onKeyDown={(event) => {
+                                    if (event.key === "Enter"){
+                                        void confirmRename(event);
+                                    } else if (event.key === "Escape"){
+                                        cancelRename(event);
+                                    }
+                                }}
+                                type="text"
+                                placeholder="Enter chat name..."
+                                autoFocus
+                                style={{flexGrow: 1, minWidth: 0, margin:0, height:"80%"}}
+                            />
+                            <button
+                                className="primary"
+                                onMouseDown={(event) => { event.preventDefault(); }}
+                                onClick={confirmRename}
+                                type="button"
+                                style={{width: "32px", height: "32px", minWidth: "32px", padding: 0}}>
+                                {showConfirmButton ? <MdCheck style={{margin:0}} aria-hidden /> : null}
+                            </button>
+                        </>
+                    ) : (
+                        <>
+                            <p style={titleParagraphStyle}>
+                                {title}
+                            </p>
+                            {showRenameButton ? (
+                                <button
+                                    className="floating"
+                                    onClick={startRename}
+                                    type="button"
+                                    style={{width: "32px", height: "32px", minWidth: "32px", borderRadius: "8px"}}>
+                                    <MdEdit aria-hidden />
+                                </button>
+                            ) : null}
+                        </>
+                    )}
             </button>
         );
     };
