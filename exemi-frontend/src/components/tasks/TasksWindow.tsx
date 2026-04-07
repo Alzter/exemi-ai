@@ -906,8 +906,16 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
     );
 
     const persistForegroundInboxItemsToTodo = useCallback(
-        async (items: TaskInboxItem[]) => {
+        async (items: TaskInboxItem[], sourceTaskId: number | null) => {
             if (items.length === 0 || !session.token) return;
+            const sourceTask =
+                sourceTaskId !== null
+                    ? tasksRef.current.find((t) => t.id === sourceTaskId) ??
+                      (activeTimerTaskSnapshotRef.current?.id === sourceTaskId
+                          ? activeTimerTaskSnapshotRef.current
+                          : null)
+                    : null;
+            const sourceAssignmentId = sourceTask?.assignment_id ?? null;
             const dueForInbox = utcIsoForLocalCalendarDate(selectedDateISO, userTimeZone);
             for (const item of items) {
                 const res = await fetch(`${backendURL}/task`, {
@@ -921,7 +929,7 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
                         name: item.name,
                         description: '',
                         duration_mins: 15,
-                        assignment_id: null,
+                        assignment_id: sourceAssignmentId,
                         due_at: dueForInbox,
                     }),
                 });
@@ -1110,7 +1118,7 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         if (foregroundTaskId === null) return;
         const tid = foregroundTaskId;
         await flushDoingProgress(tid);
-        await persistForegroundInboxItemsToTodo(foregroundInboxItems);
+        await persistForegroundInboxItemsToTodo(foregroundInboxItems, tid);
         setForegroundInboxItems([]);
         clearActiveTaskTimer();
         setPlayingDoingIds((prev) => prev.filter((id) => id !== tid));
@@ -1126,7 +1134,7 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         if (foregroundTaskId === null) return;
         const tid = foregroundTaskId;
         await flushDoingProgress(tid);
-        await persistForegroundInboxItemsToTodo(foregroundInboxItems);
+        await persistForegroundInboxItemsToTodo(foregroundInboxItems, tid);
         setForegroundInboxItems([]);
         clearActiveTaskTimer();
         call_task_deconstruction(tid);
@@ -1170,7 +1178,7 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
             return;
         }
         clearActiveTaskTimer();
-        await persistForegroundInboxItemsToTodo(foregroundInboxItems);
+        await persistForegroundInboxItemsToTodo(foregroundInboxItems, tid);
 
         const hyp = tasks.map((t) =>
             t.id === tid ? {...t, completed: true, progress_secs: 0} : t,
