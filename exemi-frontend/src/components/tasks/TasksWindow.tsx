@@ -927,7 +927,11 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
             if (rowDateISO <= todayISO) return true;
 
             const dueToday = utcIsoForLocalCalendarDate(todayISO, userTimeZone);
-            const ok = await patchTaskFields(taskId, {due_at: dueToday});
+            const createdNow = new Date().toISOString();
+            const ok = await patchTaskFields(taskId, {
+                due_at: dueToday,
+                created_at: createdNow,
+            });
             if (!ok) {
                 setTasksError('Could not move task to today.');
                 return false;
@@ -936,7 +940,12 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
             setTasks((prev) =>
                 prev.map((t) =>
                     t.id === taskId
-                        ? {...t, due_at: dueToday, calendarDateISO: todayISO}
+                        ? {
+                              ...t,
+                              due_at: dueToday,
+                              calendarDateISO: todayISO,
+                              created_at: createdNow,
+                          }
                         : t,
                 ),
             );
@@ -1053,10 +1062,11 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
     }, []);
 
     const handleStartWorkFromEdit = useCallback(
-        async (taskId: number) => {
+        async (taskId: number): Promise<boolean> => {
             const ready = await prepareTaskForForegroundStart(taskId);
-            if (!ready) return;
+            if (!ready) return false;
             openFocusConfirmForTask(taskId);
+            return true;
         },
         [openFocusConfirmForTask, prepareTaskForForegroundStart],
     );

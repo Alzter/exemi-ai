@@ -517,6 +517,7 @@ class TaskUpdate(SQLModel):
     assignment_id : int | None = None
     due_at : datetime | None = None
     completed : bool | None = None
+    created_at : datetime | None = None
 
 class TaskPublic(TaskBase, UTCModel):
     id : int

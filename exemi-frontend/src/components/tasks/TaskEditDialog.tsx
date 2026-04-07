@@ -52,6 +52,15 @@ function localCalendarISOFromDueAtUtc(isoUtc: string, timeZone: string): string 
     }).format(d);
 }
 
+function localTodayCalendarISO(timeZone: string): string {
+    return new Intl.DateTimeFormat('en-CA', {
+        timeZone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).format(new Date());
+}
+
 function formatChipDate(isoUtc: string, timeZone: string): string {
     const d = new Date(isoUtc);
     return d.toLocaleDateString('en-US', {month: 'long', day: 'numeric', timeZone});
@@ -90,7 +99,7 @@ export type TaskEditDialogProps = {
     onTaskMerged: (patch: TaskPublicRowPatch) => void;
     onTaskRemoved: (taskId: number) => void;
     onBoardReload: () => void;
-    onStartWork: (taskId: number) => void;
+    onStartWork: (taskId: number) => Promise<boolean>;
     onError: (message: string) => void;
 };
 
@@ -366,7 +375,11 @@ export function TaskEditDialog({
             const v = e.target.value;
             if (!v || !detail) return;
             const due = utcIsoForLocalCalendarDate(v, userTimeZone);
-            await persistAndMerge({due_at: due});
+            const body: Record<string, unknown> = {due_at: due};
+            if (v === localTodayCalendarISO(userTimeZone)) {
+                body.created_at = new Date().toISOString();
+            }
+            await persistAndMerge(body);
             onBoardReload();
         },
         [detail, persistAndMerge, userTimeZone, onBoardReload],
@@ -390,8 +403,8 @@ export function TaskEditDialog({
         if (!api) return;
         applyApiToState(api);
         onTaskMerged(mergeTaskFromApiResponse(api, userTimeZone));
-        onStartWork(taskId);
-        onClose();
+        const opened = await onStartWork(taskId);
+        if (opened) onClose();
     }, [detail, taskId, patchTask, applyApiToState, onTaskMerged, onStartWork, onClose]);
 
     const onConfirmDelete = useCallback(async () => {
