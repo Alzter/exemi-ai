@@ -50,6 +50,7 @@ export default function ChatMessagesUI({
     const [messages, setMessages] = useState<Message[]>([]);
 
     const [unitSelected, setUnitSelected] = useState<UserUnit|null>(null);
+    const [conversationUnitID, setConversationUnitID] = useState<number | null>(null);
     const [conversationColourRaw, setConversationColourRaw] = useState<string | null>(null);
     const [isTextareaFocused, setIsTextareaFocused] = useState<boolean>(false);
 
@@ -78,6 +79,22 @@ export default function ChatMessagesUI({
     useEffect(() => {
         getUserUnits();
     }, []);
+
+    // Keep unit selector in sync with the currently selected conversation.
+    useEffect(() => {
+        if (!conversationID){
+            setConversationUnitID(null);
+            return;
+        }
+
+        if (conversationUnitID === null){
+            setUnitSelected(null);
+            return;
+        }
+
+        const matchingUnit = units.find((unit) => unit.unit_id === conversationUnitID) ?? null;
+        setUnitSelected(matchingUnit);
+    }, [conversationID, conversationUnitID, units]);
 
     // Auto-update the height of the chat box
     // when the user message text changes
@@ -388,6 +405,7 @@ export default function ChatMessagesUI({
     async function loadMessages(conversationID : number | null){
         if (!conversationID) {
             setMessages([]);
+            setConversationUnitID(null);
             setConversationColourRaw(null);
 
             if (!isViewing){
@@ -418,6 +436,7 @@ export default function ChatMessagesUI({
         }
 
         const data = await response.json();
+        setConversationUnitID(data.unit_id ?? null);
         setConversationColourRaw(data.colour_raw ?? null);
         parseMessages(data.messages);
     }
