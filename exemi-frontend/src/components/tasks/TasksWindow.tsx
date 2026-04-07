@@ -918,6 +918,34 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         [session.token],
     );
 
+    const prepareTaskForForegroundStart = useCallback(
+        async (taskId: number): Promise<boolean> => {
+            const row = tasksRef.current.find((t) => t.id === taskId);
+            if (!row) return true;
+            const rowDateISO = effectiveCalendarDateISO(row, selectedDateISORef.current);
+            const todayISO = todayISORef.current;
+            if (rowDateISO <= todayISO) return true;
+
+            const dueToday = utcIsoForLocalCalendarDate(todayISO, userTimeZone);
+            const ok = await patchTaskFields(taskId, {due_at: dueToday});
+            if (!ok) {
+                setTasksError('Could not move task to today.');
+                return false;
+            }
+
+            setTasks((prev) =>
+                prev.map((t) =>
+                    t.id === taskId
+                        ? {...t, due_at: dueToday, calendarDateISO: todayISO}
+                        : t,
+                ),
+            );
+            setSelectedDateISO(todayISO);
+            return true;
+        },
+        [patchTaskFields, userTimeZone],
+    );
+
     const persistForegroundInboxItemsToTodo = useCallback(
         async (
             items: TaskInboxItem[],
@@ -1025,10 +1053,12 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
     }, []);
 
     const handleStartWorkFromEdit = useCallback(
-        (taskId: number) => {
+        async (taskId: number) => {
+            const ready = await prepareTaskForForegroundStart(taskId);
+            if (!ready) return;
             openFocusConfirmForTask(taskId);
         },
-        [openFocusConfirmForTask],
+        [openFocusConfirmForTask, prepareTaskForForegroundStart],
     );
 
     const onToggleTask = (task: TaskPublicRow) => {
