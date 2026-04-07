@@ -1,3 +1,4 @@
+import Markdown from 'react-markdown';
 import {useState} from 'react';
 import {MdCheck, MdClose} from 'react-icons/md';
 import {DialogBox} from '../ui/DialogBox';
@@ -161,7 +162,7 @@ export function TaskForeground({
                                     wordWrap: 'break-word',
                                     textOverflow: 'ellipsis',
                                     }}>
-                                    {task.description}
+                                    {<Markdown>{task.description}</Markdown>}
                                 </p>
                             ) : null}
                             <div
