@@ -25,6 +25,7 @@ export type TaskPublicApi = {
     completed: boolean;
     progress_secs: number;
     colour_raw: string | null;
+    created_at?: string;
 };
 
 export type TaskPublicRowPatch = Partial<{
@@ -37,6 +38,7 @@ export type TaskPublicRowPatch = Partial<{
     completed: boolean;
     progress_secs: number;
     colour_raw: string | null;
+    created_at: string;
     calendarDateISO: string;
 }> & {id: number};
 
@@ -70,6 +72,7 @@ export function mergeTaskFromApiResponse(
         completed: api.completed,
         progress_secs: api.progress_secs,
         colour_raw: api.colour_raw,
+        ...(api.created_at != null ? {created_at: api.created_at} : {}),
         calendarDateISO: localCalendarISOFromDueAtUtc(api.due_at, timeZone),
     };
 }

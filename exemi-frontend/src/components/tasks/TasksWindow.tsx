@@ -138,6 +138,8 @@ type TaskPublicRow = {
     /** Seconds worked; only surfaced in UI for incomplete tasks due today. */
     progress_secs: number;
     colour_raw: string | null;
+    /** ISO 8601 from API; used for ordering and break-flow “next task” pick. */
+    created_at?: string;
     description?: string;
     assignment_id?: number | null;
     due_at?: string;
@@ -165,6 +167,7 @@ function taskPublicJsonToRow(t: {
     completed: boolean;
     progress_secs?: number;
     colour_raw?: string | null;
+    created_at?: string;
     description?: string;
     assignment_id?: number | null;
     due_at?: string;
@@ -177,6 +180,7 @@ function taskPublicJsonToRow(t: {
         completed: t.completed,
         progress_secs: t.progress_secs ?? 0,
         colour_raw: t.colour_raw ?? null,
+        created_at: t.created_at,
         description: t.description,
         assignment_id: t.assignment_id,
         due_at: t.due_at,
@@ -203,13 +207,20 @@ function computeNextTodoPreview(
     const isDoing = (t: TaskPublicRow) =>
         !t.clientPending && selectedDateISO === todayISOValue && t.progress_secs > 0;
     const todoIncomplete = incompleteTasks.filter((t) => !isDoing(t));
-    const first = todoIncomplete[0];
-    if (!first) return null;
+    if (todoIncomplete.length === 0) return null;
+    /** Recommend most recently created todo first (e.g. TaskInbox), independent of board list order. */
+    const sorted = [...todoIncomplete].sort((a, b) => {
+        const ta = a.created_at ? Date.parse(a.created_at) : 0;
+        const tb = b.created_at ? Date.parse(b.created_at) : 0;
+        if (tb !== ta) return tb - ta;
+        return b.id - a.id;
+    });
+    const chosen = sorted[0]!;
     return {
-        id: first.id,
-        name: first.name,
-        duration_mins: first.duration_mins,
-        colour_raw: first.colour_raw,
+        id: chosen.id,
+        name: chosen.name,
+        duration_mins: chosen.duration_mins,
+        colour_raw: chosen.colour_raw,
     };
 }
 
@@ -709,6 +720,7 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         setNewTaskTitle('');
 
         const tempId = --pendingTempIdRef.current;
+        const createdNow = new Date().toISOString();
         setTasks((prev) => [
             ...prev,
             {
@@ -718,6 +730,7 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
                 completed: false,
                 progress_secs: 0,
                 colour_raw: null,
+                created_at: createdNow,
                 clientPending: true,
                 clientPendingForDateISO: taskDateISO,
                 break_interval_mins: session.user?.task_break_interval_mins || 25,

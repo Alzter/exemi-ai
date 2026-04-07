@@ -3,7 +3,7 @@ from ..models import Task, TaskCreate, TaskUpdate, TaskPublic, TaskList, TaskLLM
 from ..models import Assignment, AssignmentGroup, Unit
 from typing import Literal
 from sqlmodel import Session, select
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, or_, asc
 from sqlalchemy.orm import selectinload
 from fastapi import APIRouter, Depends, HTTPException, Query
 from ..dependencies import get_session, get_current_user, get_current_magic
@@ -209,7 +209,7 @@ def get_all_tasks_for_user(
         query = query.join(Unit)
         query = query.where(Unit.id == unit_id)
 
-    query = query.order_by(Task.due_at)
+    query = query.order_by(Task.due_at, asc(Task.created_at))
     query = query.offset(offset)
     query = query.limit(limit)
 
@@ -474,7 +474,7 @@ def get_tasks_for_user(
             and_(Task.completed == True, Task.due_at >= ts, Task.due_at < te)
         )
 
-    query = query.order_by(Task.due_at).offset(offset).limit(limit)
+    query = query.order_by(Task.due_at, asc(Task.created_at)).offset(offset).limit(limit)
 
     tasks = session.exec(query).all()
 
