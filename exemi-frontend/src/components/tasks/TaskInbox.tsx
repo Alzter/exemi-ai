@@ -172,7 +172,7 @@ export function TaskInbox({
                             <div className="tasks-panel-task-entry-actions" style={{width: '100%'}}>
                                 <button
                                     type="button"
-                                    className="secondary"
+                                    className="primary"
                                     disabled={!draft.trim()}
                                     onClick={confirmTaskEntry}
                                     aria-label="Add inbox task"
