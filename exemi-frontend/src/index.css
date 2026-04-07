@@ -1287,6 +1287,7 @@ wrapping the text */
 
 .chatbox textarea+button{
   max-width: fit-content;
+  height:100%;
 }
 
 .chatbox button{
