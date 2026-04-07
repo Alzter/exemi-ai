@@ -1572,7 +1572,9 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
               : 'Mark complete';
 
         const anotherTaskInProgress =
-            playingDoingIds.length > 0 || foregroundTaskId !== null;
+            doingTasks.length > 0 ||
+            playingDoingIds.length > 0 ||
+            foregroundTaskId !== null;
         const showQuickStart =
             column === 'todo' &&
             !t.clientPending &&
