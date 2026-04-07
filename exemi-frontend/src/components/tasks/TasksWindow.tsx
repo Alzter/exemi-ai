@@ -1044,6 +1044,36 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         [patchTaskProgressSecs],
     );
 
+    const resetTaskProgressForDeconstruction = useCallback(
+        async (taskId: number): Promise<boolean> => {
+            doingExtraSecsRef.current[taskId] = 0;
+            setTasks((prev) =>
+                prev.map((t) => (t.id === taskId ? {...t, progress_secs: 0} : t)),
+            );
+            const snap = activeTimerTaskSnapshotRef.current;
+            if (snap?.id === taskId) {
+                activeTimerTaskSnapshotRef.current = {
+                    ...snap,
+                    progress_secs: 0,
+                };
+            }
+            const ok = await patchTaskProgressSecs(taskId, 0);
+            if (!ok) {
+                setTasksError('Could not reset task progress.');
+            }
+            return ok;
+        },
+        [patchTaskProgressSecs],
+    );
+
+    const requestTaskDeconstruction = useCallback(
+        async (taskId: number, taskName: string) => {
+            await resetTaskProgressForDeconstruction(taskId);
+            call_task_deconstruction(taskId, taskName);
+        },
+        [resetTaskProgressForDeconstruction],
+    );
+
     const handleTaskMerged = useCallback((patch: TaskPublicRowPatch) => {
         setTasks((prev) => prev.map((t) => (t.id === patch.id ? {...t, ...patch} : t)));
         setTodoEditTask((prev) => (prev && prev.id === patch.id ? {...prev, ...patch} : prev));
@@ -1248,7 +1278,7 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         setForegroundInboxItems([]);
         clearActiveTaskTimer();
         setHeightPx(COLLAPSED_PX);
-        call_task_deconstruction(tid, row?.name ?? 'this task');
+        await requestTaskDeconstruction(tid, row?.name ?? 'this task');
         setPlayingDoingIds((prev) => prev.filter((id) => id !== tid));
         setForegroundTaskId(null);
     }, [
@@ -1256,6 +1286,7 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         foregroundTaskId,
         flushDoingProgress,
         persistForegroundInboxItemsToTodo,
+        requestTaskDeconstruction,
     ]);
 
     const startForegroundBreakFlow = useCallback(async () => {
@@ -1373,14 +1404,14 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         }
     }, [breakFlowNextTask, breakResumeForegroundTaskId, startForegroundTask]);
 
-    const onDoingDialogYes = useCallback(() => {
+    const onDoingDialogYes = useCallback(async () => {
         const first = doingTasks[0];
         if (first) {
             setHeightPx(COLLAPSED_PX);
-            call_task_deconstruction(first.id, first.name);
+            await requestTaskDeconstruction(first.id, first.name);
         }
         setDoingCloseDialogOpen(false);
-    }, [doingTasks]);
+    }, [doingTasks, requestTaskDeconstruction]);
 
     const onDoingDialogNo = useCallback(() => {
         const ids = doingTasks.map((t) => t.id);
@@ -1817,9 +1848,10 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
                         flexDirection: 'column',
                         alignItems: 'center',
                         justifyContent: 'center',
+                        textAlign:'center',
                         gap: 12,
-                        fontWeight:700,
-                        fontSize:'1.25em',
+                        fontWeight:600,
+                        fontSize:'1em',
                     }}
                 >
                     <p>
