@@ -1,4 +1,12 @@
-import {useCallback, useEffect, useMemo, useRef, useState, type RefObject} from 'react';
+import {
+    useCallback,
+    useEffect,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+    type RefObject,
+} from 'react';
 import {
     MdArrowLeft,
     MdArrowRight,
@@ -79,6 +87,13 @@ function getDefaultExpandedHeightPx(): number {
 
 function clamp(n: number, lo: number, hi: number) {
     return Math.min(hi, Math.max(lo, n));
+}
+
+function formatRemainingMmSs(totalSeconds: number): string {
+    const s = Math.max(0, Math.floor(totalSeconds));
+    const m = Math.floor(s / 60);
+    const r = s % 60;
+    return `${m}:${String(r).padStart(2, '0')}`;
 }
 
 type TaskPublicRow = {
@@ -195,7 +210,7 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
     const prevSelectedDateISORef = useRef(selectedDateISO);
     const doingExtraSecsRef = useRef<Record<number, number>>({});
     const doingTasksDisplayRef = useRef<TaskPublicRow[]>([]);
-    const [, doingTick] = useState(0);
+    const [doingTickCount, setDoingTick] = useState(0);
 
     const [doingCloseDialogOpen, setDoingCloseDialogOpen] = useState(false);
     const [playingDoingIds, setPlayingDoingIds] = useState<number[]>([]);
@@ -223,6 +238,7 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
     /** Last known row for the active playing task when it is not in `tasks` (e.g. date picker on another day). */
     const activeTimerTaskSnapshotRef = useRef<TaskPublicRow | null>(null);
     const didAutoExpandForActiveTimerRef = useRef(false);
+    const appDocumentTitleRef = useRef('');
     foregroundTaskIdRef.current = foregroundTaskId;
     selectedDateISORef.current = selectedDateISO;
 
@@ -813,7 +829,7 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
                     clearActiveTaskTimer();
                 }
             }
-            doingTick((x) => x + 1);
+            setDoingTick((x) => x + 1);
             syncActiveTaskTimerPersist();
         }, 1000);
         return () => window.clearInterval(t);
@@ -1197,6 +1213,42 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         maxForContainer,
     ]);
 
+    useLayoutEffect(() => {
+        if (typeof document === 'undefined') return;
+        appDocumentTitleRef.current = document.title;
+    }, []);
+
+    useEffect(() => {
+        if (typeof document === 'undefined') return;
+        if (playingDoingIds.length !== 1) {
+            document.title = appDocumentTitleRef.current;
+            return;
+        }
+        const id = playingDoingIds[0]!;
+        const live = tasks.find((t) => t.id === id && !t.clientPending);
+        const row =
+            live ??
+            (activeTimerTaskSnapshotRef.current?.id === id
+                ? activeTimerTaskSnapshotRef.current
+                : null);
+        if (!row || row.completed) {
+            document.title = appDocumentTitleRef.current;
+            return;
+        }
+        const extra = doingExtraSecsRef.current[id] ?? 0;
+        const effectiveProgress = row.progress_secs + extra;
+        const totalSecs = Math.max(row.duration_mins * 60, 1);
+        const remainingSecs = Math.max(0, totalSecs - effectiveProgress);
+        document.title = `${formatRemainingMmSs(remainingSecs)} - ${row.name}`;
+    }, [doingTickCount, playingDoingIds, tasks]);
+
+    useEffect(() => {
+        return () => {
+            if (typeof document === 'undefined') return;
+            document.title = appDocumentTitleRef.current;
+        };
+    }, []);
+
     const endDrag = useCallback(() => {
         setDragging(false);
         activePointerId.current = null;
@@ -1334,14 +1386,11 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
     }
 
     function formatMmSs(totalSeconds: number): string {
-        const s = Math.max(0, Math.floor(totalSeconds));
-        const m = Math.floor(s / 60);
-        const r = s % 60;
-        return `${m}:${String(r).padStart(2, '0')}`;
+        return formatRemainingMmSs(totalSeconds);
     }
 
     function renderDoingTaskRow(t: TaskPublicRow) {
-        void doingTick;
+        void doingTickCount;
         const safeBg = safeTaskBackgroundFromColourRaw(t.colour_raw);
         const barColor = saturatedProgressBarFromSafe(safeBg);
         const barBorderColor = saturatedProgressBarBorderFromSafe(safeBg);
@@ -1420,7 +1469,7 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
             ? safeTaskBackgroundFromColourRaw(activeBackgroundDoingTask.colour_raw)
             : '#eee';
 
-    void doingTick;
+    void doingTickCount;
     let foregroundTaskRow =
         foregroundTaskId !== null ? tasks.find((t) => t.id === foregroundTaskId) : undefined;
     if (!foregroundTaskRow && foregroundTaskId !== null) {
