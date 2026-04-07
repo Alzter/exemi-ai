@@ -11,6 +11,7 @@ import {
     MdAdd,
     MdPause,
     MdPlayArrow,
+    MdCheck,
 } from 'react-icons/md';
 import {type Session} from '../../models';
 import {
@@ -207,6 +208,8 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
     const prevFocusConfirmTaskIdRef = useRef<number | null>(null);
     const playingDoingIdsRef = useRef<number[]>([]);
     playingDoingIdsRef.current = playingDoingIds;
+    const tasksRef = useRef<TaskPublicRow[]>([]);
+    tasksRef.current = tasks;
 
     const dragStartY = useRef(0);
     const dragStartHeight = useRef(0);
@@ -315,10 +318,14 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         }
         setPlayingDoingIds((prev) => {
             const next = prev.filter((id) => idSet.has(id));
-            if (next.length === prev.length && next.every((id, i) => id === prev[i])) {
+            const normalized = next.length <= 1 ? next : [next[0]!];
+            if (
+                normalized.length === prev.length &&
+                normalized.every((id, i) => id === prev[i])
+            ) {
                 return prev;
             }
-            return next;
+            return normalized;
         });
         const ref = doingExtraSecsRef.current;
         for (const k of Object.keys(ref)) {
@@ -326,17 +333,6 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
             if (!idSet.has(n)) delete ref[n];
         }
     }, [doingTaskIdsKey]);
-
-    useEffect(() => {
-        if (playingDoingIds.length === 0) return;
-        const t = window.setInterval(() => {
-            for (const id of playingDoingIds) {
-                doingExtraSecsRef.current[id] = (doingExtraSecsRef.current[id] ?? 0) + 1;
-            }
-            doingTick((x) => x + 1);
-        }, 1000);
-        return () => window.clearInterval(t);
-    }, [playingDoingIds]);
 
     useEffect(() => {
         if (!session.token) {
@@ -622,6 +618,37 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         [session.token],
     );
 
+    useEffect(() => {
+        if (playingDoingIds.length === 0) return;
+        const t = window.setInterval(() => {
+            const ids = [...playingDoingIdsRef.current];
+            for (const id of ids) {
+                const task = tasksRef.current.find((row) => row.id === id);
+                if (!task || task.clientPending) continue;
+
+                doingExtraSecsRef.current[id] = (doingExtraSecsRef.current[id] ?? 0) + 1;
+                const totalSecs = Math.max(task.duration_mins * 60, 1);
+                const effective =
+                    task.progress_secs + (doingExtraSecsRef.current[id] ?? 0);
+
+                if (effective >= totalSecs) {
+                    doingExtraSecsRef.current[id] = 0;
+                    setTasks((prev) =>
+                        prev.map((row) =>
+                            row.id === id ? {...row, progress_secs: totalSecs} : row,
+                        ),
+                    );
+                    void patchTaskProgressSecs(id, totalSecs).then((ok) => {
+                        if (!ok) setTasksError('Could not save progress.');
+                    });
+                    setPlayingDoingIds((prev) => prev.filter((x) => x !== id));
+                }
+            }
+            doingTick((x) => x + 1);
+        }, 1000);
+        return () => window.clearInterval(t);
+    }, [playingDoingIds, patchTaskProgressSecs]);
+
     const patchTaskFields = useCallback(
         async (taskId: number, body: Record<string, unknown>) => {
             const token = session.token;
@@ -711,14 +738,18 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
     };
 
     const toggleDoingPlayPause = useCallback(
-        (taskId: number) => {
-            setPlayingDoingIds((prev) => {
-                if (prev.includes(taskId)) {
-                    void flushDoingProgress(taskId);
-                    return prev.filter((id) => id !== taskId);
-                }
-                return [...prev, taskId];
-            });
+        async (taskId: number) => {
+            const currently = playingDoingIdsRef.current;
+            if (currently.includes(taskId)) {
+                await flushDoingProgress(taskId);
+                setPlayingDoingIds((prev) => prev.filter((id) => id !== taskId));
+                return;
+            }
+            const others = currently.filter((id) => id !== taskId);
+            for (const id of others) {
+                await flushDoingProgress(id);
+            }
+            setPlayingDoingIds([taskId]);
         },
         [flushDoingProgress],
     );
@@ -742,12 +773,16 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         setFocusConfirmTaskId(null);
     }, []);
 
-    const onFocusConfirmBackground = useCallback(() => {
+    const onFocusConfirmBackground = useCallback(async () => {
         if (focusConfirmTaskId === null) return;
         const tid = focusConfirmTaskId;
-        setPlayingDoingIds((prev) => (prev.includes(tid) ? prev : [...prev, tid]));
+        const others = playingDoingIdsRef.current.filter((id) => id !== tid);
+        for (const id of others) {
+            await flushDoingProgress(id);
+        }
+        setPlayingDoingIds([tid]);
         setFocusConfirmTaskId(null);
-    }, [focusConfirmTaskId]);
+    }, [focusConfirmTaskId, flushDoingProgress]);
 
     const startForegroundTask = useCallback(
         async (tid: number) => {
@@ -1081,6 +1116,7 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         const remainingSecs = Math.max(0, totalSecs - effectiveProgress);
         const timeLabel = formatMmSs(remainingSecs);
         const playing = playingDoingIds.includes(t.id);
+        const atDurationCap = effectiveProgress >= totalSecs;
 
         return (
             <div
@@ -1112,11 +1148,20 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
                     <button
                         type="button"
                         className="tasks-panel-doing-play-toggle"
-                        aria-label={playing ? 'Pause timer' : 'Resume timer'}
-                        style={{borderColor: barBorderColor}}
-                        onClick={() => toggleDoingPlayPause(t.id)}
+                        aria-label={
+                            atDurationCap
+                                ? 'Scheduled time is complete'
+                                : playing
+                                  ? 'Pause timer'
+                                  : 'Resume timer'
+                        }
+                        disabled={atDurationCap}
+                        style={{borderColor: atDurationCap ? "transparent" : barBorderColor, backgroundColor: atDurationCap ? barColor : "transparent"}}
+                        onClick={() => {
+                            void toggleDoingPlayPause(t.id);
+                        }}
                     >
-                        {playing ? <MdPause aria-hidden /> : <MdPlayArrow aria-hidden />}
+                        {atDurationCap ? <MdCheck aria-hidden /> : playing ? <MdPause aria-hidden /> : <MdPlayArrow aria-hidden />}
                     </button>
                 </div>
             </div>
@@ -1126,9 +1171,14 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
     const doingTasksForUi =
         showDoingCard ? doingTasks : doingAnimContent ? doingTasksDisplayRef.current : [];
 
+    const activeBackgroundDoingId = playingDoingIds[0];
+    const activeBackgroundDoingTask =
+        activeBackgroundDoingId !== undefined
+            ? doingTasksForUi.find((row) => row.id === activeBackgroundDoingId)
+            : undefined;
     const doingCardBackground =
-        doingTasksForUi[0] !== undefined
-            ? safeTaskBackgroundFromColourRaw(doingTasksForUi[0].colour_raw)
+        activeBackgroundDoingTask !== undefined
+            ? safeTaskBackgroundFromColourRaw(activeBackgroundDoingTask.colour_raw)
             : '#eee';
 
     void doingTick;
