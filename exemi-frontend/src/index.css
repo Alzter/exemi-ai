@@ -1644,6 +1644,8 @@ div.dialog-panel-title{
   flex-direction: row;
   align-items: center;
   height:40px;
+  max-height:40px;
+  text-wrap: nowrap;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

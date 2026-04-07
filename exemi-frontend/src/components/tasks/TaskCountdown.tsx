@@ -33,16 +33,17 @@ export function TaskCountdown({totalTimeSeconds, progressTimeSeconds, label}: Ta
         <div
             style={{
                 position: 'relative',
-                width: 300,
-                height: 300,
+                width: 'min(300px, 100%)',
+                maxWidth: 300,
+                aspectRatio: '1 / 1',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
             }}
         >
             <svg
-                width={300}
-                height={300}
+                width="100%"
+                height="100%"
                 viewBox="0 0 128 128"
                 aria-hidden
                 style={{color: '#1a1a1a', position: 'absolute', inset: 0}}
@@ -83,11 +84,11 @@ export function TaskCountdown({totalTimeSeconds, progressTimeSeconds, label}: Ta
                 }}
             >
                 {label ? (
-                    <span style={{fontSize: '1em', fontWeight: 700, opacity: 0.75, marginBottom: 2}}>
+                    <span style={{fontSize: 'clamp(0.65rem, 2.7vw, 1rem)', fontWeight: 700, opacity: 0.75, marginBottom: 2}}>
                         {label}
                     </span>
                 ) : null}
-                <span style={{fontSize: '3em', fontWeight: 800, letterSpacing: '-0.02em'}}>
+                <span style={{fontSize: 'clamp(1.6rem, 10vw, 3rem)', fontWeight: 800, letterSpacing: '-0.02em'}}>
                     {formatMmSs(remaining)}
                 </span>
             </div>

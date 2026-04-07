@@ -26,7 +26,7 @@ export function TaskForegroundConfirm({
     return (
         <DialogBox
             open={open}
-            onClose={onChooseBackground}
+            onClose={onClose}
             closeOnEscape={false}
             backdropClassName="dialog-backdrop--elevated"
             aria-label="Use focus timer"

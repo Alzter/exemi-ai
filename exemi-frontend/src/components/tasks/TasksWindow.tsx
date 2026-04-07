@@ -749,17 +749,22 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         setFocusConfirmTaskId(null);
     }, [focusConfirmTaskId]);
 
-    const onFocusConfirmForeground = useCallback(async () => {
-        if (focusConfirmTaskId === null) return;
-        const tid = focusConfirmTaskId;
+    const startForegroundTask = useCallback(
+        async (tid: number) => {
         const others = playingDoingIdsRef.current.filter((id) => id !== tid);
         for (const id of others) {
             await flushDoingProgress(id);
         }
         setPlayingDoingIds([tid]);
         setForegroundTaskId(tid);
+    },
+    [flushDoingProgress]);
+
+    const onFocusConfirmForeground = useCallback(async () => {
+        if (focusConfirmTaskId === null) return;
+        await startForegroundTask(focusConfirmTaskId);
         setFocusConfirmTaskId(null);
-    }, [focusConfirmTaskId, flushDoingProgress]);
+    }, [focusConfirmTaskId, startForegroundTask]);
 
     const onForegroundPauseToBackground = useCallback(async () => {
         if (foregroundTaskId === null) return;
@@ -857,8 +862,10 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
     const onBreakKeepGoing = useCallback(() => {
         setBreakConfirmOpen(false);
         const next = breakFlowNextTask;
-        if (next) openFocusConfirmForTask(next.id);
-    }, [breakFlowNextTask, openFocusConfirmForTask]);
+        if (next) {
+            void startForegroundTask(next.id);
+        }
+    }, [breakFlowNextTask, startForegroundTask]);
 
     const onBreakSetupClose = useCallback(() => setBreakSetupOpen(false), []);
 

@@ -42,14 +42,14 @@ export function TaskForeground({
     if (!task) return null;
 
     const totalSecs = Math.max(60, task.duration_mins * 60);
-    const foregroundWidth = inboxMinimized ? 'calc(100% - 72px)' : 'calc(100% - min(300px, 70%))';
-    const inboxWidth = inboxMinimized ? '72px' : 'min(300px, 70%)';
+    const foregroundWidth = inboxMinimized ? 'calc(100% - 72px)' : 'calc(100% - min(300px, 60%))';
+    const inboxWidth = inboxMinimized ? '72px' : 'min(300px, 60%)';
 
     return (
         <DialogBox
             open={open}
             onClose={onPauseToBackground}
-            closeOnEscape
+            closeOnEscape={false}
             showCloseButton={false}
             backdropClassName="dialog-backdrop--elevated dialog-backdrop--task-foreground"
             aria-label="Focus on task"
@@ -120,8 +120,7 @@ export function TaskForeground({
                             marginRight: 'calc(56px + 14px)',
                             height: 'auto',
                             minHeight: 40,
-                            alignItems: 'flex-start',
-                            whiteSpace: 'normal',
+                            alignItems: 'flex-start'
                         }}
                     >
                         <h3 style={{whiteSpace: 'normal', lineHeight: 1.25}}>{task.name}</h3>
