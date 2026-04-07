@@ -34,7 +34,7 @@ export default function ChatUI({session, isViewing, logOut, canvasSyncReady} : C
             requestIdCounter += 1;
             setTaskDeconstructionRequest({
                 requestId: requestIdCounter,
-                text: `Can you help me break down the task **${taskName}** into smaller steps?`,
+                text: `Can you help me break down the task: **${taskName}** into smaller steps?`,
             });
         };
         window.addEventListener('task-deconstruction-request', onTaskDeconstructionRequest);
