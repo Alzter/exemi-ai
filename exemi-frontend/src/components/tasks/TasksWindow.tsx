@@ -919,8 +919,11 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
     );
 
     const persistForegroundInboxItemsToTodo = useCallback(
-        async (items: TaskInboxItem[], sourceTaskId: number | null) => {
-            if (items.length === 0 || !session.token) return;
+        async (
+            items: TaskInboxItem[],
+            sourceTaskId: number | null,
+        ): Promise<TaskPublicRow[] | null> => {
+            if (!session.token) return null;
             const sourceTask =
                 sourceTaskId !== null
                     ? tasksRef.current.find((t) => t.id === sourceTaskId) ??
@@ -930,31 +933,35 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
                     : null;
             const sourceAssignmentId = sourceTask?.assignment_id ?? null;
             const dueForInbox = utcIsoForLocalCalendarDate(selectedDateISO, userTimeZone);
-            for (const item of items) {
-                const res = await fetch(`${backendURL}/task`, {
-                    method: 'POST',
-                    headers: {
-                        Authorization: `Bearer ${session.token}`,
-                        'Content-Type': 'application/json',
-                        Accept: 'application/json',
-                    },
-                    body: JSON.stringify({
-                        name: item.name,
-                        description: '',
-                        duration_mins: 15,
-                        assignment_id: sourceAssignmentId,
-                        due_at: dueForInbox,
-                    }),
-                });
-                if (!res.ok) setTasksError('Could not save an inbox task.');
+            if (items.length > 0) {
+                for (const item of items) {
+                    const res = await fetch(`${backendURL}/task`, {
+                        method: 'POST',
+                        headers: {
+                            Authorization: `Bearer ${session.token}`,
+                            'Content-Type': 'application/json',
+                            Accept: 'application/json',
+                        },
+                        body: JSON.stringify({
+                            name: item.name,
+                            description: '',
+                            duration_mins: 15,
+                            assignment_id: sourceAssignmentId,
+                            due_at: dueForInbox,
+                        }),
+                    });
+                    if (!res.ok) setTasksError('Could not save an inbox task.');
+                }
             }
-            void reloadTasksFromApi(selectedDateISO).then((list) => {
-                if (list === null) return;
+
+            const list = await reloadTasksFromApi(selectedDateISO);
+            if (list !== null) {
                 setTasks((prev) => {
                     const pending = prev.filter((t) => t.clientPending);
                     return [...list, ...pending];
                 });
-            });
+            }
+            return list;
         },
         [reloadTasksFromApi, selectedDateISO, session.token, userTimeZone],
     );
@@ -1197,12 +1204,13 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
             return;
         }
         clearActiveTaskTimer();
-        await persistForegroundInboxItemsToTodo(foregroundInboxItems, tid);
-
-        const hyp = tasks.map((t) =>
-            t.id === tid ? {...t, completed: true, progress_secs: 0} : t,
-        );
-        const nextPreview = computeNextTodoPreview(hyp, selectedDateISO, todayISOValue);
+        const refreshed = await persistForegroundInboxItemsToTodo(foregroundInboxItems, tid);
+        const rowsForNext =
+            refreshed ??
+            tasks.map((t) =>
+                t.id === tid ? {...t, completed: true, progress_secs: 0} : t,
+            );
+        const nextPreview = computeNextTodoPreview(rowsForNext, selectedDateISO, todayISOValue);
 
         setTasks((prev) =>
             prev.map((t) => (t.id === tid ? {...t, completed: true, progress_secs: 0} : t)),
@@ -1215,13 +1223,6 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         setBreakCompletedCount(1);
         setBreakConfirmOpen(true);
 
-        void reloadTasksFromApi(selectedDateISO).then((list) => {
-            if (list === null) return;
-            setTasks((prev) => {
-                const pending = prev.filter((t) => t.clientPending);
-                return [...list, ...pending];
-            });
-        });
     }, [
         foregroundTaskId,
         session.token,
