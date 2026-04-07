@@ -72,7 +72,7 @@ export default function ChatMessagesUI({
             fontWeight: "600"
         }
         : undefined;
-    const unitSelectWrapperStyle = {width: conversationID ? "0" : unitSelectWidth};
+    const unitSelectWrapperStyle = {width: conversationID ? "0" : unitSelectWidth, height:"100%"};
     const sizedUnitSelectStyle = {
         ...unitSelectStyle,
         minWidth: unitSelectWidth,
