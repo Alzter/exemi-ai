@@ -486,6 +486,21 @@ class Task(TaskBase, table=True):
     @property
     def break_interval_mins(self) -> int:
         return self.user.task_break_interval_mins or 10
+
+    @property
+    def unit_id(self) -> int | None:
+        """
+        Canvas-linked unit id for the task's assignment (via its assignment group).
+        Not a table column; surfaced on TaskPublic for API clients.
+        """
+        if not self.assignment_id:
+            return None
+        if not self.assignment:
+            return None
+        group = self.assignment.group
+        if not group:
+            return None
+        return group.unit_id
     
     @property
     def colour_raw(self) -> str | None:
@@ -559,6 +574,7 @@ class TaskPublic(TaskBase, UTCModel):
     completed : bool
     break_interval_mins : int
     colour_raw : str | None = None
+    unit_id : int | None = None
 
 class TaskPublicWithUser(TaskPublic):
     user : UserPublic | None = None

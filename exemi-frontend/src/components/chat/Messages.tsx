@@ -16,6 +16,7 @@ type ChatUIProps = {
     taskDeconstructionRequest?: {
         requestId: number;
         text: string;
+        unitId: number | null;
     } | null;
 }
 
@@ -313,13 +314,14 @@ export default function ChatMessagesUI({
 
     async function sendTextMessage(
         text: string,
-        options?: {forceNewConversation?: boolean},
+        options?: {forceNewConversation?: boolean; newConversationUnitId?: number | null},
     ) {
         const cleanText = text.trim();
         if (!cleanText || loading){
             return;
         };
         const forceNewConversation = Boolean(options?.forceNewConversation);
+        const newConversationUnitId = options?.newConversationUnitId;
 
         setLoading(true);
         setUserText("");
@@ -341,7 +343,9 @@ export default function ChatMessagesUI({
         
         let body = {
             "message_text" : cleanText,
-            "unit_id" : forceNewConversation ? null : unitID,
+            "unit_id" : forceNewConversation
+                ? (newConversationUnitId ?? null)
+                : unitID,
         };
 
         const useExistingConversation = !forceNewConversation && Boolean(conversationID);
@@ -486,7 +490,10 @@ export default function ChatMessagesUI({
         if (!taskDeconstructionRequest) return;
         if (taskDeconstructionRequest.requestId <= lastHandledTaskDeconstructionIdRef.current) return;
         lastHandledTaskDeconstructionIdRef.current = taskDeconstructionRequest.requestId;
-        void sendTextMessage(taskDeconstructionRequest.text, {forceNewConversation: true});
+        void sendTextMessage(taskDeconstructionRequest.text, {
+            forceNewConversation: true,
+            newConversationUnitId: taskDeconstructionRequest.unitId,
+        });
     }, [isViewing, loading, taskDeconstructionRequest]);
     // When loading the conversation,
     // retrieve any existing messages if there are any.

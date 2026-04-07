@@ -126,7 +126,13 @@ def get_task(
     Returns:
         Task: _description_
     """
-    task = session.get(Task, id)
+    task = session.exec(
+        select(Task)
+        .where(Task.id == id)
+        .options(
+            selectinload(Task.assignment).selectinload(Assignment.group),
+        ),
+    ).first()
     if not task: raise HTTPException(status_code=404, detail="Task not found")
 
     if task.user_id != user.id and not user.admin:
@@ -212,6 +218,7 @@ def get_all_tasks_for_user(
     query = query.order_by(Task.due_at, asc(Task.created_at))
     query = query.offset(offset)
     query = query.limit(limit)
+    query = query.options(selectinload(Task.assignment).selectinload(Assignment.group))
 
     tasks = session.exec(query)
 
@@ -440,7 +447,10 @@ def get_tasks_for_user(
         select(Task)
         .join(User)
         .where(User.username == username)
-        .options(selectinload(Task.user), selectinload(Task.assignment))
+        .options(
+            selectinload(Task.user),
+            selectinload(Task.assignment).selectinload(Assignment.group),
+        )
     )
 
     if unit_id:
@@ -667,13 +677,6 @@ async def autocomplete_task_for_user(
         user=user,
         session=session
     )
-
-    # task : Task = create_task_for_user(
-    #     data=data_with_fields,
-    #     username=username,
-    #     user=user,
-    #     session=session
-    # )
 
     return data_with_fields
 
