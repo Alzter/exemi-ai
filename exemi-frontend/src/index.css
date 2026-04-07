@@ -1656,10 +1656,11 @@ div.dialog-panel-title{
   flex-direction: row;
   align-items: center;
   height:40px;
-  max-height:40px;
-  text-wrap: nowrap;
-  white-space: nowrap;
-  overflow: hidden;
+  max-height:50%;
+  /* text-wrap: nowrap; */
+  word-break: keep-all;
+  /* white-space: nowrap; */
+  /* overflow: hidden; */
   text-overflow: ellipsis;
   line-height: 1.25;
 }

@@ -9,6 +9,7 @@ type TaskLite = {
     name: string;
     duration_mins: number;
     colour_raw: string | null;
+    description?: string;
 };
 
 export type TaskForegroundProps = {
@@ -148,9 +149,21 @@ export function TaskForeground({
                                 flexDirection: 'column',
                                 alignItems: 'stretch',
                                 padding: '8px 14px 14px',
-                                gap: 16,
+                                gap: 12,
                             }}
                         >
+                            {task.description ? (
+                                <p style={{
+                                    margin: 0,
+                                    textAlign: 'left',
+                                    maxHeight: '50%',
+                                    overflow: 'hidden',
+                                    wordWrap: 'break-word',
+                                    textOverflow: 'ellipsis',
+                                    }}>
+                                    {task.description}
+                                </p>
+                            ) : null}
                             <div
                                 style={{
                                     flex: 1,

@@ -2175,6 +2175,7 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
                         name: foregroundTaskRow.name,
                         duration_mins: foregroundTaskRow.duration_mins,
                         colour_raw: foregroundTaskRow.colour_raw,
+                        description: foregroundTaskRow.description,
                     }}
                     panelBackgroundColor={safeTaskBackgroundFromColourRaw(foregroundTaskRow.colour_raw)}
                     countdownTotalSeconds={foregroundBreakSegment.total}

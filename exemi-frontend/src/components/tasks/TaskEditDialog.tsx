@@ -464,7 +464,13 @@ export function TaskEditDialog({
             >
                 {!loading && !loadError && detail ? (
                     
-                    <div className="dialog-panel-title">
+                    <div className="dialog-panel-title" style={{
+                        textWrap:'nowrap',
+                        textOverflow:'ellipsis',
+                        // overflow:'hidden',
+                        wordBreak:'keep-all',
+                        // whiteSpace:'nowrap'
+                    }}>
                         <button
                             type="button"
                             className="checkbox"
