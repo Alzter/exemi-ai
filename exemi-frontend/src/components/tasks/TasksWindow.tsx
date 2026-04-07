@@ -586,6 +586,8 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         async (taskId: number, completed: boolean) => {
             const token = session.token;
             if (!token) return false;
+            const body =
+                completed ? {completed: true, progress_secs: 0} : {completed: false};
             const res = await fetch(`${backendURL}/task/${taskId}`, {
                 method: 'PATCH',
                 headers: {
@@ -593,7 +595,7 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
                     'Content-Type': 'application/json',
                     Accept: 'application/json',
                 },
-                body: JSON.stringify({completed}),
+                body: JSON.stringify(body),
             });
             return res.ok;
         },
@@ -724,13 +726,25 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
 
     const onToggleTask = (task: TaskPublicRow) => {
         const next = !task.completed;
+        if (next) {
+            delete doingExtraSecsRef.current[task.id];
+            setPlayingDoingIds((prev) => prev.filter((id) => id !== task.id));
+        }
         setTasks((prev) =>
-            prev.map((t) => (t.id === task.id ? {...t, completed: next} : t)),
+            prev.map((t) =>
+                t.id === task.id
+                    ? {...t, completed: next, progress_secs: next ? 0 : t.progress_secs}
+                    : t,
+            ),
         );
         void patchTaskCompleted(task.id, next).then((ok) => {
             if (!ok) {
                 setTasks((prev) =>
-                    prev.map((t) => (t.id === task.id ? {...t, completed: task.completed} : t)),
+                    prev.map((t) =>
+                        t.id === task.id
+                            ? {...t, completed: task.completed, progress_secs: task.progress_secs}
+                            : t,
+                    ),
                 );
                 setTasksError('Could not update task.');
             }
@@ -823,11 +837,9 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         const tid = foregroundTaskId;
         const row = tasks.find((t) => t.id === tid);
         if (!row) return;
-        const extra = doingExtraSecsRef.current[tid] ?? 0;
-        const finalProgress = row.progress_secs + extra;
         doingExtraSecsRef.current[tid] = 0;
 
-        const ok = await patchTaskFields(tid, {progress_secs: finalProgress, completed: true});
+        const ok = await patchTaskFields(tid, {progress_secs: 0, completed: true});
         if (!ok) {
             setTasksError('Could not complete task.');
             return;
@@ -854,12 +866,12 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         }
 
         const hyp = tasks.map((t) =>
-            t.id === tid ? {...t, completed: true, progress_secs: finalProgress} : t,
+            t.id === tid ? {...t, completed: true, progress_secs: 0} : t,
         );
         const nextPreview = computeNextTodoPreview(hyp, selectedDateISO, todayISOValue);
 
         setTasks((prev) =>
-            prev.map((t) => (t.id === tid ? {...t, completed: true, progress_secs: finalProgress} : t)),
+            prev.map((t) => (t.id === tid ? {...t, completed: true, progress_secs: 0} : t)),
         );
         setPlayingDoingIds((prev) => prev.filter((id) => id !== tid));
         setForegroundTaskId(null);

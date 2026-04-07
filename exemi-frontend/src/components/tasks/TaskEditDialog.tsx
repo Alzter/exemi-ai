@@ -335,10 +335,19 @@ export function TaskEditDialog({
     const onToggleComplete = useCallback(async () => {
         if (!detail || !taskId) return;
         const next = !detail.completed;
-        setDetail((d) => (d ? {...d, completed: next} : d));
-        const api = await patchTask(taskId, {completed: next});
+        setDetail((d) =>
+            d ? {...d, completed: next, progress_secs: next ? 0 : d.progress_secs} : d,
+        );
+        const api = await patchTask(
+            taskId,
+            next ? {completed: true, progress_secs: 0} : {completed: false},
+        );
         if (!api) {
-            setDetail((d) => (d ? {...d, completed: detail.completed} : d));
+            setDetail((d) =>
+                d
+                    ? {...d, completed: detail.completed, progress_secs: detail.progress_secs}
+                    : d,
+            );
             return;
         }
         applyApiToState(api);
