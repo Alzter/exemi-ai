@@ -993,7 +993,7 @@ div.tasks-panel button.tasks-panel-task-entry-confirm:disabled:hover{
   box-shadow: none;
 }
 
-div.tasks-panel button.tasks-panel-task-entry-cancel{
+button.tasks-panel-task-entry-cancel{
   flex-shrink: 0;
   width: 60px;
   min-width: 60px;
@@ -1002,7 +1002,8 @@ div.tasks-panel button.tasks-panel-task-entry-cancel{
   min-height: 60px;
   margin: 0;
   padding: 0;
-  border-radius: 8px;
+  border-width: 0;
+  border-radius: 4px;
   background-color: #6b7280;
   color: #ffffff;
   display: inline-flex;
@@ -1010,17 +1011,22 @@ div.tasks-panel button.tasks-panel-task-entry-cancel{
   justify-content: center;
   box-shadow: none;
   transform: none;
+  transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.1s ease;
 }
 
-div.tasks-panel button.tasks-panel-task-entry-cancel:hover{
+button.tasks-panel-task-entry-cancel:hover{
   background-color: #4b5563;
-  transform: scale(1.02);
+  transform: scale(1.05);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
+}
+button.tasks-panel-task-entry-cancel:active{
+  background-color: #2b3543;
+  transform: scale(0.95);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
 }
 
-div.tasks-panel button.tasks-panel-task-entry-confirm svg,
-div.tasks-panel button.tasks-panel-task-entry-cancel svg{
-  /* font-size: 1.4em; */
+button.tasks-panel-task-entry-confirm svg,
+button.tasks-panel-task-entry-cancel svg{
   margin: 0;
 }
 

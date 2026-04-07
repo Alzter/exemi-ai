@@ -1389,7 +1389,7 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
                                                 <div className="tasks-panel-task-entry-actions">
                                                     <button
                                                         type="button"
-                                                        className="secondary"
+                                                        className="primary"
                                                         disabled={!newTaskTitle.trim()}
                                                         onClick={() => void confirmNewTask()}
                                                         aria-label="Add task"
