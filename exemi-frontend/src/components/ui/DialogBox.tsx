@@ -8,6 +8,8 @@ export type DialogBoxProps = {
     children?: ReactNode;
     /** Rendered to the left of the close control (e.g. overflow menu). */
     beforeClose?: ReactNode;
+    /** When false, the default close (X) button is not shown. */
+    showCloseButton?: boolean;
     /** When false, Escape is not handled here (parent may handle stacking). */
     closeOnEscape?: boolean;
     panelClassName?: string;
@@ -21,6 +23,7 @@ export function DialogBox({
     onClose,
     children,
     beforeClose,
+    showCloseButton = true,
     closeOnEscape = true,
     panelClassName = '',
     panelStyle,
@@ -53,14 +56,16 @@ export function DialogBox({
             >
                 <div className="dialog-panel-top-actions">
                     {beforeClose}
-                    <button
-                        type="button"
-                        className="floating"
-                        aria-label="Close"
-                        onClick={onClose}
-                    >
-                        <MdClose aria-hidden />
-                    </button>
+                    {showCloseButton ? (
+                        <button
+                            type="button"
+                            className="floating"
+                            aria-label="Close"
+                            onClick={onClose}
+                        >
+                            <MdClose aria-hidden />
+                        </button>
+                    ) : null}
                 </div>
                 {children}
             </div>

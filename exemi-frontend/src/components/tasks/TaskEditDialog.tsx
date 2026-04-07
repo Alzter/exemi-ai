@@ -3,11 +3,10 @@ import {
     MdAssignment,
     MdCheckBox,
     MdCheckBoxOutlineBlank,
-    MdMoreHoriz,
     MdPause,
     MdPlayArrow,
     MdToday,
-    MdDelete
+    MdDelete,
 } from 'react-icons/md';
 import {DialogBox} from '../ui/DialogBox';
 import {safeTaskBackgroundFromColourRaw, utcIsoForLocalCalendarDate} from '../../utils/taskBoardUtils';

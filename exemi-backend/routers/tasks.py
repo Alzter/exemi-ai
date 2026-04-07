@@ -711,16 +711,6 @@ def update_task(
     if not existing_user:
         raise HTTPException(status_code=404, detail=f"The task's owner was not found under user ID {task.user_id}")
 
-    # due_at = new_data.due_at if new_data.due_at is not None else task.due_at
-    # Only enforce "due not in the past" when the client changes due_at (completion toggles must work for older tasks).
-    # if new_data.due_at is not None and due_at is not None:
-    #     current_date = datetime.now(ZoneInfo("Australia/Sydney"))
-    #     if parse_timestamp(due_at) < current_date:
-    #         raise HTTPException(
-    #             status_code=400,
-    #             detail=f"The task due date ({parse_timestamp(due_at).date().isoformat()}) cannot be earlier than the current date ({current_date.date().isoformat()})"
-    #         )
-
     # Check the user has the assignment which this task references
     assignment_id = new_data.assignment_id if new_data.assignment_id is not None else task.assignment_id
 

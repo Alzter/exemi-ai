@@ -1622,6 +1622,10 @@ div.dialog-backdrop.dialog-backdrop--elevated {
   z-index: 10001;
 }
 
+div.dialog-backdrop.dialog-backdrop--task-foreground {
+  z-index: 10002;
+}
+
 div.dialog-backdrop {
   position: fixed;
   inset: 0;

@@ -22,6 +22,12 @@ import {
 } from '../../utils/taskBoardUtils';
 import {call_task_deconstruction} from './taskDeconstruction';
 import {TaskEditDialog, type TaskPublicRowPatch} from './TaskEditDialog';
+import {TaskBreak} from './TaskBreak';
+import {TaskBreakConfirm, type NextTaskPreview} from './TaskBreakConfirm';
+import {TaskBreakSetup} from './TaskBreakSetup';
+import {TaskForeground} from './TaskForeground';
+import {TaskForegroundConfirm} from './TaskForegroundConfirm';
+import type {TaskInboxItem} from './TaskInbox';
 
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 
@@ -129,6 +135,29 @@ function effectiveCalendarDateISO(t: TaskPublicRow, pickerDateISO: string): stri
     return pickerDateISO;
 }
 
+function computeNextTodoPreview(
+    taskRows: TaskPublicRow[],
+    selectedDateISO: string,
+    todayISOValue: string,
+): NextTaskPreview | null {
+    const incompleteTasks = taskRows.filter((t) => {
+        if (t.completed) return false;
+        if (t.clientPending && t.clientPendingForDateISO !== selectedDateISO) return false;
+        return true;
+    });
+    const isDoing = (t: TaskPublicRow) =>
+        !t.clientPending && selectedDateISO === todayISOValue && t.progress_secs > 0;
+    const todoIncomplete = incompleteTasks.filter((t) => !isDoing(t));
+    const first = todoIncomplete[0];
+    if (!first) return null;
+    return {
+        id: first.id,
+        name: first.name,
+        duration_mins: first.duration_mins,
+        colour_raw: first.colour_raw,
+    };
+}
+
 type TasksWindowProps = {
     session: Session;
     layoutContainerRef: RefObject<HTMLDivElement | null>;
@@ -165,6 +194,19 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
     const [doingCloseDialogOpen, setDoingCloseDialogOpen] = useState(false);
     const [playingDoingIds, setPlayingDoingIds] = useState<number[]>([]);
     const [todoEditTask, setTodoEditTask] = useState<TaskPublicRow | null>(null);
+
+    const [focusConfirmTaskId, setFocusConfirmTaskId] = useState<number | null>(null);
+    const [foregroundTaskId, setForegroundTaskId] = useState<number | null>(null);
+    const [foregroundInboxItems, setForegroundInboxItems] = useState<TaskInboxItem[]>([]);
+    const [breakConfirmOpen, setBreakConfirmOpen] = useState(false);
+    const [breakSetupOpen, setBreakSetupOpen] = useState(false);
+    const [breakRunOpen, setBreakRunOpen] = useState(false);
+    const [breakDurationSecs, setBreakDurationSecs] = useState(15 * 60);
+    const [breakFlowNextTask, setBreakFlowNextTask] = useState<NextTaskPreview | null>(null);
+    const [breakCompletedCount, setBreakCompletedCount] = useState(1);
+    const prevFocusConfirmTaskIdRef = useRef<number | null>(null);
+    const playingDoingIdsRef = useRef<number[]>([]);
+    playingDoingIdsRef.current = playingDoingIds;
 
     const dragStartY = useRef(0);
     const dragStartHeight = useRef(0);
@@ -580,6 +622,44 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         [session.token],
     );
 
+    const patchTaskFields = useCallback(
+        async (taskId: number, body: Record<string, unknown>) => {
+            const token = session.token;
+            if (!token) return false;
+            const res = await fetch(`${backendURL}/task/${taskId}`, {
+                method: 'PATCH',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                },
+                body: JSON.stringify(body),
+            });
+            return res.ok;
+        },
+        [session.token],
+    );
+
+    const flushDoingProgress = useCallback(
+        async (taskId: number) => {
+            const extra = doingExtraSecsRef.current[taskId] ?? 0;
+            if (extra <= 0) return;
+            doingExtraSecsRef.current[taskId] = 0;
+            let merged: number | null = null;
+            setTasks((prev) => {
+                const task = prev.find((t) => t.id === taskId);
+                if (!task) return prev;
+                merged = task.progress_secs + extra;
+                return prev.map((t) => (t.id === taskId ? {...t, progress_secs: merged!} : t));
+            });
+            if (merged !== null) {
+                const ok = await patchTaskProgressSecs(taskId, merged);
+                if (!ok) setTasksError('Could not save progress.');
+            }
+        },
+        [patchTaskProgressSecs],
+    );
+
     const handleTaskMerged = useCallback((patch: TaskPublicRowPatch) => {
         setTasks((prev) => prev.map((t) => (t.id === patch.id ? {...t, ...patch} : t)));
         setTodoEditTask((prev) => (prev && prev.id === patch.id ? {...prev, ...patch} : prev));
@@ -600,9 +680,20 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         });
     }, [reloadTasksFromApi, selectedDateISO]);
 
-    const handleStartWorkFromEdit = useCallback((taskId: number) => {
-        setPlayingDoingIds((prev) => (prev.includes(taskId) ? prev : [...prev, taskId]));
+    const openFocusConfirmForTask = useCallback((taskId: number) => {
+        if (prevFocusConfirmTaskIdRef.current !== taskId) {
+            setForegroundInboxItems([]);
+        }
+        prevFocusConfirmTaskIdRef.current = taskId;
+        setFocusConfirmTaskId(taskId);
     }, []);
+
+    const handleStartWorkFromEdit = useCallback(
+        (taskId: number) => {
+            openFocusConfirmForTask(taskId);
+        },
+        [openFocusConfirmForTask],
+    );
 
     const onToggleTask = (task: TaskPublicRow) => {
         const next = !task.completed;
@@ -619,10 +710,168 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         });
     };
 
-    const toggleDoingPlayPause = useCallback((taskId: number) => {
-        setPlayingDoingIds((prev) =>
-            prev.includes(taskId) ? prev.filter((id) => id !== taskId) : [...prev, taskId],
+    const toggleDoingPlayPause = useCallback(
+        (taskId: number) => {
+            setPlayingDoingIds((prev) => {
+                if (prev.includes(taskId)) {
+                    void flushDoingProgress(taskId);
+                    return prev.filter((id) => id !== taskId);
+                }
+                return [...prev, taskId];
+            });
+        },
+        [flushDoingProgress],
+    );
+
+    useEffect(() => {
+        if (focusConfirmTaskId !== null && !tasks.some((t) => t.id === focusConfirmTaskId)) {
+            setFocusConfirmTaskId(null);
+        }
+    }, [focusConfirmTaskId, tasks]);
+
+    useEffect(() => {
+        if (foregroundTaskId !== null && !tasks.some((t) => t.id === foregroundTaskId)) {
+            setForegroundTaskId(null);
+        }
+    }, [foregroundTaskId, tasks]);
+
+    const focusConfirmRow =
+        focusConfirmTaskId !== null ? tasks.find((t) => t.id === focusConfirmTaskId) : undefined;
+
+    const onFocusConfirmClose = useCallback(() => {
+        setFocusConfirmTaskId(null);
+    }, []);
+
+    const onFocusConfirmBackground = useCallback(() => {
+        if (focusConfirmTaskId === null) return;
+        const tid = focusConfirmTaskId;
+        setPlayingDoingIds((prev) => (prev.includes(tid) ? prev : [...prev, tid]));
+        setFocusConfirmTaskId(null);
+    }, [focusConfirmTaskId]);
+
+    const onFocusConfirmForeground = useCallback(async () => {
+        if (focusConfirmTaskId === null) return;
+        const tid = focusConfirmTaskId;
+        const others = playingDoingIdsRef.current.filter((id) => id !== tid);
+        for (const id of others) {
+            await flushDoingProgress(id);
+        }
+        setPlayingDoingIds([tid]);
+        setForegroundTaskId(tid);
+        setFocusConfirmTaskId(null);
+    }, [focusConfirmTaskId, flushDoingProgress]);
+
+    const onForegroundPauseToBackground = useCallback(async () => {
+        if (foregroundTaskId === null) return;
+        const tid = foregroundTaskId;
+        await flushDoingProgress(tid);
+        setPlayingDoingIds((prev) => prev.filter((id) => id !== tid));
+        setForegroundTaskId(null);
+    }, [foregroundTaskId, flushDoingProgress]);
+
+    const onForegroundNeedHelp = useCallback(async () => {
+        if (foregroundTaskId === null) return;
+        const tid = foregroundTaskId;
+        await flushDoingProgress(tid);
+        call_task_deconstruction(tid);
+        setPlayingDoingIds((prev) => prev.filter((id) => id !== tid));
+        setForegroundTaskId(null);
+    }, [foregroundTaskId, flushDoingProgress]);
+
+    const onForegroundFinished = useCallback(async () => {
+        if (foregroundTaskId === null || !session.token) return;
+        const tid = foregroundTaskId;
+        const row = tasks.find((t) => t.id === tid);
+        if (!row) return;
+        const extra = doingExtraSecsRef.current[tid] ?? 0;
+        const finalProgress = row.progress_secs + extra;
+        doingExtraSecsRef.current[tid] = 0;
+
+        const ok = await patchTaskFields(tid, {progress_secs: finalProgress, completed: true});
+        if (!ok) {
+            setTasksError('Could not complete task.');
+            return;
+        }
+
+        const dueForInbox = utcIsoForLocalCalendarDate(selectedDateISO, userTimeZone);
+        for (const item of foregroundInboxItems) {
+            const res = await fetch(`${backendURL}/task`, {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${session.token}`,
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                },
+                body: JSON.stringify({
+                    name: item.name,
+                    description: '',
+                    duration_mins: 15,
+                    assignment_id: null,
+                    due_at: dueForInbox,
+                }),
+            });
+            if (!res.ok) setTasksError('Could not save an inbox task.');
+        }
+
+        const hyp = tasks.map((t) =>
+            t.id === tid ? {...t, completed: true, progress_secs: finalProgress} : t,
         );
+        const nextPreview = computeNextTodoPreview(hyp, selectedDateISO, todayISOValue);
+
+        setTasks((prev) =>
+            prev.map((t) => (t.id === tid ? {...t, completed: true, progress_secs: finalProgress} : t)),
+        );
+        setPlayingDoingIds((prev) => prev.filter((id) => id !== tid));
+        setForegroundTaskId(null);
+        setForegroundInboxItems([]);
+        setBreakFlowNextTask(nextPreview);
+        setBreakCompletedCount(1);
+        setBreakConfirmOpen(true);
+
+        void reloadTasksFromApi(selectedDateISO).then((list) => {
+            if (list === null) return;
+            setTasks((prev) => {
+                const pending = prev.filter((t) => t.clientPending);
+                return [...list, ...pending];
+            });
+        });
+    }, [
+        foregroundTaskId,
+        session.token,
+        tasks,
+        foregroundInboxItems,
+        patchTaskFields,
+        selectedDateISO,
+        todayISOValue,
+        userTimeZone,
+        reloadTasksFromApi,
+    ]);
+
+    const onBreakConfirmClose = useCallback(() => setBreakConfirmOpen(false), []);
+
+    const onBreakTakeBreak = useCallback(() => {
+        setBreakConfirmOpen(false);
+        setBreakSetupOpen(true);
+    }, []);
+
+    const onBreakKeepGoing = useCallback(() => {
+        setBreakConfirmOpen(false);
+        const next = breakFlowNextTask;
+        if (next) openFocusConfirmForTask(next.id);
+    }, [breakFlowNextTask, openFocusConfirmForTask]);
+
+    const onBreakSetupClose = useCallback(() => setBreakSetupOpen(false), []);
+
+    const onBreakSetupConfirm = useCallback((mins: number) => {
+        setBreakSetupOpen(false);
+        setBreakDurationSecs(mins * 60);
+        setBreakRunOpen(true);
+    }, []);
+
+    const onBreakRunClose = useCallback(() => setBreakRunOpen(false), []);
+
+    const onBreakNextTask = useCallback(() => {
+        setBreakRunOpen(false);
     }, []);
 
     const onDoingDialogYes = useCallback(() => {
@@ -874,6 +1123,14 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         doingTasksForUi[0] !== undefined
             ? safeTaskBackgroundFromColourRaw(doingTasksForUi[0].colour_raw)
             : '#eee';
+
+    void doingTick;
+    const foregroundTaskRow =
+        foregroundTaskId !== null ? tasks.find((t) => t.id === foregroundTaskId) : undefined;
+    const foregroundProgressEffective =
+        foregroundTaskRow && foregroundTaskId !== null
+            ? foregroundTaskRow.progress_secs + (doingExtraSecsRef.current[foregroundTaskId] ?? 0)
+            : 0;
 
     return (
         <div
@@ -1212,6 +1469,61 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
                 onBoardReload={handleEditBoardReload}
                 onStartWork={handleStartWorkFromEdit}
                 onError={(msg) => setTasksError(msg)}
+            />
+
+            {focusConfirmRow && focusConfirmTaskId !== null ? (
+                <TaskForegroundConfirm
+                    open
+                    onClose={onFocusConfirmClose}
+                    panelBackgroundColor={safeTaskBackgroundFromColourRaw(focusConfirmRow.colour_raw)}
+                    taskDurationMins={focusConfirmRow.duration_mins}
+                    taskProgressSecs={focusConfirmRow.progress_secs}
+                    onChooseBackground={onFocusConfirmBackground}
+                    onChooseForeground={() => void onFocusConfirmForeground()}
+                />
+            ) : null}
+
+            {foregroundTaskRow && foregroundTaskId !== null ? (
+                <TaskForeground
+                    open
+                    onPauseToBackground={() => void onForegroundPauseToBackground()}
+                    task={{
+                        id: foregroundTaskRow.id,
+                        name: foregroundTaskRow.name,
+                        duration_mins: foregroundTaskRow.duration_mins,
+                        colour_raw: foregroundTaskRow.colour_raw,
+                    }}
+                    panelBackgroundColor={safeTaskBackgroundFromColourRaw(foregroundTaskRow.colour_raw)}
+                    progressSecondsEffective={foregroundProgressEffective}
+                    inboxItems={foregroundInboxItems}
+                    onInboxItemsChange={setForegroundInboxItems}
+                    isBoardWideViewport={isBoardWideViewport}
+                    onNeedHelp={() => void onForegroundNeedHelp()}
+                    onFinished={() => void onForegroundFinished()}
+                />
+            ) : null}
+
+            <TaskBreakConfirm
+                open={breakConfirmOpen}
+                onClose={onBreakConfirmClose}
+                completedCount={breakCompletedCount}
+                nextTask={breakFlowNextTask}
+                isBoardWideViewport={isBoardWideViewport}
+                onTakeBreak={onBreakTakeBreak}
+                onKeepGoing={onBreakKeepGoing}
+            />
+
+            <TaskBreakSetup
+                open={breakSetupOpen}
+                onClose={onBreakSetupClose}
+                onConfirmBreak={onBreakSetupConfirm}
+            />
+
+            <TaskBreak
+                open={breakRunOpen}
+                onClose={onBreakRunClose}
+                durationSeconds={breakDurationSecs}
+                onNextTask={onBreakNextTask}
             />
         </div>
     );
