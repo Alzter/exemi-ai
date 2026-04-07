@@ -62,6 +62,9 @@ export default function ChatMessagesUI({
     const userMessageBackgroundColour = conversationColourRaw
         ? parseColourRawToOklch(conversationColourRaw, 0.92, 0.036)
         : undefined;
+    const unitSelectWidth = unitSelected
+        ? `${Math.min(Math.max(unitSelected.readable_name.length + 2, 8), 30)}ch`
+        : "8em";
     const unitSelectStyle = unitSelected?.colour
         ? {
             backgroundColor: parseColourRawToOklch(unitSelected.colour, 0.92, 0.036),
@@ -69,6 +72,12 @@ export default function ChatMessagesUI({
             fontWeight: "600"
         }
         : undefined;
+    const unitSelectWrapperStyle = {width: conversationID ? "0" : unitSelectWidth};
+    const sizedUnitSelectStyle = {
+        ...unitSelectStyle,
+        minWidth: unitSelectWidth,
+        maxWidth: unitSelectWidth
+    };
     const textareaStyle = UnitThemeColour && isTextareaFocused ? {borderColor: UnitThemeColour} : undefined;
     const sendButtonStyle = UnitThemeColour ? {backgroundColor: UnitThemeColour} : undefined;
 
@@ -505,6 +514,7 @@ export default function ChatMessagesUI({
                             "chatbox-unit-select-wrap" +
                             (conversationID ? "" : " chatbox-unit-select-wrap--open")
                         }
+                        style={unitSelectWrapperStyle}
                         aria-hidden={Boolean(conversationID)}>
                         <select
                             className="unit-select"
@@ -513,7 +523,7 @@ export default function ChatMessagesUI({
                             value={unitSelected?.readable_name ?? "all"}
                             onChange={handleUnitSelected}
                             disabled={Boolean(conversationID)}
-                            style={unitSelectStyle}>
+                            style={sizedUnitSelectStyle}>
                             <option value="all">All Units</option>
                             {units.map((unit) => <option
                                 value={unit.readable_name}
