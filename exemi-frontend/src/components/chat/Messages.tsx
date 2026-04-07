@@ -2,6 +2,7 @@ import React, {useState, useEffect, useRef, type ChangeEvent} from 'react';
 import {type UserUnit} from '../../models';
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 import MessageBox from './MessageBox';
+import { parseColourRawToOklch } from '../../utils/taskBoardUtils';
 
 type ChatUIProps = {
     session : any,
@@ -49,8 +50,26 @@ export default function ChatMessagesUI({
     const [messages, setMessages] = useState<Message[]>([]);
 
     const [unitSelected, setUnitSelected] = useState<UserUnit|null>(null);
+    const [conversationColourRaw, setConversationColourRaw] = useState<string | null>(null);
+    const [isTextareaFocused, setIsTextareaFocused] = useState<boolean>(false);
 
     const unitID : number | null = (unitSelected && !conversationID) ? unitSelected.unit_id : null;
+    const unitThemeColourRaw = conversationID ? conversationColourRaw : (unitSelected?.colour ?? null);
+    const UnitThemeColour = unitThemeColourRaw
+        ? parseColourRawToOklch(unitThemeColourRaw, 0.6, 0.2)
+        : undefined;
+    const userMessageBackgroundColour = conversationColourRaw
+        ? parseColourRawToOklch(conversationColourRaw, 0.92, 0.036)
+        : undefined;
+    const unitSelectStyle = unitSelected?.colour
+        ? {
+            backgroundColor: parseColourRawToOklch(unitSelected.colour, 0.92, 0.036),
+            borderColor: UnitThemeColour,
+            fontWeight: "600"
+        }
+        : undefined;
+    const textareaStyle = UnitThemeColour && isTextareaFocused ? {borderColor: UnitThemeColour} : undefined;
+    const sendButtonStyle = UnitThemeColour ? {backgroundColor: UnitThemeColour} : undefined;
 
     // The user's current message text.
     const [userText, setUserText] = useState<string>("");
@@ -143,7 +162,14 @@ export default function ChatMessagesUI({
 
     // If we're waiting for the LLM to respond, add a message with the text "Thinking..." to the end of the list
     const messageBoxes = [...messages.map(
-        message => <MessageBox role={message.role} content={message.content} key={message.id}/>
+        message => (
+            <MessageBox
+                role={message.role}
+                content={message.content}
+                key={message.id}
+                userBackgroundColour={userMessageBackgroundColour}
+            />
+        )
     ), ...(
         awaitingLLMResponse ? [<MessageBox role="assistant" content="Thinking..." key={-2}/>] : []
     )]
@@ -330,6 +356,7 @@ export default function ChatMessagesUI({
 
         const conversation = await response.json();
         setConversationID(conversation.id);
+        setConversationColourRaw(conversation.colour_raw ?? null);
 
         const messages : Message[] = conversation.messages as Message[];
 
@@ -361,6 +388,7 @@ export default function ChatMessagesUI({
     async function loadMessages(conversationID : number | null){
         if (!conversationID) {
             setMessages([]);
+            setConversationColourRaw(null);
 
             if (!isViewing){
                 await getInitialMessage();
@@ -390,6 +418,7 @@ export default function ChatMessagesUI({
         }
 
         const data = await response.json();
+        setConversationColourRaw(data.colour_raw ?? null);
         parseMessages(data.messages);
     }
   
@@ -453,7 +482,13 @@ export default function ChatMessagesUI({
             ) : (
                 <form className="chatbox" ref={chatboxRef} onSubmit={sendMessage}>
                     { conversationID ? (null) : (
-                        <select name="unit" id="unit" value={unitSelected?.readable_name} onChange={handleUnitSelected}>
+                        <select
+                            className="unit-select"
+                            name="unit"
+                            id="unit"
+                            value={unitSelected?.readable_name ?? "all"}
+                            onChange={handleUnitSelected}
+                            style={unitSelectStyle}>
                             <option value="all">All Units</option>
                             {units.map((unit) => <option
                                 value={unit.readable_name}
@@ -470,9 +505,12 @@ export default function ChatMessagesUI({
                         rows={1}
                         onChange={handleTextUpdate}
                         onKeyDown={handleTextKeyDown}
+                        onFocus={() => { setIsTextareaFocused(true); }}
+                        onBlur={() => { setIsTextareaFocused(false); }}
                         value={userText}
+                        style={textareaStyle}
                     />
-                    <button className="primary" type="submit" disabled={loading}>Send</button>
+                    <button className="primary" type="submit" disabled={loading} style={sendButtonStyle}>Send</button>
                 </form>
             )}
         </div>
