@@ -1491,7 +1491,7 @@ button.secondary:disabled{
 button.primary.conversation{
   width:100%;
   font-size: 0.9em;
-  background-color: #eee;
+  background-color: var(--conversation-bg, #eee);
   color:#222;
   font-weight: normal;
   border-radius: 8px;
@@ -1501,7 +1501,7 @@ button.primary.conversation{
 button.primary.conversation-selected:disabled{
   width:100%;
   font-size: 0.9em;
-  background-color: #aaa;
+  background-color: var(--conversation-active-bg, #aaa);
   color:#222;
   font-weight: normal;
   border-radius: 8px;
@@ -1510,20 +1510,20 @@ button.primary.conversation-selected:disabled{
 }
 
 button.primary.conversation:hover{
-  background-color: #ccc;
+  background-color: var(--conversation-hover-bg, #ccc);
   transform: none;
   box-shadow: none;
 }
 
 button.primary.conversation:active{
-  background-color: #aaa;
+  background-color: var(--conversation-active-bg, #aaa);
   transform: none;
   box-shadow: none;
 }
 
 button.primary.conversation:disabled{
   cursor:auto;
-  background-color: #eee;
+  background-color: var(--conversation-bg, #eee);
   transform: none;
   box-shadow: none;
 }

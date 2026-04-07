@@ -1,7 +1,8 @@
-import {useState, useEffect} from 'react'
+import {useState, useEffect, type CSSProperties} from 'react'
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 import { useNavigate } from 'react-router-dom';
 import {type Session} from '../../models';
+import { parseColourRawToOklch } from '../../utils/taskBoardUtils';
 // import UserSelector from '../admin/UserSelector';
 
 type ChatSidebarParams = {
@@ -19,6 +20,7 @@ type ChatSidebarParams = {
 type Conversation = {
     created_at : Date
     id : number
+    colour_raw : string | null
 }
 
 export default function ChatSidebar({session, enabled, setEnabled, isViewing, loading, conversationID, setConversationID, setError, logOut} : ChatSidebarParams) {
@@ -39,6 +41,7 @@ export default function ChatSidebar({session, enabled, setEnabled, isViewing, lo
         const conversations: Conversation[] = data.map(item => ({
             id: item.id,
             created_at: new Date(item.created_at),
+            colour_raw: item.colour_raw,
         }));
 
         setConversations(conversations);
@@ -108,11 +111,29 @@ export default function ChatSidebar({session, enabled, setEnabled, isViewing, lo
 
         let className = conversationID==ID ? "primary conversation-selected" : "primary conversation";
         if (!conversation) {className = "primary";}
+        
+
+        let backgroundColor : string = "";
+        let hoverColor : string = "";
+        let activeColor : string = "";
+        
+        if (conversation?.colour_raw){
+            backgroundColor = parseColourRawToOklch(conversation.colour_raw, 0.92, 0.036);
+            hoverColor = parseColourRawToOklch(conversation.colour_raw, 0.85, 0.06);
+            activeColor = parseColourRawToOklch(conversation.colour_raw, 0.8, 0.1);
+            // console.log("colour_raw: " + conversation.colour_raw);
+        };
+
+        const buttonStyle: CSSProperties & Record<string, string> = {};
+        if (backgroundColor) { buttonStyle["--conversation-bg"] = backgroundColor; }
+        if (hoverColor) { buttonStyle["--conversation-hover-bg"] = hoverColor; }
+        if (activeColor) { buttonStyle["--conversation-active-bg"] = activeColor; }
 
         return (
             <button
                 onClick = {assignConversation}
                 className={className}
+                style={buttonStyle}
                 disabled={conversationID==ID || loading}>
                     {title}
             </button>

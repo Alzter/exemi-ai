@@ -53,6 +53,29 @@ const SAFE_L = 0.92;
 const SAFE_C = 0.036;
 const NEUTRAL_H = 260;
 
+
+/** Parse backend `colour_raw` (e.g. RRGGBB or #RRGGBB); return OKLCH CSS color with fixed L/C and preserved hue. */
+export function parseColourRawToOklch(colourRaw: string, luminanceOverride : number = 0.92, chromaOverride : number = 0.036): string{
+    if (!colourRaw || typeof colourRaw !== 'string') {
+        return `oklch(${SAFE_L} ${SAFE_C * 0.55} ${NEUTRAL_H})`;
+    }
+    const hex = colourRaw.replace(/^#/, '').trim();
+    if (!/^[0-9a-fA-F]{6}$/.test(hex)) {
+        return `oklch(${SAFE_L} ${SAFE_C * 0.55} ${NEUTRAL_H})`;
+    }
+    const r = parseInt(hex.slice(0, 2), 16);
+    const g = parseInt(hex.slice(2, 4), 16);
+    const b = parseInt(hex.slice(4, 6), 16);
+    const lr = srgbChannelToLinear(r);
+    const lg = srgbChannelToLinear(g);
+    const lb = srgbChannelToLinear(b);
+    const lab = linearSrgbToOklab(lr, lg, lb);
+    const chroma = chromaOverride ? chromaOverride : Math.hypot(lab.a, lab.b);
+    const luminance = luminanceOverride ? luminanceOverride : SAFE_L;
+    const h = chroma < 1e-6 ? NEUTRAL_H : oklabToHueDegrees(lab.a, lab.b);
+    return `oklch(${luminance} ${chroma} ${h.toFixed(2)})`;
+}
+
 /** Parse backend `colour_raw` (e.g. RRGGBB or #RRGGBB); return OKLCH CSS color with fixed L/C and preserved hue. */
 export function safeTaskBackgroundFromColourRaw(colourRaw: string | null | undefined): string {
     if (!colourRaw || typeof colourRaw !== 'string') {
