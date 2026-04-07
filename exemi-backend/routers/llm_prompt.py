@@ -3,7 +3,7 @@ import json
 from pydantic import BaseModel, TypeAdapter
 
 from ..models import TaskAutofillCreate, User, Unit, UnitPublic, TaskList
-from ..date_utils import timestamp_to_string
+from ..date_utils import parse_timestamp, timestamp_to_string
 from ..routers.curriculum import (
     build_assignments_list_json,
     build_assignments_payload,
@@ -409,15 +409,13 @@ def get_task_autofill_prompt_for_user(
 ) -> str:
     if not username == user.username and not user.admin:
         raise HTTPException(status_code=401, detail="Unauthorised")
-
-    existing_user = user if username == user.username else session.exec(
-        select(User).where(User.username == username)
-    ).first()
-    if not existing_user:
-        raise HTTPException(status_code=404, detail=f"User not found: {username}")
-
-    if not task.due_at:
-        raise HTTPException(status_code=500, detail="Task missing due date")
+    
+    existing_user = session.exec(select(User).where(User.username==username)).first()
+    if not existing_user: raise HTTPException(status_code=404, detail=f"User not found: {username}")
+    
+    if not task.due_at: raise HTTPException(status_code=500, detail="Task missing due date")
+    due_timestamp = parse_timestamp(task.due_at)
+    if due_timestamp: due_timestamp = due_timestamp.isoformat()
 
     return f"""
 You are a study assistant. Your goal is to help
@@ -449,7 +447,7 @@ You must return the following fields for the user's task:
 Use the student's list of assignments to decide which assignment this task should be created for,
 what steps are necessary to complete it, and how long it should take to complete in minutes.
 ```json
-{build_assignments_list_json(user=existing_user, session=session)}
+{get_assignments_list_json(user=existing_user, session=session)}
 ```
     """.strip()
 

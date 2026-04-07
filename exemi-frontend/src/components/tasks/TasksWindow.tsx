@@ -142,8 +142,6 @@ type TaskPublicRow = {
     created_at?: string;
     description?: string;
     assignment_id?: number | null;
-    /** Canvas unit id from the task's assignment (API); used when opening a deconstruction chat. */
-    unit_id?: number | null;
     due_at?: string;
     break_interval_mins: number;
     /** Local calendar date (YYYY-MM-DD) this row was fetched or created for; checkbox past/future rules use this, not the picker */
@@ -172,7 +170,6 @@ function taskPublicJsonToRow(t: {
     created_at?: string;
     description?: string;
     assignment_id?: number | null;
-    unit_id?: number | null;
     due_at?: string;
     break_interval_mins: number;
 }): TaskPublicRow {
@@ -186,7 +183,6 @@ function taskPublicJsonToRow(t: {
         created_at: t.created_at,
         description: t.description,
         assignment_id: t.assignment_id,
-        unit_id: t.unit_id ?? null,
         due_at: t.due_at,
         break_interval_mins: t.break_interval_mins,
     };
@@ -1091,9 +1087,9 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
     );
 
     const requestTaskDeconstruction = useCallback(
-        async (taskId: number, taskName: string, unitId?: number | null) => {
+        async (taskId: number, taskName: string) => {
             await resetTaskProgressForDeconstruction(taskId);
-            call_task_deconstruction(taskId, taskName, unitId);
+            call_task_deconstruction(taskId, taskName);
         },
         [resetTaskProgressForDeconstruction],
     );
@@ -1302,7 +1298,7 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         setForegroundInboxItems([]);
         clearActiveTaskTimer();
         setHeightPx(COLLAPSED_PX);
-        await requestTaskDeconstruction(tid, row?.name ?? 'this task', row?.unit_id ?? null);
+        await requestTaskDeconstruction(tid, row?.name ?? 'this task');
         setPlayingDoingIds((prev) => prev.filter((id) => id !== tid));
         setForegroundTaskId(null);
     }, [
@@ -1432,7 +1428,7 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         const first = doingTasks[0];
         if (first) {
             setHeightPx(COLLAPSED_PX);
-            await requestTaskDeconstruction(first.id, first.name, first.unit_id ?? null);
+            await requestTaskDeconstruction(first.id, first.name);
         }
         setDoingCloseDialogOpen(false);
     }, [doingTasks, requestTaskDeconstruction]);

@@ -37,9 +37,6 @@ try:
 except:
     warnings.warn("Ollama server unreachable: AI functionality will not work")
 
-task_list_model = model.with_structured_output(TaskList) if model else None
-task_autofill_model = model.with_structured_output(TaskAutofillResponse) if model else None
-
 async def update_user_bio(
     new_information : str,
     previous_biography : str | None,
@@ -119,10 +116,9 @@ async def create_tasks_for_user(
 
     messages = [{"role":"system", "content":prep.prompt}]
 
-    if not task_list_model:
-        raise HTTPException(status_code=500, detail="Error reaching LLM: Ollama server offline")
+    model_structured = model.with_structured_output(TaskList)
 
-    tasks = task_list_model.invoke(messages)
+    tasks = model_structured.invoke(messages)
 
     return CreateTasksForUserResult(tasks=tasks, llm_bypassed=False)
 
@@ -148,9 +144,8 @@ async def autofill_task_for_user(
     )
 
     messages = [{"role":"system", "content": prompt}]
-    if not task_autofill_model:
-        raise HTTPException(status_code=500, detail="Error reaching LLM: Ollama server offline")
-    task_fields : TaskAutofillResponse = task_autofill_model.invoke(messages)
+    model_structured = model.with_structured_output(TaskAutofillResponse)
+    task_fields : TaskAutofillResponse = model_structured.invoke(messages)
 
     task_create = TaskCreate(
         name=task.name,

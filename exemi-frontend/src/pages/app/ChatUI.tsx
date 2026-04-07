@@ -23,28 +23,18 @@ export default function ChatUI({session, isViewing, logOut, canvasSyncReady} : C
     const [taskDeconstructionRequest, setTaskDeconstructionRequest] = useState<{
         requestId: number;
         text: string;
-        unitId: number | null;
     } | null>(null);
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
         let requestIdCounter = 0;
         const onTaskDeconstructionRequest = (event: Event) => {
-            const custom = event as CustomEvent<{
-                taskId?: number;
-                taskName?: string;
-                unitId?: number | null;
-            }>;
+            const custom = event as CustomEvent<{taskId?: number; taskName?: string}>;
             const taskName = custom.detail?.taskName?.trim() || 'this task';
-            const unitId =
-                typeof custom.detail?.unitId === 'number' && Number.isFinite(custom.detail.unitId)
-                    ? custom.detail.unitId
-                    : null;
             requestIdCounter += 1;
             setTaskDeconstructionRequest({
                 requestId: requestIdCounter,
-                text: `Can you help me break down the task: **${taskName}** into smaller steps? Please create new tasks for each step. Have the due date of each task be the same as the original task and have each task be no longer than 10 minutes in length.`,
-                unitId,
+                text: `Can you help me break down the task: **${taskName}** into smaller steps?`,
             });
         };
         window.addEventListener('task-deconstruction-request', onTaskDeconstructionRequest);
