@@ -220,6 +220,9 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
     const tasksHydratedForDateRef = useRef<string | null>(null);
     const activeTimerRestoreAppliedRef = useRef(false);
     const allowActiveTimerDateRestoreRef = useRef(true);
+    /** Last known row for the active playing task when it is not in `tasks` (e.g. date picker on another day). */
+    const activeTimerTaskSnapshotRef = useRef<TaskPublicRow | null>(null);
+    const didAutoExpandForActiveTimerRef = useRef(false);
     foregroundTaskIdRef.current = foregroundTaskId;
     selectedDateISORef.current = selectedDateISO;
 
@@ -230,6 +233,8 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
     const open = heightPx > COLLAPSED_PX + 1;
 
     const todayISOValue = formatISODateLocal(new Date());
+    const todayISORef = useRef(todayISOValue);
+    todayISORef.current = todayISOValue;
     const dateLabel = formatTaskHeaderDateLabel(selectedDateISO, todayISOValue);
     const showResetDate = selectedDateISO !== todayISOValue;
 
@@ -264,7 +269,15 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
             return;
         }
         const id = playing[0]!;
-        const row = tasksRef.current.find((t) => t.id === id);
+        const live = tasksRef.current.find((t) => t.id === id && !t.clientPending);
+        if (live) {
+            activeTimerTaskSnapshotRef.current = {...live};
+        }
+        const row =
+            live ??
+            (activeTimerTaskSnapshotRef.current?.id === id
+                ? activeTimerTaskSnapshotRef.current
+                : null);
         if (!row || row.completed) {
             return;
         }
@@ -276,7 +289,8 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
             taskId: id,
             progress_secs: effective,
             foreground: foregroundTaskIdRef.current === id,
-            selectedDateISO: selectedDateISORef.current,
+            /** Doing / in-progress work is always anchored to "today" so restore loads the right task list after a date-picker change. */
+            selectedDateISO: todayISORef.current,
         });
     }, [session.token, session.user?.username]);
 
@@ -470,6 +484,7 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
             tasksHydratedForDateRef.current = null;
             activeTimerRestoreAppliedRef.current = false;
             allowActiveTimerDateRestoreRef.current = true;
+            didAutoExpandForActiveTimerRef.current = false;
             return;
         }
 
@@ -545,6 +560,7 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
             ),
         );
         setPlayingDoingIds([raw.taskId]);
+        activeTimerTaskSnapshotRef.current = {...row, progress_secs: raw.progress_secs};
         if (raw.foreground) {
             setForegroundTaskId(raw.taskId);
         }
@@ -757,7 +773,17 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         const t = window.setInterval(() => {
             const ids = [...playingDoingIdsRef.current];
             for (const id of ids) {
-                const task = tasksRef.current.find((row) => row.id === id);
+                const live = tasksRef.current.find(
+                    (row) => row.id === id && !row.clientPending,
+                );
+                if (live) {
+                    activeTimerTaskSnapshotRef.current = {...live};
+                }
+                const task =
+                    live ??
+                    (activeTimerTaskSnapshotRef.current?.id === id
+                        ? activeTimerTaskSnapshotRef.current
+                        : null);
                 if (!task || task.clientPending) continue;
 
                 doingExtraSecsRef.current[id] = (doingExtraSecsRef.current[id] ?? 0) + 1;
@@ -767,11 +793,19 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
 
                 if (effective >= totalSecs) {
                     doingExtraSecsRef.current[id] = 0;
-                    setTasks((prev) =>
-                        prev.map((row) =>
+                    setTasks((prev) => {
+                        if (!prev.some((row) => row.id === id)) return prev;
+                        return prev.map((row) =>
                             row.id === id ? {...row, progress_secs: totalSecs} : row,
-                        ),
-                    );
+                        );
+                    });
+                    const snap = activeTimerTaskSnapshotRef.current;
+                    if (snap && snap.id === id) {
+                        activeTimerTaskSnapshotRef.current = {
+                            ...snap,
+                            progress_secs: totalSecs,
+                        };
+                    }
                     void patchTaskProgressSecs(id, totalSecs).then((ok) => {
                         if (!ok) setTasksError('Could not save progress.');
                     });
@@ -784,6 +818,12 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         }, 1000);
         return () => window.clearInterval(t);
     }, [playingDoingIds, patchTaskProgressSecs, syncActiveTaskTimerPersist]);
+
+    useEffect(() => {
+        if (playingDoingIds.length === 0) {
+            activeTimerTaskSnapshotRef.current = null;
+        }
+    }, [playingDoingIds]);
 
     const patchTaskFields = useCallback(
         async (taskId: number, body: Record<string, unknown>) => {
@@ -811,9 +851,19 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
             let merged: number | null = null;
             setTasks((prev) => {
                 const task = prev.find((t) => t.id === taskId);
-                if (!task) return prev;
-                merged = task.progress_secs + extra;
-                return prev.map((t) => (t.id === taskId ? {...t, progress_secs: merged!} : t));
+                if (task) {
+                    merged = task.progress_secs + extra;
+                    return prev.map((t) => (t.id === taskId ? {...t, progress_secs: merged!} : t));
+                }
+                const snap = activeTimerTaskSnapshotRef.current;
+                if (snap && snap.id === taskId) {
+                    merged = snap.progress_secs + extra;
+                    activeTimerTaskSnapshotRef.current = {
+                        ...snap,
+                        progress_secs: merged,
+                    };
+                }
+                return prev;
             });
             if (merged !== null) {
                 const ok = await patchTaskProgressSecs(taskId, merged);
@@ -903,6 +953,8 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
                 await flushDoingProgress(id);
             }
             setPlayingDoingIds([taskId]);
+            const row = tasksRef.current.find((t) => t.id === taskId && !t.clientPending);
+            if (row) activeTimerTaskSnapshotRef.current = {...row};
         },
         [flushDoingProgress],
     );
@@ -914,9 +966,10 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
     }, [focusConfirmTaskId, tasks]);
 
     useEffect(() => {
-        if (foregroundTaskId !== null && !tasks.some((t) => t.id === foregroundTaskId)) {
-            setForegroundTaskId(null);
-        }
+        if (foregroundTaskId === null) return;
+        if (tasks.some((t) => t.id === foregroundTaskId)) return;
+        if (activeTimerTaskSnapshotRef.current?.id === foregroundTaskId) return;
+        setForegroundTaskId(null);
     }, [foregroundTaskId, tasks]);
 
     const focusConfirmRow =
@@ -934,6 +987,8 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
             await flushDoingProgress(id);
         }
         setPlayingDoingIds([tid]);
+        const bgRow = tasksRef.current.find((t) => t.id === tid && !t.clientPending);
+        if (bgRow) activeTimerTaskSnapshotRef.current = {...bgRow};
         setFocusConfirmTaskId(null);
     }, [focusConfirmTaskId, flushDoingProgress]);
 
@@ -944,6 +999,8 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
             await flushDoingProgress(id);
         }
         setPlayingDoingIds([tid]);
+        const fgRow = tasksRef.current.find((t) => t.id === tid && !t.clientPending);
+        if (fgRow) activeTimerTaskSnapshotRef.current = {...fgRow};
         setForegroundTaskId(tid);
     },
     [flushDoingProgress]);
@@ -1115,6 +1172,30 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         const h = el?.getBoundingClientRect().height ?? window.innerHeight;
         return Math.max(MIN_EXPANDED_PX, h * MAX_VIEWPORT_RATIO);
     }, [layoutContainerRef]);
+
+    useEffect(() => {
+        if (!tasksBootstrapReady || !session.token || !session.user?.username) return;
+        if (didAutoExpandForActiveTimerRef.current) return;
+        const u = session.user.username;
+        const persisted = readActiveTaskTimer();
+        const persistedMine = persisted && persisted.username === u;
+        const playingBackground =
+            playingDoingIds.length === 1 && foregroundTaskId === null;
+        const foregroundOpen = foregroundTaskId !== null;
+        if (!persistedMine && !playingBackground && !foregroundOpen) return;
+        didAutoExpandForActiveTimerRef.current = true;
+        setHeightPx((h) => {
+            if (h > COLLAPSED_PX + 1) return h;
+            return clamp(lastExpandedRef.current, MIN_EXPANDED_PX, maxForContainer());
+        });
+    }, [
+        tasksBootstrapReady,
+        session.token,
+        session.user?.username,
+        playingDoingIds,
+        foregroundTaskId,
+        maxForContainer,
+    ]);
 
     const endDrag = useCallback(() => {
         setDragging(false);
@@ -1329,7 +1410,10 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
     const activeBackgroundDoingId = playingDoingIds[0];
     const activeBackgroundDoingTask =
         activeBackgroundDoingId !== undefined
-            ? doingTasksForUi.find((row) => row.id === activeBackgroundDoingId)
+            ? doingTasksForUi.find((row) => row.id === activeBackgroundDoingId) ??
+              (activeTimerTaskSnapshotRef.current?.id === activeBackgroundDoingId
+                  ? activeTimerTaskSnapshotRef.current
+                  : undefined)
             : undefined;
     const doingCardBackground =
         activeBackgroundDoingTask !== undefined
@@ -1337,8 +1421,12 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
             : '#eee';
 
     void doingTick;
-    const foregroundTaskRow =
+    let foregroundTaskRow =
         foregroundTaskId !== null ? tasks.find((t) => t.id === foregroundTaskId) : undefined;
+    if (!foregroundTaskRow && foregroundTaskId !== null) {
+        const snap = activeTimerTaskSnapshotRef.current;
+        if (snap?.id === foregroundTaskId) foregroundTaskRow = snap;
+    }
     const foregroundProgressEffective =
         foregroundTaskRow && foregroundTaskId !== null
             ? foregroundTaskRow.progress_secs + (doingExtraSecsRef.current[foregroundTaskId] ?? 0)
