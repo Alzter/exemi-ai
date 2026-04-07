@@ -1215,8 +1215,13 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
             const tid = breakResumeForegroundTaskId;
             setBreakResumeForegroundTaskId(null);
             void startForegroundTask(tid);
+            return;
         }
-    }, [breakResumeForegroundTaskId, startForegroundTask]);
+        const next = breakFlowNextTask;
+        if (next) {
+            void startForegroundTask(next.id);
+        }
+    }, [breakFlowNextTask, breakResumeForegroundTaskId, startForegroundTask]);
 
     const onDoingDialogYes = useCallback(() => {
         const first = doingTasks[0];
