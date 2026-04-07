@@ -1732,6 +1732,44 @@ div.tasks-panel-task-row.tasks-panel-task-row--todo-editable:active{
   transform:scale(0.99);
 }
 
+div.tasks-panel-task-row.tasks-panel-task-row--todo-startable{
+  overflow: hidden;
+}
+
+button.tasks-panel-task-start-hover{
+  display: none;
+  flex-shrink: 0;
+  width: fit-content;
+  min-width: fit-content;
+  height: calc(100% + 4px);
+  margin: -2px -1em -2px 0;
+  padding: 0 0.7em;
+  border-radius: 0 6px 6px 0;
+  box-shadow: none;
+  transform: none;
+  font-size: 0.85em;
+  gap: 0.2em;
+}
+
+button.tasks-panel-task-start-hover svg{
+  margin: 0;
+  font-size: 1.4em;
+}
+
+div.tasks-panel-task-row.tasks-panel-task-row--todo-startable:hover
+  span.tasks-panel-task-duration--value,
+div.tasks-panel-task-row.tasks-panel-task-row--todo-startable:focus-within
+  span.tasks-panel-task-duration--value{
+  display: none;
+}
+
+div.tasks-panel-task-row.tasks-panel-task-row--todo-startable:hover
+  button.tasks-panel-task-start-hover,
+div.tasks-panel-task-row.tasks-panel-task-row--todo-startable:focus-within
+  button.tasks-panel-task-start-hover{
+  display: inline-flex;
+}
+
 /* Task edit dialog (DialogBox content) */
 div.task-edit-dialog-panel {
   display: flex;

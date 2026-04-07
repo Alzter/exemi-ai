@@ -1071,6 +1071,15 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         [openFocusConfirmForTask, prepareTaskForForegroundStart],
     );
 
+    const startTaskFromTodoRow = useCallback(
+        async (taskId: number) => {
+            const ready = await prepareTaskForForegroundStart(taskId);
+            if (!ready) return;
+            openFocusConfirmForTask(taskId);
+        },
+        [openFocusConfirmForTask, prepareTaskForForegroundStart],
+    );
+
     const onToggleTask = (task: TaskPublicRow) => {
         const next = !task.completed;
         if (next) {
@@ -1545,6 +1554,13 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
               ? 'Mark incomplete'
               : 'Mark complete';
 
+        const anotherTaskInProgress =
+            playingDoingIds.length > 0 || foregroundTaskId !== null;
+        const showQuickStart =
+            column === 'todo' &&
+            !t.clientPending &&
+            !isPastDay &&
+            !anotherTaskInProgress;
         return (
             <div
                 key={t.id}
@@ -1553,7 +1569,9 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
                     (column === 'done' ? ' tasks-panel-task-row--done' : '') +
                     (t.clientPending ? ' tasks-panel-task-row--pending' : '') +
                     (column === 'todo' && !t.clientPending
-                        ? ' tasks-panel-task-row--todo-editable'
+                        ? ' tasks-panel-task-row--todo-editable' : '') +
+                    (showQuickStart
+                        ? ' tasks-panel-task-row--todo-startable'
                         : '')
                 }
                 style={{backgroundColor: bg}}
@@ -1582,7 +1600,21 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
                 <div className="tasks-panel-task-name-outer">
                     <span className="tasks-panel-task-name-inner">{t.name}</span>
                 </div>
-                <span className="tasks-panel-task-duration">{durLabel}</span>
+                <span className="tasks-panel-task-duration tasks-panel-task-duration--value">{durLabel}</span>
+                {showQuickStart ? (
+                    <button
+                        type="button"
+                        className="primary tasks-panel-task-start-hover"
+                        aria-label={`Start ${t.name}`}
+                        onClick={(ev) => {
+                            ev.stopPropagation();
+                            void startTaskFromTodoRow(t.id);
+                        }}
+                    >
+                        <span>{`Start ${durLabel}`}</span>
+                        <MdPlayArrow aria-hidden />
+                    </button>
+                ) : null}
             </div>
         );
     }
