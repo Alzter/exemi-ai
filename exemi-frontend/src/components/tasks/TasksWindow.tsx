@@ -1818,10 +1818,13 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
                         alignItems: 'center',
                         justifyContent: 'center',
                         gap: 12,
+                        fontWeight:700,
                     }}
                 >
                     <p>
-                        I am breaking down your assignments into smaller tasks. This may take a few minutes, please wait...
+                        Breaking down your assignments into smaller tasks...
+                        <br />
+                        This may take a few minutes, please wait...
                     </p>
                     <div className="loading-spinner" aria-hidden />
                 </div>
