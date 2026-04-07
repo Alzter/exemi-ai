@@ -1812,16 +1812,16 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
                                                                 <button
                                                                     type="button"
                                                                     className="secondary"
-                                                                    onClick={onDoingDialogYes}
-                                                                >
-                                                                    Yes
-                                                                </button>
-                                                                <button
-                                                                    type="button"
-                                                                    className="secondary"
                                                                     onClick={onDoingDialogNo}
                                                                 >
                                                                     No
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    className="primary"
+                                                                    onClick={onDoingDialogYes}
+                                                                >
+                                                                    Yes
                                                                 </button>
                                                             </div>
                                                         </div>
