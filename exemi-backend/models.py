@@ -400,6 +400,32 @@ class Conversation(ConversationBase, table=True):
     user : User = Relationship(back_populates="conversations")
     created_at : datetime
     summary : str | None = Field(sa_column=Column(TEXT),default=None)
+    
+    @property
+    def colour_raw(self) -> str | None:
+        """
+        Obtain the colour of the conversation
+        by obtaining the colour of the
+        Unit which contains the conversation
+        for the given User which is
+        enrolled in the unit. If the
+        unit lacks a colour assigned to it by the
+        user, returns None.
+        """
+        if not self.unit_id: return None
+
+        session = object_session(self)
+
+        user_unit = session.exec(
+            select(UsersUnits)
+            .where(UsersUnits.user_id == self.user_id)
+            .where(UsersUnits.unit_id == self.unit_id)
+        ).first()
+
+        if user_unit:
+            return user_unit.colour
+        
+        return None
 
 class NewMessage(SQLModel):
     message_text : str = Field(sa_column=Column(TEXT))
@@ -411,6 +437,7 @@ class ConversationPublic(ConversationBase, UTCModel):
     unit_id : int | None
     created_at : datetime
     summary : str | None
+    colour_raw : str | None
 
 class ConversationUpdate(SQLModel):
     summary : str | None = None
@@ -481,6 +508,7 @@ class Task(TaskBase, table=True):
 
         user_unit = session.exec(
             select(UsersUnits)
+            .where(UsersUnits.user_id == self.user_id)
             .where(UsersUnits.unit_id == unit.id)
         ).first()
 
