@@ -22,6 +22,11 @@ import {
     utcIsoForLocalCalendarDate,
 } from '../../utils/taskBoardUtils';
 import {call_task_deconstruction} from './taskDeconstruction';
+import {
+    clearActiveTaskTimer,
+    readActiveTaskTimer,
+    writeActiveTaskTimer,
+} from './taskActiveTimerStorage';
 import {TaskEditDialog, type TaskPublicRowPatch} from './TaskEditDialog';
 import {TaskBreak} from './TaskBreak';
 import {TaskBreakConfirm, type NextTaskPreview} from './TaskBreakConfirm';
@@ -210,6 +215,13 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
     playingDoingIdsRef.current = playingDoingIds;
     const tasksRef = useRef<TaskPublicRow[]>([]);
     tasksRef.current = tasks;
+    const foregroundTaskIdRef = useRef<number | null>(null);
+    const selectedDateISORef = useRef(selectedDateISO);
+    const tasksHydratedForDateRef = useRef<string | null>(null);
+    const activeTimerRestoreAppliedRef = useRef(false);
+    const allowActiveTimerDateRestoreRef = useRef(true);
+    foregroundTaskIdRef.current = foregroundTaskId;
+    selectedDateISORef.current = selectedDateISO;
 
     const dragStartY = useRef(0);
     const dragStartHeight = useRef(0);
@@ -239,6 +251,34 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         typeof Intl !== 'undefined'
             ? Intl.DateTimeFormat().resolvedOptions().timeZone || 'Australia/Sydney'
             : 'Australia/Sydney';
+
+    const syncActiveTaskTimerPersist = useCallback(() => {
+        const username = session.user?.username;
+        const token = session.token;
+        if (!username || !token) {
+            clearActiveTaskTimer();
+            return;
+        }
+        const playing = playingDoingIdsRef.current;
+        if (playing.length !== 1) {
+            return;
+        }
+        const id = playing[0]!;
+        const row = tasksRef.current.find((t) => t.id === id);
+        if (!row || row.completed) {
+            return;
+        }
+        const extra = doingExtraSecsRef.current[id] ?? 0;
+        const effective = Math.max(0, Math.floor(row.progress_secs + extra));
+        writeActiveTaskTimer({
+            v: 1,
+            username,
+            taskId: id,
+            progress_secs: effective,
+            foreground: foregroundTaskIdRef.current === id,
+            selectedDateISO: selectedDateISORef.current,
+        });
+    }, [session.token, session.user?.username]);
 
     const incompleteTasks = tasks.filter((t) => {
         if (t.completed) return false;
@@ -307,6 +347,9 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
     useEffect(() => {
         if (doingTaskIdsKey === '') {
             setDoingCloseDialogOpen(false);
+            if (playingDoingIdsRef.current.length === 1) {
+                return;
+            }
             setPlayingDoingIds([]);
             doingExtraSecsRef.current = {};
             return;
@@ -315,6 +358,10 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         for (const part of doingTaskIdsKey.split(',')) {
             const n = Number(part);
             if (Number.isFinite(n)) idSet.add(n);
+        }
+        const activePlaying = playingDoingIdsRef.current[0];
+        if (activePlaying !== undefined) {
+            idSet.add(activePlaying);
         }
         setPlayingDoingIds((prev) => {
             const next = prev.filter((id) => idSet.has(id));
@@ -330,7 +377,7 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         const ref = doingExtraSecsRef.current;
         for (const k of Object.keys(ref)) {
             const n = Number(k);
-            if (!idSet.has(n)) delete ref[n];
+            if (!idSet.has(n) && n !== activePlaying) delete ref[n];
         }
     }, [doingTaskIdsKey]);
 
@@ -419,6 +466,10 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         const token = session.token;
         if (!token) {
             setTasks([]);
+            clearActiveTaskTimer();
+            tasksHydratedForDateRef.current = null;
+            activeTimerRestoreAppliedRef.current = false;
+            allowActiveTimerDateRestoreRef.current = true;
             return;
         }
 
@@ -430,8 +481,10 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         setTasksError(null);
 
         const requestedDate = selectedDateISO;
+        tasksHydratedForDateRef.current = null;
         void reloadTasksFromApi(requestedDate).then((list) => {
             if (cancelled) return;
+            tasksHydratedForDateRef.current = requestedDate;
             if (list === null) {
                 setTasksError('Could not load tasks.');
                 setTasks((prev) => prev.filter((t) => t.clientPending));
@@ -447,6 +500,85 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
             cancelled = true;
         };
     }, [session.token, tasksBootstrapReady, selectedDateISO, reloadTasksFromApi]);
+
+    useEffect(() => {
+        const token = session.token;
+        const username = session.user?.username;
+        if (!token || !username || !tasksBootstrapReady) return;
+        if (tasksHydratedForDateRef.current !== selectedDateISO) return;
+        if (activeTimerRestoreAppliedRef.current) return;
+
+        const raw = readActiveTaskTimer();
+        if (!raw || raw.username !== username) {
+            if (raw && raw.username !== username) {
+                clearActiveTaskTimer();
+            }
+            allowActiveTimerDateRestoreRef.current = false;
+            activeTimerRestoreAppliedRef.current = true;
+            return;
+        }
+
+        if (raw.selectedDateISO !== selectedDateISO) {
+            if (allowActiveTimerDateRestoreRef.current) {
+                setSelectedDateISO(raw.selectedDateISO);
+                return;
+            }
+            activeTimerRestoreAppliedRef.current = true;
+            return;
+        }
+
+        allowActiveTimerDateRestoreRef.current = false;
+
+        const row = tasks.find((t) => t.id === raw.taskId && !t.completed);
+        if (!row) {
+            clearActiveTaskTimer();
+            activeTimerRestoreAppliedRef.current = true;
+            return;
+        }
+
+        activeTimerRestoreAppliedRef.current = true;
+        doingExtraSecsRef.current = {};
+        doingExtraSecsRef.current[raw.taskId] = 0;
+        setTasks((prev) =>
+            prev.map((t) =>
+                t.id === raw.taskId ? {...t, progress_secs: raw.progress_secs} : t,
+            ),
+        );
+        setPlayingDoingIds([raw.taskId]);
+        if (raw.foreground) {
+            setForegroundTaskId(raw.taskId);
+        }
+    }, [
+        session.token,
+        session.user?.username,
+        tasksBootstrapReady,
+        selectedDateISO,
+        tasks,
+    ]);
+
+    useEffect(() => {
+        queueMicrotask(() => {
+            syncActiveTaskTimerPersist();
+        });
+    }, [playingDoingIds, foregroundTaskId, selectedDateISO, syncActiveTaskTimerPersist]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const persist = () => {
+            syncActiveTaskTimerPersist();
+        };
+        const onVis = () => {
+            if (document.visibilityState === 'hidden') {
+                syncActiveTaskTimerPersist();
+            }
+        };
+        window.addEventListener('beforeunload', persist);
+        document.addEventListener('visibilitychange', onVis);
+        return () => {
+            window.removeEventListener('beforeunload', persist);
+            document.removeEventListener('visibilitychange', onVis);
+        };
+    }, [syncActiveTaskTimerPersist]);
 
     const cancelTaskEntry = useCallback(() => {
         setTaskEntryOpen(false);
@@ -644,12 +776,14 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
                         if (!ok) setTasksError('Could not save progress.');
                     });
                     setPlayingDoingIds((prev) => prev.filter((x) => x !== id));
+                    clearActiveTaskTimer();
                 }
             }
             doingTick((x) => x + 1);
+            syncActiveTaskTimerPersist();
         }, 1000);
         return () => window.clearInterval(t);
-    }, [playingDoingIds, patchTaskProgressSecs]);
+    }, [playingDoingIds, patchTaskProgressSecs, syncActiveTaskTimerPersist]);
 
     const patchTaskFields = useCallback(
         async (taskId: number, body: Record<string, unknown>) => {
@@ -727,6 +861,10 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
     const onToggleTask = (task: TaskPublicRow) => {
         const next = !task.completed;
         if (next) {
+            const ls = readActiveTaskTimer();
+            if (ls?.taskId === task.id) {
+                clearActiveTaskTimer();
+            }
             delete doingExtraSecsRef.current[task.id];
             setPlayingDoingIds((prev) => prev.filter((id) => id !== task.id));
         }
@@ -756,6 +894,7 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
             const currently = playingDoingIdsRef.current;
             if (currently.includes(taskId)) {
                 await flushDoingProgress(taskId);
+                clearActiveTaskTimer();
                 setPlayingDoingIds((prev) => prev.filter((id) => id !== taskId));
                 return;
             }
@@ -819,6 +958,7 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         if (foregroundTaskId === null) return;
         const tid = foregroundTaskId;
         await flushDoingProgress(tid);
+        clearActiveTaskTimer();
         setPlayingDoingIds((prev) => prev.filter((id) => id !== tid));
         setForegroundTaskId(null);
     }, [foregroundTaskId, flushDoingProgress]);
@@ -827,6 +967,7 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
         if (foregroundTaskId === null) return;
         const tid = foregroundTaskId;
         await flushDoingProgress(tid);
+        clearActiveTaskTimer();
         call_task_deconstruction(tid);
         setPlayingDoingIds((prev) => prev.filter((id) => id !== tid));
         setForegroundTaskId(null);
@@ -844,6 +985,7 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
             setTasksError('Could not complete task.');
             return;
         }
+        clearActiveTaskTimer();
 
         const dueForInbox = utcIsoForLocalCalendarDate(selectedDateISO, userTimeZone);
         for (const item of foregroundInboxItems) {
@@ -941,6 +1083,7 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
             return;
         }
         setDoingCloseDialogOpen(false);
+        clearActiveTaskTimer();
         setPlayingDoingIds([]);
         for (const id of ids) {
             delete doingExtraSecsRef.current[id];
