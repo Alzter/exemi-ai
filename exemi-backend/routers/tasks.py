@@ -734,7 +734,9 @@ def update_task(
         #         detail=f"The task due date ({parse_timestamp(due_at).date().isoformat()}) cannot be later than the assignment due date ({parse_timestamp(existing_assignment_data.due_at).date().isoformat()})"
         #     )
 
-    new_data_dict = new_data.model_dump(exclude_unset=True)
+    # Ignore None values so partial updates don't overwrite required
+    # fields (e.g. name) with NULL when omitted by the caller/tool.
+    new_data_dict = new_data.model_dump(exclude_unset=True, exclude_none=True)
     task.sqlmodel_update(new_data_dict)
     session.add(task)
     session.commit()
