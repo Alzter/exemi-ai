@@ -18,8 +18,9 @@ type ChatSidebarParams = {
 }
 
 type Conversation = {
-    created_at : Date
     id : number
+    name : string | null
+    created_at : Date
     colour_raw : string | null
 }
 
@@ -40,6 +41,7 @@ export default function ChatSidebar({session, enabled, setEnabled, isViewing, lo
     async function parseConversations(data : Array<any>, auto_select_first_conversation : boolean){
         const conversations: Conversation[] = data.map(item => ({
             id: item.id,
+            name: item.name,
             created_at: new Date(item.created_at),
             colour_raw: item.colour_raw,
         }));
@@ -97,10 +99,14 @@ export default function ChatSidebar({session, enabled, setEnabled, isViewing, lo
         
         let title = "";
         if (conversation){
-            let conversationDateString = conversation.created_at.toLocaleString(
-                "en-AU", {timeZone: "Australia/Sydney"}
-            )
-            title = conversationDateString;
+            if (conversation.name){
+                title = conversation.name;
+            } else {
+                let conversationDateString = conversation.created_at.toLocaleString(
+                    "en-AU", {timeZone: "Australia/Sydney"}
+                )
+                title = conversationDateString;
+            }
         } else {
             title = "+ Create New Chat";
         };
