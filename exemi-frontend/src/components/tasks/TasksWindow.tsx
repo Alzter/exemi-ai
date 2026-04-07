@@ -1138,22 +1138,30 @@ export default function TasksWindow({session, layoutContainerRef, canvasSyncRead
     const focusConfirmRow =
         focusConfirmTaskId !== null ? tasks.find((t) => t.id === focusConfirmTaskId) : undefined;
 
+    const startBackgroundFromFocusConfirm = useCallback(
+        async (taskId: number) => {
+            const others = playingDoingIdsRef.current.filter((id) => id !== taskId);
+            for (const id of others) {
+                await flushDoingProgress(id);
+            }
+            setPlayingDoingIds([taskId]);
+            const bgRow = tasksRef.current.find((t) => t.id === taskId && !t.clientPending);
+            if (bgRow) activeTimerTaskSnapshotRef.current = {...bgRow};
+            setFocusConfirmTaskId(null);
+        },
+        [flushDoingProgress],
+    );
+
     const onFocusConfirmClose = useCallback(() => {
-        setFocusConfirmTaskId(null);
-    }, []);
+        const tid = focusConfirmTaskId;
+        if (tid === null) return;
+        void startBackgroundFromFocusConfirm(tid);
+    }, [focusConfirmTaskId, startBackgroundFromFocusConfirm]);
 
     const onFocusConfirmBackground = useCallback(async () => {
         if (focusConfirmTaskId === null) return;
-        const tid = focusConfirmTaskId;
-        const others = playingDoingIdsRef.current.filter((id) => id !== tid);
-        for (const id of others) {
-            await flushDoingProgress(id);
-        }
-        setPlayingDoingIds([tid]);
-        const bgRow = tasksRef.current.find((t) => t.id === tid && !t.clientPending);
-        if (bgRow) activeTimerTaskSnapshotRef.current = {...bgRow};
-        setFocusConfirmTaskId(null);
-    }, [focusConfirmTaskId, flushDoingProgress]);
+        await startBackgroundFromFocusConfirm(focusConfirmTaskId);
+    }, [focusConfirmTaskId, startBackgroundFromFocusConfirm]);
 
     const startForegroundTask = useCallback(
         async (tid: number) => {
