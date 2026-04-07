@@ -1649,6 +1649,7 @@ div.dialog-panel-title{
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 1.25;
 }
 
 div.dialog-panel-title *{

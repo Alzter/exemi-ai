@@ -123,7 +123,7 @@ export function TaskForeground({
                             alignItems: 'flex-start'
                         }}
                     >
-                        <h3 style={{whiteSpace: 'normal', lineHeight: 1.25}}>{task.name}</h3>
+                        <h3>{task.name}</h3>
                     </div>
                     <div
                         className="dialog-panel-body"
