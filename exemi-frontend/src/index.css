@@ -1244,6 +1244,19 @@ form.magic{
   gap:1em;
 }
 
+.chatbox-unit-select-wrap {
+  overflow: hidden;
+  flex-shrink: 0;
+  min-width: 0;
+  width: 0;
+  transition: width 0.2s ease-in-out;
+  border-radius:0;
+}
+
+.chatbox-unit-select-wrap--open {
+  width: 8em;
+}
+
 .chatbox select{
   min-width:8em;
   max-width:8em;

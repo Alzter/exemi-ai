@@ -481,13 +481,19 @@ export default function ChatMessagesUI({
               </div>
             ) : (
                 <form className="chatbox" ref={chatboxRef} onSubmit={sendMessage}>
-                    { conversationID ? (null) : (
+                    <div
+                        className={
+                            "chatbox-unit-select-wrap" +
+                            (conversationID ? "" : " chatbox-unit-select-wrap--open")
+                        }
+                        aria-hidden={Boolean(conversationID)}>
                         <select
                             className="unit-select"
                             name="unit"
                             id="unit"
                             value={unitSelected?.readable_name ?? "all"}
                             onChange={handleUnitSelected}
+                            disabled={Boolean(conversationID)}
                             style={unitSelectStyle}>
                             <option value="all">All Units</option>
                             {units.map((unit) => <option
@@ -497,7 +503,7 @@ export default function ChatMessagesUI({
                                 {unit.readable_name}
                             </option>)}
                         </select>
-                    ) }
+                    </div>
                     <textarea
                         autoFocus
                         placeholder="Ask anything"
