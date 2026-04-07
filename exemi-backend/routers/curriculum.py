@@ -606,6 +606,8 @@ def build_assignments_payload(
     user: User,
     session: Session,
     unit_id: int | None = None,
+    *,
+    include_assignment_descriptions: bool = True,
 ) -> list[UnitAssignmentsJSON]:
     """Incomplete assignments by unit for the given student (same filters as assignments_json)."""
     units = get_units(user=user, session=session, offset=0, limit=100)
@@ -632,7 +634,11 @@ def build_assignments_payload(
                 AssignmentJSON(
                     id=assignment.id,
                     name=assignment.name or "",
-                    description=assignment.readable_description,
+                    description=(
+                        assignment.readable_description
+                        if include_assignment_descriptions
+                        else None
+                    ),
                     due_date=parse_timestamp(assignment.due_at),
                     days_remaining=days_remaining,
                     grade_contribution=int(assignment.grade_contribution * 100),
@@ -660,7 +666,12 @@ def build_assignments_list_json(
     *,
     include_assignment_descriptions: bool = True,
 ) -> str:
-    payload = build_assignments_payload(user=user, session=session, unit_id=unit_id)
+    payload = build_assignments_payload(
+        user=user,
+        session=session,
+        unit_id=unit_id,
+        include_assignment_descriptions=include_assignment_descriptions,
+    )
     if include_assignment_descriptions:
         return assignments_list_adapter.dump_json(payload).decode("utf-8")
     compact = [
