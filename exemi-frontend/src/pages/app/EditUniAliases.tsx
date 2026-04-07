@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router"
-import {type User} from '../../models';
-import UniversitySelector from "../../components/admin/university_selector";
+import UniversitySelector from "../../components/admin/UniversitySelector";
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 import { MdAdd, MdDelete } from "react-icons/md";
 
@@ -18,6 +17,7 @@ export default function EditUniAliases({session} : any){
             <div className="input-row">
                 <p>{alias.name}</p>
                 <button
+                    className="primary"
                     onClick={() => {deleteAlias(alias)}}
                     disabled={loading}
                 ><MdDelete/></button>
@@ -182,14 +182,14 @@ export default function EditUniAliases({session} : any){
                             value={form.alias_name}
                             // disabled={loading}
                         />
-                        <button disabled={loading}><MdAdd/></button>
+                        <button className="primary" disabled={loading}><MdAdd/></button>
                     </div>
                 </form>
                 {universityAliases.map(
                     alias => <AliasBox alias={alias} key={alias.id}/>
                 )}
             </div>
-            <button className="back" onClick={() => navigate("/")}>{"<"} Back</button>
+            <button className="primary back" onClick={() => navigate("/")}>{"<"} Back</button>
             {error ? (<div className='error'><p>{error}</p></div>) : null}
         </div>
     );

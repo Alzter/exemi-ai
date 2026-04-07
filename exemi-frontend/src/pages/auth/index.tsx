@@ -93,7 +93,7 @@ export default function Login({error, setError, setSession} : any){
                         onChange={handleChange}
                     />
                 </label>
-                <button type="submit" disabled={loading}>Log In</button>
+                <button className="primary" type="submit" disabled={loading}>Log In</button>
                 {error ? (<div className='error'><p>{error}</p></div>) : null}
             </form>
         </div>

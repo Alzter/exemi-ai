@@ -928,6 +928,11 @@ async def get_conversation_summaries(
         session=session
     )
 
+    if not conversations:
+        return []
+
+    creation_limit = min(creation_limit, len(conversations))
+
     conversations = list(conversations)
 
     for i in range(creation_limit):

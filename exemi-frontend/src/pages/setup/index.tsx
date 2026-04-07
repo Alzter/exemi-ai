@@ -1,8 +1,8 @@
-import { use, useState } from 'react';
+import { useState } from 'react';
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 
 
-export default function CreateAdminAccount({error, setError, setSession} : any){
+export default function CreateAdminAccount({error, setError} : any){
     type UserCreateForm = {
         username : string;
         password : string;
@@ -123,7 +123,7 @@ export default function CreateAdminAccount({error, setError, setSession} : any){
                         onChange={handleChange}
                     />
                 </div>
-                <button type="submit" disabled={loading}>Create Account</button>
+                <button className="primary" type="submit" disabled={loading}>Create Account</button>
                 {error ? (<div className='error'><p>{error}</p></div>) : null}
             </form>
         </div>

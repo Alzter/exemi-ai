@@ -1,13 +1,13 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useNavigate } from "react-router"
-import UserSelector from "../../components/admin/user_selector";
+import UserSelector from "../../components/admin/UserSelector";
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
 
 export default function UserDelete({session} : any){
 
     let navigate = useNavigate();
 
-    const [username, setUsername] = useState<string>();
+    const [username, setUsername] = useState<string>("");
     const [refreshUsers, setRefreshUsers] = useState(0);
 
     const [error, setError] = useState<string | null>(null);
@@ -17,7 +17,7 @@ export default function UserDelete({session} : any){
         event.preventDefault();
         setLoading(true);
         
-        if (username === session.user.username){
+        if (username !== "" && username === session.user?.username){
             setError("You cannot delete your own account!");
             setLoading(false);
             return;
@@ -67,10 +67,10 @@ export default function UserDelete({session} : any){
             <form className="login" onSubmit={handleSubmit}>
                 <UserSelector session={session} setError={setError} username={username} setUsername={setUsername} refreshTrigger={refreshUsers}/>
                 <br/>
-                <button type="submit" disabled={loading}>Delete Account</button>
+                <button className="primary" type="submit" disabled={loading}>Delete Account</button>
                 {error ? (<div className='error'><p>{error}</p></div>) : null}
             </form>
-            <button className="back" onClick={() => navigate("/")}>{"<"} Back</button>
+            <button className="primary back" onClick={() => navigate("/")}>{"<"} Back</button>
         </div>
     );
 }

@@ -12,7 +12,7 @@ import {
   consumeAutomationOverlayAfterSuccessReturn,
   readAutomationOverlayVisible,
 } from "./automationOverlay";
-import { LoadingOverlay } from "./loading";
+import { LoadingOverlay } from "./Loading";
 import { createRoot, type Root } from "react-dom/client";
 import sidebarCss from "./sidebar.css?inline";
 

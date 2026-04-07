@@ -308,14 +308,8 @@ class UnitJSON(BaseModel):
 
 units_list_adapter = TypeAdapter(list[UnitJSON])
 
-@router.get("/tool/units_json", response_model=str)
-def get_units_list_json(
-    user : User = Depends(get_current_user),
-    session : Session = Depends(get_session)
-) -> str:
-    """
-    Returns the student's units in JSON format.
-    """
+def build_units_list_json(user : User, session : Session) -> str:
+    """Serialised units list for a given student (LLM prompts and tools)."""
     user_public = UserPublic.model_validate(user)
     university_name = user_public.actual_university_name
 
@@ -337,9 +331,17 @@ def get_units_list_json(
             )
         )
 
-    # units_list = [unit.readable_name for unit in units]
-
     return units_list_adapter.dump_json(unit_list).decode("utf-8")
+
+@router.get("/tool/units_json", response_model=str)
+def get_units_list_json(
+    user : User = Depends(get_current_user),
+    session : Session = Depends(get_session)
+) -> str:
+    """
+    Returns the student's units in JSON format.
+    """
+    return build_units_list_json(user=user, session=session)
 
 @router.get("/units/{id}", response_model=UnitPublicWithAssignmentGroups)
 def get_unit(
@@ -395,7 +397,7 @@ def get_assignment_groups(
     Returns:
         list[AssignmentGroupPublicWithUnit]: The assignment groups with unit information included.
     """
-    user_units = get_units(user=user, session=session)
+    user_units = get_units(user=user, session=session, limit=100, offset=0)
     user_unit_ids = [u.id for u in user_units]
 
     query = (
@@ -584,6 +586,7 @@ def get_assignment(
 #     return "\n".join(message).strip()
 
 class AssignmentJSON(BaseModel):
+    id : int
     name: str
     description: str | None
     due_date: datetime | None
@@ -599,25 +602,14 @@ class UnitAssignmentsJSON(BaseModel):
 
 assignments_list_adapter = TypeAdapter(list[UnitAssignmentsJSON])
 
-@router.get("/tool/assignments_json", response_model=str)#list[UnitAssignmentsJSON])
-def get_assignments_list_json(
-    unit_id : int | None = None,
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session)
-):
-    """
-    Return the student's incomplete assignments in JSON format,
-    organized by unit and sorted by due date.
-
-    Args:
-        unit_id (int | None, optional): Which unit to obtain assignment information for. If not given, returns assignments for all units. Defaults to None.
-    """
-
-    # Fetch units
+def build_assignments_payload(
+    user: User,
+    session: Session,
+    unit_id: int | None = None,
+) -> list[UnitAssignmentsJSON]:
+    """Incomplete assignments by unit for the given student (same filters as assignments_json)."""
     units = get_units(user=user, session=session, offset=0, limit=100)
     units = [UnitPublic.model_validate(u) for u in units]
-
-    #units_by_id: dict[int, Unit] = {u.id: u for u in units}
     units_assignments_json: list[UnitAssignmentsJSON] = []
 
     user_public = UserPublic.model_validate(user)
@@ -626,7 +618,7 @@ def get_assignments_list_json(
     for unit in units:
         if unit_id is not None and unit.id != unit_id:
             continue
-        
+
         assignments = get_assignments(user=user, session=session, unit_id=unit.id, offset=0, limit=100)
         assignments = [AssignmentPublic.model_validate(a) for a in assignments]
 
@@ -634,17 +626,15 @@ def get_assignments_list_json(
         for assignment in assignments:
             url = f"https://www.{university_name}.instructure.com/"
             url += f"courses/{unit.canvas_id}/assignments/{assignment.canvas_id}"
-
-            # due_date_string = timestamp_to_string(parse_timestamp(assignment.due_at))
             days_remaining = get_days_remaining(assignment.due_at)
 
             assignment_list.append(
                 AssignmentJSON(
+                    id=assignment.id,
                     name=assignment.name or "",
                     description=assignment.readable_description,
                     due_date=parse_timestamp(assignment.due_at),
                     days_remaining=days_remaining,
-                    #due_date=due_date_string,
                     grade_contribution=int(assignment.grade_contribution * 100),
                     is_group=assignment.is_group,
                     url=url
@@ -660,4 +650,206 @@ def get_assignments_list_json(
                 )
             )
 
-    return assignments_list_adapter.dump_json(units_assignments_json).decode("utf-8")
+    return units_assignments_json
+
+
+def build_assignments_list_json(
+    user: User,
+    session: Session,
+    unit_id: int | None = None,
+) -> str:
+    payload = build_assignments_payload(user=user, session=session, unit_id=unit_id)
+    return assignments_list_adapter.dump_json(payload).decode("utf-8")
+
+
+def strip_days_remaining_from_payload(
+    payload: list[UnitAssignmentsJSON],
+) -> list[UnitAssignmentsJSON]:
+    """Stable ordering; omit days_remaining for snapshots and diffs (derived daily)."""
+    out: list[UnitAssignmentsJSON] = []
+    for u in sorted(payload, key=lambda x: x.unit_id):
+        assigns = sorted(u.assignments, key=lambda a: a.id)
+        out.append(
+            UnitAssignmentsJSON(
+                unit_id=u.unit_id,
+                unit_name=u.unit_name,
+                assignments=[
+                    AssignmentJSON(
+                        id=a.id,
+                        name=a.name,
+                        description=a.description,
+                        due_date=a.due_date,
+                        days_remaining=None,
+                        grade_contribution=a.grade_contribution,
+                        is_group=a.is_group,
+                        url=a.url,
+                    )
+                    for a in assigns
+                ],
+            )
+        )
+    return out
+
+
+def snapshot_assignments_json(payload: list[UnitAssignmentsJSON]) -> str:
+    return assignments_list_adapter.dump_json(
+        strip_days_remaining_from_payload(payload)
+    ).decode("utf-8")
+
+
+def parse_assignments_snapshot(raw: str | None) -> list[UnitAssignmentsJSON] | None:
+    if not raw or not raw.strip():
+        return None
+    try:
+        return assignments_list_adapter.validate_json(raw.encode("utf-8"))
+    except Exception:
+        return None
+
+
+def _due_iso(dt: datetime | None) -> str | None:
+    if dt is None:
+        return None
+    if dt.tzinfo is not None:
+        return dt.astimezone(timezone.utc).isoformat()
+    return dt.isoformat()
+
+
+def _flatten_assignments(payload: list[UnitAssignmentsJSON]) -> dict[int, dict]:
+    flat: dict[int, dict] = {}
+    for u in payload:
+        for a in u.assignments:
+            flat[a.id] = {
+                "name": a.name,
+                "description": a.description,
+                "due_date_iso": _due_iso(a.due_date),
+                "grade_contribution": a.grade_contribution,
+                "is_group": a.is_group,
+                "url": a.url,
+                "unit_id": u.unit_id,
+                "unit_name": u.unit_name,
+            }
+    return flat
+
+
+class RemovedAssignmentBrief(BaseModel):
+    id: int
+    name: str
+    unit_name: str
+
+
+class AssignmentSides(BaseModel):
+    name: str
+    description: str | None
+    due_date_iso: str | None
+    grade_contribution: int
+    is_group: bool
+    url: str
+    unit_name: str
+
+
+class AssignmentChange(BaseModel):
+    assignment_id: int
+    before: AssignmentSides
+    after: AssignmentSides
+
+
+class AssignmentDelta(BaseModel):
+    added: list[UnitAssignmentsJSON]
+    removed: list[RemovedAssignmentBrief]
+    changed: list[AssignmentChange]
+
+    def is_empty(self) -> bool:
+        return not self.added and not self.removed and not self.changed
+
+
+def _sides_from(a: AssignmentJSON, unit_name: str) -> AssignmentSides:
+    return AssignmentSides(
+        name=a.name,
+        description=a.description,
+        due_date_iso=_due_iso(a.due_date),
+        grade_contribution=a.grade_contribution,
+        is_group=a.is_group,
+        url=a.url,
+        unit_name=unit_name,
+    )
+
+
+def _units_subset(payload: list[UnitAssignmentsJSON], ids: set[int]) -> list[UnitAssignmentsJSON]:
+    out: list[UnitAssignmentsJSON] = []
+    for u in sorted(payload, key=lambda x: x.unit_id):
+        sub = [a for a in u.assignments if a.id in ids]
+        if sub:
+            sub = sorted(sub, key=lambda x: x.id)
+            out.append(
+                UnitAssignmentsJSON(unit_id=u.unit_id, unit_name=u.unit_name, assignments=sub)
+            )
+    return out
+
+
+def _locate_assignment(
+    payload: list[UnitAssignmentsJSON], aid: int
+) -> tuple[UnitAssignmentsJSON, AssignmentJSON] | None:
+    for u in payload:
+        for a in u.assignments:
+            if a.id == aid:
+                return u, a
+    return None
+
+
+def compute_assignments_delta(
+    baseline_json: str,
+    current_payload: list[UnitAssignmentsJSON],
+) -> AssignmentDelta | None:
+    baseline = parse_assignments_snapshot(baseline_json)
+    if baseline is None:
+        return None
+    baseline_s = strip_days_remaining_from_payload(baseline)
+    current_s = strip_days_remaining_from_payload(current_payload)
+    b = _flatten_assignments(baseline_s)
+    c = _flatten_assignments(current_s)
+    b_ids = set(b.keys())
+    c_ids = set(c.keys())
+    added_ids = c_ids - b_ids
+    removed_ids = b_ids - c_ids
+    changed: list[AssignmentChange] = []
+    for aid in b_ids & c_ids:
+        if b[aid] == c[aid]:
+            continue
+        loc_b = _locate_assignment(baseline_s, aid)
+        loc_c = _locate_assignment(current_s, aid)
+        if not loc_b or not loc_c:
+            continue
+        bu, au = loc_b
+        cu_u, cu = loc_c
+        changed.append(
+            AssignmentChange(
+                assignment_id=aid,
+                before=_sides_from(au, bu.unit_name),
+                after=_sides_from(cu, cu_u.unit_name),
+            )
+        )
+    removed_list = [
+        RemovedAssignmentBrief(id=i, name=b[i]["name"], unit_name=b[i]["unit_name"])
+        for i in sorted(removed_ids)
+    ]
+    return AssignmentDelta(
+        added=_units_subset(current_payload, added_ids),
+        removed=removed_list,
+        changed=sorted(changed, key=lambda x: x.assignment_id),
+    )
+
+
+@router.get("/tool/assignments_json", response_model=str)#list[UnitAssignmentsJSON])
+def get_assignments_list_json(
+    unit_id : int | None = None,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    """
+    Return the student's incomplete assignments in JSON format,
+    organized by unit and sorted by due date.
+
+    Args:
+        unit_id (int | None, optional): Which unit to obtain assignment information for. If not given, returns assignments for all units. Defaults to None.
+    """
+    return build_assignments_list_json(user=user, session=session, unit_id=unit_id)

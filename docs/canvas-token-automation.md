@@ -91,7 +91,7 @@ This survives **in-tab** navigations on the same Canvas origin so that after red
 |-----|--------|
 | `exemi_iframe_token_automation_resume` | Set when redirect is announced; tells the next READY that automation should resume after reload. |
 | `exemi_iframe_automation_session_pending` | Set while onboarding is mounted; helps resume if the redirect message is missed. |
-| `exemi_canvas_token_failure` | On failure, stores `{ code }` so after Canvas navigates back the app can show [extension_incompatible](../exemi-frontend/src/pages/extension_incompatible.tsx). |
+| `exemi_canvas_token_failure` | On failure, stores `{ code }` so after Canvas navigates back the app can show [ExtensionIncompatible](../exemi-frontend/src/pages/ExtensionIncompatible.tsx). |
 
 ### Canvas return URL
 
@@ -140,12 +140,12 @@ Failure codes (`ExemiTokenFailureCode`) distinguish timeouts, missing UI, token 
 |------|------|
 | Content shell + overlay mount | `exemi-extension/src/content.tsx` |
 | Overlay state API | `exemi-extension/src/automationOverlay.ts` |
-| Loading UI | `exemi-extension/src/loading.tsx` |
+| Loading UI | `exemi-extension/src/Loading.tsx` |
 | Scraper + state machine | `exemi-extension/src/canvasTokenAutomation.ts` |
 | postMessage helpers + trust | `exemi-extension/src/postMessageToExemiIframe.ts` |
 | Shared message constants (×2) | `exemi-extension/…/extensionAutomationMessages.ts`, `exemi-frontend/…/extensionAutomationMessages.ts` |
 | Iframe hook | `exemi-frontend/src/useExtensionCanvasTokenAutomation.ts` |
-| Error page | `exemi-frontend/src/pages/extension_incompatible.tsx` |
+| Error page | `exemi-frontend/src/pages/ExtensionIncompatible.tsx` |
 
 ---
 

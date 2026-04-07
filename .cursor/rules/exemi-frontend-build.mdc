@@ -1,0 +1,14 @@
+---
+description: How to build the Exemi frontend (Nix + Yarn)
+alwaysApply: true
+---
+
+# Frontend build
+
+To build the frontend, use the Nix shell (provides Yarn), then run the production build:
+
+1. `cd exemi-frontend`
+2. `nix-shell`
+3. `yarn build`
+
+Do not assume `npm` or a global Yarn install; use this sequence unless the user specifies otherwise.

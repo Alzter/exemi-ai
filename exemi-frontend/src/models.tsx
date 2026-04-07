@@ -16,6 +16,7 @@ export type User = {
     password_hash : string,
     magic_hash : string,
     units : UserUnit[]
+    task_break_interval_mins : number | null;
 }
 
 export type Session = {

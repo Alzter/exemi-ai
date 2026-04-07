@@ -24,7 +24,7 @@ export default function UserCreate({session} : any){
         university_name:"swinburne",
         password:"",
     });
-    const [highestLegalUserID, setHighestLegalUserID] = useState<number>(0);
+    const [, setHighestLegalUserID] = useState<number>(0);
 
     // Automatically increment the user ID value
     // to be an integer higher than the greatest
@@ -173,16 +173,17 @@ export default function UserCreate({session} : any){
                         />
                         <button
                             type="button"
+                            className="primary"
                             onClick={generatePassword}
                             tabIndex={-1}
                         >Random</button>
                     </div>
                 </div>
                 <br/>
-                <button type="submit" disabled={loading}>Create Account</button>
+                <button className="primary" type="submit" disabled={loading}>Create Account</button>
                 {error ? (<div className='error'><p>{error}</p></div>) : null}
             </form>
-            <button className="back" onClick={() => navigate("/")}>{"<"} Back</button>
+            <button className="primary back" onClick={() => navigate("/")}>{"<"} Back</button>
         </div>
     )
 }

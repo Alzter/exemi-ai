@@ -1,5 +1,6 @@
-from pydantic import BaseModel, field_validator
-from sqlmodel import SQLModel, Field, Relationship, Column
+from pydantic import BaseModel, computed_field, field_validator
+from sqlalchemy.orm import object_session
+from sqlmodel import SQLModel, Field, Relationship, Column, select
 from datetime import datetime, timezone
 from sqlalchemy.dialects.mysql import TEXT
 from bs4 import BeautifulSoup
@@ -94,9 +95,16 @@ class User(UserBase, table=True):
     units : list[UsersUnits] = Relationship(back_populates="user", cascade_delete=True)
     assignments : list[UsersAssignments] = Relationship(back_populates="user", cascade_delete=True)
     reminders : list["Reminder"] = Relationship(back_populates="user", cascade_delete=True)
+    tasks : list["Task"] = Relationship(back_populates="user", cascade_delete=True)
     university : University = Relationship(back_populates="users")
     biographies : list["UserBiography"] = Relationship(back_populates="user", cascade_delete=True)
     active_university_name : str | None = Field(default=None, max_length=255, index=True)
+    task_break_interval_mins : int | None = Field(default=None)
+    tasks_generation_assignments_snapshot : str | None = Field(
+        default=None,
+        sa_column=Column(TEXT),
+        description="JSON snapshot of assignment payload at last committed task generation (no days_remaining), for LLM prompt deltas.",
+    )
 
     @property
     def actual_university_name(self) -> str | None:
@@ -163,6 +171,8 @@ class UserPublic(UserBase):
     active_university_name : str | None
     actual_university_name : str | None
     fallback_university_names : list[str]
+    task_break_interval_mins : int | None
+    tasks_generation_assignments_snapshot : str | None = None
 
 class UserCreate(UserBase):
     password : str
@@ -173,6 +183,7 @@ class UserUpdate(SQLModel):
     magic : str | None = None
     university_name : str | None = None
     active_university_name : str | None = None
+    task_break_interval_mins : int | None = None
 
 class UserBiographyBase(SQLModel):
     content : str = Field(sa_column=Column(TEXT),default="")
@@ -315,6 +326,7 @@ class Assignment(AssignmentBase, table=True):
     id : int | None = Field(primary_key=True, default=None)
     group : AssignmentGroup | None = Relationship(back_populates="assignments")
     users : list[UsersAssignments] = Relationship(back_populates="assignment")
+    tasks : list["Task"] = Relationship(back_populates="assignment")
 
     @property
     def readable_description(self) -> str:
@@ -382,12 +394,39 @@ class ConversationBase(SQLModel):
 
 class Conversation(ConversationBase, table=True):
     id : int | None = Field(primary_key=True, default=None)
+    name : str | None = Field(default=None, max_length=255)
     user_id : int = Field(foreign_key='user.id', ondelete="CASCADE")
     unit_id : int | None = Field(default=None, foreign_key='unit.id', ondelete="SET NULL")
     messages : list["Message"] = Relationship(back_populates="conversation", cascade_delete=True)
     user : User = Relationship(back_populates="conversations")
     created_at : datetime
     summary : str | None = Field(sa_column=Column(TEXT),default=None)
+    
+    @property
+    def colour_raw(self) -> str | None:
+        """
+        Obtain the colour of the conversation
+        by obtaining the colour of the
+        Unit which contains the conversation
+        for the given User which is
+        enrolled in the unit. If the
+        unit lacks a colour assigned to it by the
+        user, returns None.
+        """
+        if not self.unit_id: return None
+
+        session = object_session(self)
+
+        user_unit = session.exec(
+            select(UsersUnits)
+            .where(UsersUnits.user_id == self.user_id)
+            .where(UsersUnits.unit_id == self.unit_id)
+        ).first()
+
+        if user_unit:
+            return user_unit.colour
+        
+        return None
 
 class NewMessage(SQLModel):
     message_text : str = Field(sa_column=Column(TEXT))
@@ -395,12 +434,15 @@ class NewMessage(SQLModel):
 
 class ConversationPublic(ConversationBase, UTCModel):
     id : int
+    name : str | None
     user_id : int
     unit_id : int | None
     created_at : datetime
     summary : str | None
+    colour_raw : str | None
 
 class ConversationUpdate(SQLModel):
+    name : str | None = None
     summary : str | None = None
 
 class MessageBase(SQLModel):
@@ -424,6 +466,114 @@ class MessageUpdate(SQLModel):
 
 class ConversationPublicWithMessages(ConversationPublic):
     messages : list[Message] = []
+
+class TaskBase(SQLModel):
+    name : str = Field(max_length=255)
+    description : str = Field(default="", sa_column=Column(TEXT))
+    duration_mins : int = Field(default=15)
+    assignment_id : int | None = Field(default=None, foreign_key='assignment.id', ondelete="CASCADE")
+    due_at : datetime
+
+class Task(TaskBase, table=True):
+    id : int | None = Field(primary_key=True, default=None)
+    created_at : datetime
+    progress_secs : int = 0
+    user_id : int = Field(foreign_key="user.id", ondelete="CASCADE")
+    user : User = Relationship(back_populates="tasks")
+    assignment : Assignment | None = Relationship(back_populates="tasks")
+    completed : bool
+    
+    @property
+    def break_interval_mins(self) -> int:
+        return self.user.task_break_interval_mins or 10
+    
+    @property
+    def colour_raw(self) -> str | None:
+        """
+        Obtain the colour of the task
+        by obtaining the colour of the
+        Unit which contains the task
+        for the given User which is
+        enrolled in the unit. If the
+        task does not have an assignment
+        given, or the Unit lacks a
+        colour assigned to it by the
+        user, returns None.
+
+        Returns:
+            str | None: The assignment's colour if given.
+        """
+        if not self.assignment: return None
+
+        unit = self.assignment.group.unit
+
+        session = object_session(self)
+
+        user_unit = session.exec(
+            select(UsersUnits)
+            .where(UsersUnits.user_id == self.user_id)
+            .where(UsersUnits.unit_id == unit.id)
+        ).first()
+
+        if user_unit:
+            return user_unit.colour
+        
+        return None
+
+class TaskCreate(TaskBase): pass
+
+class TaskAutofillCreate(SQLModel):
+    """
+    Create a task without fields
+    for assignment ID, duration,
+    etc., and get the LLM to auto
+    -create these fields by
+    inferring them from the task
+    name alongside the user's
+    existing tasks and assignments.
+    """
+    name : str
+    due_at : datetime
+
+class TaskAutofillResponse(SQLModel):
+    description : str
+    assignment_id : int | None
+    duration_mins : int
+
+class TaskUpdate(SQLModel):
+    name : str | None = None
+    description : str | None = None
+    duration_mins : int | None = None
+    progress_secs : int | None = None
+    assignment_id : int | None = None
+    due_at : datetime | None = None
+    completed : bool | None = None
+    created_at : datetime | None = None
+
+class TaskPublic(TaskBase, UTCModel):
+    id : int
+    created_at : datetime
+    user_id : int
+    assignment : AssignmentPublic | None = None
+    progress_secs : int
+    completed : bool
+    break_interval_mins : int
+    colour_raw : str | None = None
+
+class TaskPublicWithUser(TaskPublic):
+    user : UserPublic | None = None
+
+class TaskLLM(BaseModel):
+    id : int | None
+    assignment_id : int
+    name : str
+    description : str
+    duration_mins : int
+    due_at : datetime
+    completed : bool
+
+class TaskList(BaseModel):
+    tasks : list[TaskLLM]
 
 class ReminderBase(SQLModel):
     # canvas_assignment_id : int

@@ -1,7 +1,8 @@
 import React, {useState, useEffect, useRef, type ChangeEvent} from 'react';
 import {type UserUnit} from '../../models';
 const backendURL = import.meta.env.VITE_BACKEND_API_URL;
-import MessageBox from './message_box';
+import MessageBox from './MessageBox';
+import { parseColourRawToOklch } from '../../utils/taskBoardUtils';
 
 type ChatUIProps = {
     session : any,
@@ -11,7 +12,11 @@ type ChatUIProps = {
     loading : boolean,
     setLoading : any,
     error : string | null,
-    setError : any
+    setError : any,
+    taskDeconstructionRequest?: {
+        requestId: number;
+        text: string;
+    } | null;
 }
 
 type Message = {
@@ -20,12 +25,22 @@ type Message = {
     id : number
 }
 
-type Conversation = {
-    created_at : Date
-    id : number
+function dispatchTasksRefreshRequested() {
+    if (typeof window === 'undefined') return;
+    window.dispatchEvent(new CustomEvent('tasks-refresh-requested'));
 }
 
-export default function ChatMessagesUI({session, isViewing, conversationID, setConversationID, loading, setLoading, error, setError} : ChatUIProps){
+export default function ChatMessagesUI({
+    session,
+    isViewing,
+    conversationID,
+    setConversationID,
+    loading,
+    setLoading,
+    error,
+    setError,
+    taskDeconstructionRequest,
+} : ChatUIProps){
 
     const [units, setUnits] = useState<UserUnit[]>([]);
     // const units : UserUnit[] = session.user.units;
@@ -35,8 +50,36 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
     const [messages, setMessages] = useState<Message[]>([]);
 
     const [unitSelected, setUnitSelected] = useState<UserUnit|null>(null);
+    const [conversationUnitID, setConversationUnitID] = useState<number | null>(null);
+    const [conversationColourRaw, setConversationColourRaw] = useState<string | null>(null);
+    const [isTextareaFocused, setIsTextareaFocused] = useState<boolean>(false);
 
     const unitID : number | null = (unitSelected && !conversationID) ? unitSelected.unit_id : null;
+    const unitThemeColourRaw = conversationID ? conversationColourRaw : (unitSelected?.colour ?? null);
+    const UnitThemeColour = unitThemeColourRaw
+        ? parseColourRawToOklch(unitThemeColourRaw, 0.6, 0.2)
+        : undefined;
+    const userMessageBackgroundColour = conversationColourRaw
+        ? parseColourRawToOklch(conversationColourRaw, 0.92, 0.036)
+        : undefined;
+    const unitSelectWidth = unitSelected
+        ? `${Math.min(Math.max(unitSelected.readable_name.length + 2, 8), 30)}ch`
+        : "8em";
+    const unitSelectStyle = unitSelected?.colour
+        ? {
+            backgroundColor: parseColourRawToOklch(unitSelected.colour, 0.92, 0.036),
+            borderColor: UnitThemeColour,
+            fontWeight: "600"
+        }
+        : undefined;
+    const unitSelectWrapperStyle = {width: conversationID ? "0" : unitSelectWidth, height:"100%"};
+    const sizedUnitSelectStyle = {
+        ...unitSelectStyle,
+        minWidth: unitSelectWidth,
+        maxWidth: unitSelectWidth
+    };
+    const textareaStyle = UnitThemeColour && isTextareaFocused ? {borderColor: UnitThemeColour} : undefined;
+    const sendButtonStyle = UnitThemeColour ? {backgroundColor: UnitThemeColour} : undefined;
 
     // The user's current message text.
     const [userText, setUserText] = useState<string>("");
@@ -45,6 +88,22 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
     useEffect(() => {
         getUserUnits();
     }, []);
+
+    // Keep unit selector in sync with the currently selected conversation.
+    useEffect(() => {
+        if (!conversationID){
+            setConversationUnitID(null);
+            return;
+        }
+
+        if (conversationUnitID === null){
+            setUnitSelected(null);
+            return;
+        }
+
+        const matchingUnit = units.find((unit) => unit.unit_id === conversationUnitID) ?? null;
+        setUnitSelected(matchingUnit);
+    }, [conversationID, conversationUnitID, units]);
 
     // Auto-update the height of the chat box
     // when the user message text changes
@@ -73,6 +132,7 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
     // The HTML element for the chat text box.
     const chatboxRef = useRef<HTMLFormElement>(null);
     const chatboxTextRef = useRef<HTMLTextAreaElement>(null);
+    const lastHandledTaskDeconstructionIdRef = useRef<number>(0);
 
     function ErrorDisplay() {
         if (!error) return (null)
@@ -128,7 +188,14 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
 
     // If we're waiting for the LLM to respond, add a message with the text "Thinking..." to the end of the list
     const messageBoxes = [...messages.map(
-        message => <MessageBox role={message.role} content={message.content} key={message.id}/>
+        message => (
+            <MessageBox
+                role={message.role}
+                content={message.content}
+                key={message.id}
+                userBackgroundColour={userMessageBackgroundColour}
+            />
+        )
     ), ...(
         awaitingLLMResponse ? [<MessageBox role="assistant" content="Thinking..." key={-2}/>] : []
     )]
@@ -197,6 +264,13 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
                 method:"GET"
             });
 
+            if (!llm_response.ok || !llm_response.body) {
+                setError("Error retrieving LLM response.");
+                setAwaitingLLMResponse(false);
+                setLoading(false);
+                return;
+            }
+
             // Add an empty message before the LLM responds
             setMessages(prev => [
                 ...prev,
@@ -229,6 +303,7 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
                 ]);
                 
             };
+            dispatchTasksRefreshRequested();
         } catch {
             setError("Error retrieving LLM response.");
             setAwaitingLLMResponse(false);
@@ -236,13 +311,15 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
         };
     };
 
-    async function sendMessage(event : React.SubmitEvent<HTMLFormElement>){
-        event.preventDefault();
-
-        // Prevent the user sending an empty message
-        if (!userText.trim() || loading){
+    async function sendTextMessage(
+        text: string,
+        options?: {forceNewConversation?: boolean},
+    ) {
+        const cleanText = text.trim();
+        if (!cleanText || loading){
             return;
         };
+        const forceNewConversation = Boolean(options?.forceNewConversation);
 
         setLoading(true);
         setUserText("");
@@ -256,15 +333,20 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
         // to contain the new message.
         setMessages(prev => [
             ...prev,
-            {"role":"user","content":userText,"id":1}
+            {"role":"user","content":cleanText,"id":1}
         ]);
 
         // Show a placeholder "Thinking..." message before the LLM responds properly
         setAwaitingLLMResponse(true);
         
-        let body = {"message_text" : userText, "unit_id" : unitID};
+        let body = {
+            "message_text" : cleanText,
+            "unit_id" : forceNewConversation ? null : unitID,
+        };
 
-        let URL = backendURL + "/conversation" + (conversationID ? "/" + conversationID : "")
+        const useExistingConversation = !forceNewConversation && Boolean(conversationID);
+        let URL =
+            backendURL + "/conversation" + (useExistingConversation ? "/" + conversationID : "")
         // console.log(body);
         // console.log(URL);
         
@@ -293,11 +375,14 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
             } catch {
                 setError(message);
             }
+            setAwaitingLLMResponse(false);
+            setLoading(false);
             return;
         };
 
         const conversation = await response.json();
         setConversationID(conversation.id);
+        setConversationColourRaw(conversation.colour_raw ?? null);
 
         const messages : Message[] = conversation.messages as Message[];
 
@@ -309,6 +394,11 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
         await handleLLMResponse(conversation.id);
 
         setLoading(false);
+    }
+
+    async function sendMessage(event : React.SubmitEvent<HTMLFormElement>){
+        event.preventDefault();
+        await sendTextMessage(userText);
     }
 
     async function parseMessages(data : Array<any>){
@@ -324,6 +414,8 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
     async function loadMessages(conversationID : number | null){
         if (!conversationID) {
             setMessages([]);
+            setConversationUnitID(null);
+            setConversationColourRaw(null);
 
             if (!isViewing){
                 await getInitialMessage();
@@ -353,6 +445,8 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
         }
 
         const data = await response.json();
+        setConversationUnitID(data.unit_id ?? null);
+        setConversationColourRaw(data.colour_raw ?? null);
         parseMessages(data.messages);
     }
   
@@ -386,6 +480,14 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
     useEffect(() => {
         loadMessages(conversationID);
     }, [conversationID])
+
+    useEffect(() => {
+        if (isViewing || loading) return;
+        if (!taskDeconstructionRequest) return;
+        if (taskDeconstructionRequest.requestId <= lastHandledTaskDeconstructionIdRef.current) return;
+        lastHandledTaskDeconstructionIdRef.current = taskDeconstructionRequest.requestId;
+        void sendTextMessage(taskDeconstructionRequest.text, {forceNewConversation: true});
+    }, [isViewing, loading, taskDeconstructionRequest]);
     // When loading the conversation,
     // retrieve any existing messages if there are any.
     // useEffect(() => {
@@ -403,12 +505,25 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
             <ErrorDisplay/>
             { isViewing ? (
               <div className="chatbox">
-                <button disabled={loading || !conversationID} onClick={deleteConversation}>Delete Chat</button>
+                <button className="primary" disabled={loading || !conversationID} onClick={deleteConversation}>Delete Chat</button>
               </div>
             ) : (
                 <form className="chatbox" ref={chatboxRef} onSubmit={sendMessage}>
-                    { conversationID ? (null) : (
-                        <select name="unit" id="unit" value={unitSelected?.readable_name} onChange={handleUnitSelected}>
+                    <div
+                        className={
+                            "chatbox-unit-select-wrap" +
+                            (conversationID ? "" : " chatbox-unit-select-wrap--open")
+                        }
+                        style={unitSelectWrapperStyle}
+                        aria-hidden={Boolean(conversationID)}>
+                        <select
+                            className="unit-select"
+                            name="unit"
+                            id="unit"
+                            value={unitSelected?.readable_name ?? "all"}
+                            onChange={handleUnitSelected}
+                            disabled={Boolean(conversationID)}
+                            style={sizedUnitSelectStyle}>
                             <option value="all">All Units</option>
                             {units.map((unit) => <option
                                 value={unit.readable_name}
@@ -417,7 +532,7 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
                                 {unit.readable_name}
                             </option>)}
                         </select>
-                    ) }
+                    </div>
                     <textarea
                         autoFocus
                         placeholder="Ask anything"
@@ -425,9 +540,12 @@ export default function ChatMessagesUI({session, isViewing, conversationID, setC
                         rows={1}
                         onChange={handleTextUpdate}
                         onKeyDown={handleTextKeyDown}
+                        onFocus={() => { setIsTextareaFocused(true); }}
+                        onBlur={() => { setIsTextareaFocused(false); }}
                         value={userText}
+                        style={textareaStyle}
                     />
-                    <button type="submit" disabled={loading}>Send</button>
+                    <button className="primary" type="submit" disabled={loading} style={sendButtonStyle}>Send</button>
                 </form>
             )}
         </div>

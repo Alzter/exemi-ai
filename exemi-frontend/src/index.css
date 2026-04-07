@@ -148,12 +148,35 @@ div.slide-progress-fill{
   transition: width 0.5s ease;
 }
 
+#root{
+  border-radius: 0;
+}
+
 div.chat{
   display:flex;
   height:100dvh;
   width:100%;
   flex-direction: row;
   overflow-y: hidden;
+  border-radius: 0;
+}
+
+div.chat-main-area{
+  display:flex;
+  flex:1;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 0;
+}
+
+@media only screen and (max-width: 900px){
+  div.chat-messages{
+    margin-top:4em;
+    height:calc(100dvh - 4em);
+    flex:0 1 auto;
+  }
 }
 
 button.sidebar-button{
@@ -164,10 +187,11 @@ button.sidebar-button{
   height: 4em;
   width: 4em;
   text-align: center;
-  transition: left 0.2s ease-in-out;
+  transition: left 0.2s ease-in-out, transform 0.1s ease, box-shadow 0.1s ease, background-color 0.1s ease;
   border-radius: 0px 8px 8px 0px;
   background-color: #aaa;
   color: #222;
+  border: 0;
 }
 
 button.sidebar-button:hover{
@@ -251,60 +275,900 @@ div.conversation-container{
   padding: 0.5em;
 }
 
-button.conversation{
+div.chat-messages{
+  display:flex;
+  flex:1;
+  min-height: 0;
   width:100%;
-  font-size: 0.9em;
+  flex-direction: column;
+  overflow-x: hidden;
+}
+
+div.tasks-panel{
+  flex-shrink: 0;
+  display:flex;
+  flex-direction: column;
   background-color: #eee;
-  color:#222;
-  font-weight: normal;
-  border-radius: 8px;
-  padding: 0.5em 0.3em;
+  /* border-top: 2px solid #aaa; */
+  box-sizing: border-box;
+  overflow: hidden;
+  transition: height 0.2s ease;
+  border-radius: 0;
 }
 
-button.conversation-selected:disabled{
-  width:100%;
-  font-size: 0.9em;
+div.tasks-panel.tasks-panel--dragging{
+  transition: none;
+}
+
+div.tasks-panel-resize-handle{
+  flex-shrink: 0;
+  height: 2px;
   background-color: #aaa;
-  color:#222;
-  font-weight: normal;
-  border-radius: 8px;
-  padding: 0.5em 0.3em;
-  cursor:auto;
+  cursor: ns-resize;
+  touch-action: none;
 }
 
-button.conversation:hover{
+div.tasks-panel-resize-handle-large{
+  flex-shrink: 0;
+  height: 12px;
+  background-color: transparent;
+  cursor: ns-resize;
+  touch-action: none;
+  border: none;
+  border-radius: 0;
+  /* margin-bottom: calc(2px - 12px); */
+  border-top: 6px solid #aaa;
+}
+
+/* div.tasks-panel-resize-handle:hover{
+  background: #ccc;
+} */
+
+div.tasks-panel-header{
+  flex-shrink: 0;
+  display:flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.35em;
+  width: 100%;
+  height:50px;
+  padding: 4px 1em;
+  margin: 0;
+  /* border-bottom: 2px solid #aaa; */
+  border-radius: 8px 8px 0 0;
+  border: 2px solid #aaa;
+  /* border-bottom: none; */
+  background-color: #eee;
+  color: #222;
+  box-shadow: none;
+  transition: background-color 0.2s ease;
+}
+
+button.tasks-panel-header-toggle{
+  flex: 1 1 auto;
+  min-width: 100px;
+  display:flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  background-color: transparent;
+  color: #222;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: none;
+  transform: none;
+}
+
+div.tasks-panel-header:has(.tasks-panel-header-toggle:hover){
+  background-color: #ccc;
+}
+
+button.tasks-panel-header-toggle:hover{
+  background-color: transparent;
+  transform: none;
+  box-shadow: none;
+  font-size: 1.1em;
+}
+
+div.tasks-panel-header:has(.tasks-panel-header-toggle:active){
+  background-color: #aaa;
+}
+
+button.tasks-panel-header-toggle:active{
+  background-color: transparent;
+  transform: none;
+  box-shadow: none;
+  font-size: 0.95em;
+}
+
+div.tasks-panel-date-selector{
+  flex: 0 0.2 auto;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.15em;
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  font-weight: 600;
+}
+
+div.tasks-panel-date-selector--visible{
+  max-width: 400px;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+span.tasks-panel-date-label{
+  display: inline-block;
+  width: 13.5em;
+  max-width: 13.5em;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 600;
+}
+
+button.tasks-panel-date-btn{
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  padding: 0;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 4px;
+  background-color: transparent;
+  color: #222;
+  cursor: pointer;
+  box-shadow: none;
+  transform: none;
+}
+
+button.tasks-panel-date-btn:hover{
   background-color: #ccc;
   transform: none;
   box-shadow: none;
 }
 
-button.conversation:active{
+button.tasks-panel-date-btn:active{
   background-color: #aaa;
   transform: none;
+}
+
+button.tasks-panel-date-btn svg{
+  font-size: 1.25em;
+  vertical-align: middle;
+  margin: 0;
+  margin-left: 0;
+}
+
+/* Keeps date picker width stable when reset is hidden */
+div.tasks-panel-date-reset-slot{
+  flex-shrink: 0;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+div.tasks-panel-body{
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0.75em 1em 1em;
+  padding-top: calc(1em - 10px);
+  border-radius: 0;
+  background-color: #eee;
+}
+
+div.tasks-panel-body--bootstrap{
+  align-items: center;
+  justify-content: center;
+}
+
+div.tasks-panel-bootstrap-spinner{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75em;
+}
+
+div.tasks-panel-bootstrap-spinner .loading-spinner{
+  margin: 0;
+  border: 3px solid #b2b7c8;
+  border-top-color: #4f46e5;
+  width: 64px;
+  height: 64px;
+}
+
+div.dialog-panel .loading-spinner{
+  margin: 0;
+  border: 3px solid #b2b7c8;
+  border-top-color: #4f46e5;
+  width: 96px;
+  height: 96px;
+  border-width: 4px;
+}
+
+p.tasks-panel-placeholder{
+  margin: 0;
+  color: #666;
+  font-size: 0.95em;
+}
+
+div.tasks-panel-board{
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 0;
+  width: 100%;
+  min-width: 0;
+  /* Global `div { border-radius: 8px }` would clip children when columns use overflow:hidden */
+  border-radius: 0;
+}
+
+div.tasks-panel-board--none{
+  min-height: 0;
+}
+
+div.tasks-panel-column{
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  flex: 0 1 0;
+  transition:
+    flex-grow 0.2s ease-in-out,
+    flex-shrink 0.2s ease-in-out,
+    flex-basis 0.2s ease-in-out;
+  /* Override global `div { border-radius: 8px }` — otherwise overflow:hidden clips the card to a fully rounded rect */
+  border-radius: 0;
+}
+
+@media (prefers-reduced-motion: reduce){
+  div.tasks-panel-column{
+    transition-duration: 0.01ms !important;
+  }
+
+  div.tasks-panel-doing-slot{
+    transition-duration: 0.01ms !important;
+  }
+}
+
+div.tasks-panel-board--both div.tasks-panel-column--todo{
+  flex: 0 1 60%;
+}
+
+div.tasks-panel-board--both div.tasks-panel-column--done{
+  flex: 0 1 40%;
+}
+
+div.tasks-panel-board--todo-only div.tasks-panel-column--todo{
+  flex: 0 1 100%;
+}
+
+div.tasks-panel-board--todo-only div.tasks-panel-column--done{
+  flex: 0 1 0;
+}
+
+div.tasks-panel-board--done-only div.tasks-panel-column--todo{
+  flex: 0 1 0;
+}
+
+div.tasks-panel-board--done-only div.tasks-panel-column--done{
+  flex: 0 1 100%;
+}
+
+div.tasks-panel-column-card{
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  box-sizing: border-box;
+  background-color: #eee;
+  border: 2px solid #aaa;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* To-Do + Done wide: To-Do alone in stack — outward left corners only */
+div.tasks-panel-board--both div.tasks-panel-column--adjacent-left div.tasks-panel-todo-main-card.tasks-panel-column-card{
+  border-radius: 8px 0 0 8px;
+  border-right: none;
+}
+
+/* To-Do under Doing: only bottom-left rounded; flush with Doing */
+div.tasks-panel-board--both
+  div.tasks-panel-column--adjacent-left
+  div.tasks-panel-todo-column-stack--with-doing
+  div.tasks-panel-todo-main-card.tasks-panel-column-card{
+  border-radius: 0 0 0 8px;
+  border-top: none;
+  border-right: none;
+}
+
+/* Doing flush against Done column (same width as To-Do) */
+div.tasks-panel-board--both div.tasks-panel-column--adjacent-left div.tasks-panel-doing-card.tasks-panel-column-card{
+  border-right: none;
+}
+
+div.tasks-panel-todo-column-stack{
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  align-self: stretch;
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
+  gap: 0;
+}
+
+/* Doing + To-Do: no gap; TL round always, TR round only when Done column hidden */
+div.tasks-panel-board--both
+  div.tasks-panel-todo-column-stack--with-doing
+  div.tasks-panel-doing-card.tasks-panel-column-card{
+  border-radius: 8px 0 0 0;
+}
+
+div.tasks-panel-board--todo-only
+  div.tasks-panel-todo-column-stack--with-doing
+  div.tasks-panel-doing-card.tasks-panel-column-card{
+  border-radius: 8px 8px 0 0;
+}
+
+div.tasks-panel-todo-column-stack--with-doing div.tasks-panel-todo-main-card.tasks-panel-column-card{
+  border-top: none;
+  /* Stack below Doing so paints under it if borders/AA overlap */
+  position: relative;
+  z-index: 0;
+}
+
+/* Doing card: height animates open/closed (grid row 0fr ↔ 1fr) */
+div.tasks-panel-doing-slot{
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.2s ease-in-out;
+  width: 100%;
+  /* Global `div { border-radius: 8px }` would clip children with bogus bottom rounding */
+  border-radius: 0;
+  height: fit-content;
+  /* Do not shrink in the flex column — default shrink + min-height:0 lets To-Do steal height and clip Doing */
+  flex-shrink: 0;
+  min-height: 0;
+  align-self: stretch;
+  position: relative;
+  z-index: 1;
+}
+
+div.tasks-panel-doing-slot--expanded{
+  grid-template-rows: 1fr;
+}
+
+div.tasks-panel-doing-slot-inner{
+  min-height: 0;
+  overflow: hidden;
+  width: 100%;
+  border-radius: 0;
+}
+
+div.tasks-panel-doing-card-wrap{
+  flex: 0 0 auto;
+  flex-shrink: 0;
+  border-radius: 0;
+}
+
+div.tasks-panel-todo-main-card{
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Doing: only top-left corner rounded (avoid min-height:0 — it collapses intrinsic height in the grid slot) */
+div.tasks-panel-doing-card.tasks-panel-column-card{
+  flex: 0 0 auto;
+  min-height: auto;
+  border-radius: 8px 0 0 0;
+  transition: background-color 0.2s ease;
+}
+
+div.tasks-panel-doing-card.tasks-panel-doing-card--dialog-open.tasks-panel-column-card{
+  position: relative;
+}
+
+/*
+ * To-Do when Done column hidden (board--todo-only): right edge faces outward.
+ * Solo To-Do: all corners rounded. Under Doing: bottom-left + bottom-right only.
+ */
+div.tasks-panel-board--todo-only div.tasks-panel-todo-main-card.tasks-panel-column-card{
+  border-radius: 8px;
+}
+
+div.tasks-panel-board--todo-only
+  div.tasks-panel-todo-column-stack--with-doing
+  div.tasks-panel-todo-main-card.tasks-panel-column-card{
+  border-radius: 0 0 8px 8px;
+}
+
+div.tasks-panel-doing-card-head.tasks-panel-column-head{
+  background-color: transparent;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35em;
+}
+
+/* Dialog open: title off-layout (no gap above prompt); header band height unchanged */
+div.tasks-panel-doing-card-head--dialog-open.tasks-panel-column-head{
+  position: relative;
+  z-index: 2;
+  min-height: calc(0.45em + 0.45em + 1.35em);
+}
+
+div.tasks-panel-doing-card-head--dialog-open h3.tasks-panel-column-title{
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+  flex: none;
+}
+
+div.tasks-panel-doing-card-body.tasks-panel-column-body{
+  flex: 0 0 auto;
+  min-height: auto;
+}
+
+div.tasks-panel-doing-body-stack{
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 0.65em 0.65em;
+  box-sizing: border-box;
+}
+
+div.tasks-panel-doing-rows--invisible{
+  visibility: hidden;
+}
+
+/* Full-card overlay: vertically centers in Doing card; header stays above (z-index) */
+div.tasks-panel-doing-dialog.tasks-panel-doing-dialog--card-overlay{
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  box-sizing: border-box;
+  padding: 0.65em;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: stretch;
+  pointer-events: auto;
+}
+
+div.tasks-panel-doing-dialog-actions{
+  display: flex;
+  flex-direction: row;
+  gap: 0.5em;
+  padding-top: 2em;
+  margin:0.8em 0;
+  width: 100%;
+  height:100%;
+}
+
+div.tasks-panel-doing-dialog-actions button{
+  height:100%;
+  min-height:0;
+}
+
+div.tasks-panel-task-row.tasks-panel-task-row--doing{
+  position: relative;
+  overflow: hidden;
+  padding-right:0;
+  border-color: #999;
+}
+
+div.tasks-panel-task-row.tasks-panel-task-row--doing:hover,
+div.tasks-panel-task-row.tasks-panel-task-row--doing:active{
+  transform: none;
+}
+
+div.tasks-panel-doing-progress-fill{
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 0;
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+div.tasks-panel-doing-row-content{
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.35em;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+button.tasks-panel-doing-play-toggle{
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height:50px;
+  width:50px;
+  margin: 2px;
+  margin-right: -2px;
+  padding: 0;
+  border: 2px solid #999;
+  border-radius: 8px;
+  background-color: transparent;
+  color: #1a1a1a;
+  cursor: pointer;
+  font-size: 1.5em;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+button.tasks-panel-doing-play-toggle svg{
+  margin:0;
+}
+
+button.tasks-panel-doing-play-toggle:hover{
+  background-color: transparent;
+  font-size: 1.9em;
+  box-shadow:none;
+  transform: none;
+}
+
+button.tasks-panel-doing-play-toggle:active{
+  background-color: transparent;
+  transform: none;
+  font-size:1.2em;
   box-shadow: none;
 }
 
-button.conversation:disabled{
-  cursor:auto;
+button.tasks-panel-doing-play-toggle:disabled{
+  cursor: default;
+  /* opacity: 0.5; */
+  transform: none;
+  font-size:1.5em;
+}
+
+button.tasks-panel-doing-play-toggle svg{
+  font-size: 1.25em;
+}
+
+div.tasks-panel-board--both div.tasks-panel-column--adjacent-right div.tasks-panel-column-card{
+  border-radius: 0 8px 8px 0;
+}
+
+div.tasks-panel-column-head{
+  flex-shrink: 0;
+  margin: 0;
+  /* padding: 0.45em 0.65em; */
+  padding: 0em 0.65em;
+  padding-top:0.1em;
+  /* padding-bottom: 0; */
+  /* border-bottom: 2px solid #aaa; */
   background-color: #eee;
+  height:2.4em;
+  display:flex;
+  align-items: center;
+}
+
+.tasks-panel-column-head h3{
+  margin: 0;
+  font-size: 1em;
+  font-weight: 600;
+  text-align: left;
+  color: #222;
+}
+
+div.tasks-panel-column-body{
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+div.tasks-panel-column-scroll{
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 0.65em;
+  /* padding-top:0; */
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+div.tasks-panel-column-foot{
+  flex-shrink: 0;
+  padding: 0.65em 0.5em;
+  /* border-top: 2px solid #aaa; */
+  background-color: #eee;
+}
+
+@keyframes tasks-panel-pending-gradient-shift{
+  from{
+    background-position: 0 0;
+  }
+  to{
+    background-position: -80px 0;
+  }
+}
+
+div.tasks-panel-task-row.tasks-panel-task-row--pending{
+  position: relative;
+  overflow: hidden;
+}
+
+div.tasks-panel-task-row.tasks-panel-task-row--pending::after{
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: repeating-linear-gradient(
+    90deg,
+    #01a2 0px,
+    #01a0 40px,
+    #01a2 80px
+  );
+  background-size: 80px 100%;
+  animation: tasks-panel-pending-gradient-shift 1s linear infinite;
+}
+
+div.tasks-panel-task-entry-actions{
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+div.tasks-panel button.tasks-panel-task-entry-confirm{
+  flex: 1 1 auto;
+  height:60px;
+  min-width: 0;
+  width: auto;
+  margin: 0;
+  padding: 0 0.65em;
+  border-radius: 8px;
+  background-color: #4f46e5;
+  color: #ffffff;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35em;
+  box-shadow: none;
+  transform: none;
+}
+
+div.tasks-panel button.tasks-panel-task-entry-confirm:hover:not(:disabled){
+  background-color: #4338ca;
+  transform: scale(1.02);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+div.tasks-panel button.tasks-panel-task-entry-confirm:disabled{
+  background-color: #bbb;
+  border: 2px solid #999;
+  border-radius: 8px;
+  color: #000;
+  /* opacity: 0.45; */
+  cursor: not-allowed;
+  transform: none;
+}
+
+div.tasks-panel button.tasks-panel-task-entry-confirm:disabled:hover{
   transform: none;
   box-shadow: none;
 }
 
-div.chat-messages{
-  display:flex;
-  height:100dvh;
-  width:100%;
-  flex-direction: column;
-  transition: margin-top 0.2s ease-in-out, height 0.2s ease-in-out;
-  overflow-x: hidden;
+button.tasks-panel-task-entry-cancel{
+  flex-shrink: 0;
+  width: 60px;
+  min-width: 60px;
+  max-width: 60px;
+  height: 60px;
+  min-height: 60px;
+  margin: 0;
+  padding: 0;
+  border-width: 0;
+  border-radius: 4px;
+  background-color: #6b7280;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: none;
+  transform: none;
+  transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.1s ease;
 }
 
-@media only screen and (max-width: 900px){
-  div.chat-messages{
-    margin-top:4em;
-    height:calc(100dvh - 4em);
-  }
+button.tasks-panel-task-entry-cancel:hover{
+  background-color: #4b5563;
+  transform: scale(1.05);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
+}
+button.tasks-panel-task-entry-cancel:active{
+  background-color: #2b3543;
+  transform: scale(0.95);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
+}
+
+button.tasks-panel-task-entry-confirm svg,
+button.tasks-panel-task-entry-cancel svg{
+  margin: 0;
+}
+
+input.tasks-panel-task-entry-input{
+  flex-shrink: 0;
+  width: 100%;
+  box-sizing: border-box;
+  height: 50px;
+  min-height: 50px;
+  margin-top: 0;
+  margin-bottom: 0;
+  padding: 0 0.55em;
+  background-color: #fff;
+  border: 2px solid #4f46e5;
+  border-radius: 8px;
+  font-size: 0.88em;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+input.tasks-panel-task-entry-input:focus{
+  outline: none;
+  border-color: #4f46e5;
+  box-shadow: 0 3px 3px rgba(0, 0, 0, 0.2);
+}
+
+div.tasks-panel-task-row{
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.35em;
+  box-sizing: border-box;
+  height: 50px;
+  min-height: 50px;
+  padding: 0 0.45em;
+  border: 2px solid rgba(0, 0, 0, 0.14);
+  border-radius: 8px;
+  color: #1a1a1a;
+  transition: transform 0.1s ease;
+}
+
+button.checkbox{
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+button.checkbox, button.checkbox svg{
+  font-size: 24px;
+}
+
+button.checkbox:disabled{
+  background-color: transparent;
+}
+
+button.checkbox:hover{
+  transform: scale(1.3) translateX(1px);
+  background-color: transparent;
+  box-shadow: none;
+}
+
+button.checkbox:active{
+  transform: scale(0.8) translateX(-1px);
+  background-color: transparent;
+  box-shadow: none;
+}
+
+button.checkbox:disabled{
+  cursor: not-allowed;
+  opacity: 0.72;
+  transform: none;
+}
+
+button.checkbox:disabled:hover,
+button.checkbox:disabled:active{
+  transform: none;
+}
+
+div.tasks-panel-task-name-outer{
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  direction: rtl;
+  text-align: left;
+}
+
+span.tasks-panel-task-name-inner{
+  direction: ltr;
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 0.88em;
+  font-weight: 600;
+}
+
+span.tasks-panel-task-duration{
+  flex-shrink: 0;
+  font-size: 0.8em;
+  font-weight: 600;
+  color: inherit;
+  opacity: 0.85;
+  white-space: nowrap;
+}
+
+span.tasks-panel-doing-timer{
+  font-variant-numeric: tabular-nums;
+  font-size: 1em;
+  transition: font-weight 0.1s ease, font-size 0.1s ease, opacity 0.1s ease;
+}
+
+div.tasks-panel-task-row.tasks-panel-task-row--done span.tasks-panel-task-name-inner,
+div.tasks-panel-task-row.tasks-panel-task-row--done span.tasks-panel-task-duration{
+  opacity: 0.75;
+}
+
+p.tasks-panel-tasks-error{
+  margin: 0.25em 0 0;
+  padding: 0 0.65em;
+  font-size: 0.82em;
+  color: #a22;
 }
 
 div.message-container{
@@ -339,7 +1203,7 @@ div.user-message{
   display: block;
   padding:0 1em;
   text-align: left;
-  box-shadow: 0 3px 3px rgba(0, 0, 0, 0.08);
+  border: 2px solid rgba(0, 0, 0, 0.14);
   margin-left:auto;
   overflow-wrap: break-word;
 }
@@ -380,10 +1244,23 @@ form.magic{
   gap:1em;
 }
 
+.chatbox-unit-select-wrap {
+  overflow: hidden;
+  flex-shrink: 0;
+  min-width: 0;
+  width: 0;
+  transition: width 0.2s ease-in-out;
+  border-radius:0;
+  height:100%;
+}
+
+.chatbox-unit-select-wrap--open {
+  width: 8em;
+}
+
 .chatbox select{
   min-width:8em;
   max-width:8em;
-  height:auto;
 }
 
 .chatbox{
@@ -423,6 +1300,7 @@ wrapping the text */
 
 .chatbox textarea+button{
   max-width: fit-content;
+  height:100%;
 }
 
 .chatbox button{
@@ -437,9 +1315,16 @@ input, button, textarea, select {
   border-radius: 4px;
 }
 
-input, textarea {
-  padding:0.4em 0.5em;
-  transition:box-shadow 0.1s ease, border-color 0.1s ease;
+.unit-select{
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+  height:100%;
+}
+
+.short {
+  margin-top:0;
+  width:auto;
 }
 
 div.double-column-buttons {
@@ -470,6 +1355,14 @@ div.input-row {
   height:2.5em;
 }
 
+.dialog-panel div.input-row{
+  justify-content: flex-start;
+  align-items: flex-start;
+  height:20px;
+  min-height:20px;
+  margin-bottom:12px;
+}
+
 div.input-row *{
   display:flex;
   height:100%;
@@ -489,14 +1382,10 @@ div.input-row input, div.input-row select{
   height:100%;
 }
 
-div.input-row button{
+div.input-row button:not(.checkbox){
   /* max-width: fit-content; */
   padding: 0.5rem 1rem;
-}
-
-div.input-row button{
-  /* max-width: fit-content; */
-  padding: 0.5rem 1rem;
+  height: auto
 }
 
 div.input-row :not(button)+ button{
@@ -511,23 +1400,6 @@ div.input-row p{
   padding: 0.5em 0.4em;
 }
 
-button svg {
-  vertical-align: middle;
-  font-size:2em;
-  margin-right: 5px;
-  /* padding-bottom: 0.15em; */
-  margin-left:-7%;
-}
-
-button {
-  height:60px;
-  padding: 1em 1em;
-  transition: transform 0.15s ease, box-shadow 0.1s ease, background-color 0.1s ease;
-  display:flex;
-  align-items: center;
-  justify-content: center;
-}
-
 select{
   padding: 0.5em 0.5em;
 }
@@ -536,6 +1408,9 @@ input, textarea {
   margin-top: 0.5em;
   border: 2px solid #aaa;
   box-shadow: 0 0px 0px rgba(0, 0, 0, 0);
+  padding:0.4em 0.5em;
+  transition:box-shadow 0.1s ease, border-color 0.1s ease;
+  resize: none;
 }
 
 input:focus, textarea:focus {
@@ -544,31 +1419,164 @@ input:focus, textarea:focus {
   box-shadow: 0 3px 3px rgba(0, 0, 0, 0.2);
 }
 
-button {
+button.primary {
   border: none;
   cursor: pointer;
   background-color: #4f46e5;
   color: #ffffff;
   font-weight: 600;
   box-shadow: 0 0px 0px rgba(0, 0, 0, 0);
+  height:60px;
+  padding: 1em 1em;
+  transition: transform 0.15s ease, box-shadow 0.1s ease, background-color 0.1s ease;
+  display:flex;
+  align-items: center;
+  justify-content: center;
 }
 
-button:hover {
+button svg {
+  vertical-align: middle;
+  font-size:2em;
+  margin-right: 5px;
+  /* padding-bottom: 0.15em; */
+  margin-left:-7%;
+}
+
+button.primary:hover {
   background-color: #4338ca;
   transform: scale(1.03);
   box-shadow: 0 3px 3px rgba(0, 0, 0, 0.2);
 }
 
-button:active{
+button.primary:active{
   background-color: #2a218f;
   transform: scale(0.98);
   box-shadow: 0 3px 3px rgba(0, 0, 0, 0.5);
 }
 
-button:disabled{
+button.primary:disabled{
   background-color:#bcb8e0;
   cursor:not-allowed;
   transform:none;
+  box-shadow: none;
+}
+
+button.secondary{
+  border: 2px solid #999;
+  cursor: pointer;
+  background-color: #ddd;
+  color: #000;
+  font-weight: 600;
+  box-shadow: 0 0px 0px rgba(0, 0, 0, 0);
+  height:60px;
+  padding: 1em 1em;
+  transition: transform 0.15s ease, box-shadow 0.1s ease, background-color 0.1s ease;
+  display:flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0px 0px rgba(0, 0, 0, 0);
+  /* width: 100%;
+  margin: 0;
+  padding: 0.45em 0.5em;
+  font-weight: 600;
+  color: #000;
+  background-color: #ddd;
+  border: 2px solid #999;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: none;
+  transition: transform 0.05s ease; */
+}
+
+button.secondary:hover{
+  background-color: #ccc;
+  transform: scale(1.01);
+  box-shadow: 0 3px 3px rgba(0, 0, 0, 0.2);
+}
+
+button.secondary:active{
+  background-color: #bbb;
+  transform: scale(0.98);
+  box-shadow: 0 3px 3px rgba(0, 0, 0, 0.5);
+}
+
+button.secondary:disabled{
+  transform: none;
+  background-color: #bbb;
+  color: #666;
+  cursor:not-allowed;
+  box-shadow: none;
+}
+
+button.primary.conversation{
+  width:100%;
+  height: 40px;
+  min-height: 40px;
+  font-size: 0.9em;
+  background-color: var(--conversation-bg, #eee);
+  color:#222;
+  font-weight: normal;
+  border-radius: 8px;
+  padding: 0 0.3em 0 0.5em;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.3em;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+button.primary.conversation-selected{
+  width:100%;
+  height: 40px;
+  min-height: 40px;
+  font-size: 0.9em;
+  background-color: var(--conversation-active-bg, #aaa);
+  color:#222;
+  font-weight: normal;
+  border-radius: 8px;
+  padding: 0 0.3em 0 0.5em;
+  padding-left: calc(0.5em - 2px);
+  padding-right: calc(0.3em - 2px);
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.3em;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  cursor:auto;
+  transform:none;
+  box-shadow: none;
+  border: 2px solid rgba(0, 0, 0, 0.2);
+}
+
+button.primary.conversation-selected:hover,
+button.primary.conversation-selected:active,
+button.primary.conversation-selected:disabled{
+  transform:none;
+  box-shadow:none;
+}
+
+button.primary.conversation:hover{
+  background-color: var(--conversation-hover-bg, #ccc);
+  transform: none;
+  box-shadow: none;
+}
+
+button.primary.conversation:active{
+  background-color: var(--conversation-active-bg, #aaa);
+  transform: none;
+  box-shadow: none;
+}
+
+button.primary.conversation:disabled{
+  cursor:auto;
+  background-color: var(--conversation-bg, #eee);
+  transform: none;
   box-shadow: none;
 }
 
@@ -602,4 +1610,340 @@ button.next{
   to {
     transform: rotate(360deg);
   }
+}
+
+.chip{
+  width:fit-content;
+  height:40px;
+  font-size:1em;
+  display:flex;
+  flex-direction: row;
+  gap:0px;
+  align-items: center;
+  justify-content: flex-start;
+  text-align: center;
+  padding:0em 0.5em;
+  padding-right: 0.8em;
+  color:#222;
+  font-weight: 500;
+  background-color: #fff;
+  border: 2px solid #aaa;
+  border-radius: 16px;
+  transition: transform 0.1s ease;
+  white-space: nowrap;
+  text-overflow: clip;
+  gap:0.2em;
+  /* overflow: hidden; */
+}
+
+.chip:hover{
+  background-color: #eee;
+  transform:scale(1.03);
+}
+
+.chip:active{
+  background-color: #ccc;
+  transform: scale(0.98);
+}
+
+.chip:disabled{
+  background-color: #ddd;
+  color: #666
+}
+
+.chip svg{
+  vertical-align: middle;
+  font-size:1.5em;
+  margin:0;
+  padding:0;
+}
+
+.chip select{
+  background-color: transparent;
+  border:none;
+}
+
+/* Reusable modal: frosted white overlay + centered panel (see DialogBox) */
+div.dialog-backdrop.dialog-backdrop--elevated {
+  z-index: 10001;
+}
+
+div.dialog-backdrop.dialog-backdrop--task-foreground {
+  z-index: 10002;
+}
+
+div.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  box-sizing: border-box;
+  /* Solid overlay instead of backdrop-filter: blur — full-viewport blur forces
+     the browser to sample and filter the entire page every frame and is a common
+     source of jank when modals are open over a complex layout (tasks + chat). */
+  background: rgba(255, 255, 255, 0.96);
+  border-radius: 0px;
+  contain: layout paint;
+  isolation: isolate;
+}
+
+div.dialog-panel {
+  position: relative;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  box-shadow: 0 4px 4px rgba(0, 0, 0, 0.12);
+  border: 2px solid rgba(0, 0, 0, 0.14);
+  font-weight: 600;
+}
+
+div.dialog-panel-title{
+  margin:14px;
+  margin-right: calc(80px + 14px);
+  margin-bottom: 0;
+  gap:14px;
+  z-index: 2;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  height:40px;
+  max-height:50%;
+  /* text-wrap: nowrap; */
+  word-break: keep-all;
+  /* white-space: nowrap; */
+  /* overflow: hidden; */
+  text-overflow: ellipsis;
+  line-height: 1.25;
+}
+
+div.dialog-panel-title *{
+  margin:0;
+  padding:0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 800;
+  height:100%;
+  align-content: center;
+}
+
+div.dialog-panel-title *:not(.checkbox){
+  font-size: 1.2em;
+}
+
+div.dialog-panel-top-actions {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 2;
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+button.floating {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: #000a;
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+button.floating svg{
+  margin:0;
+  font-size: 24px;
+}
+
+button.floating:hover {
+  background-color: transparent;
+  color: #000f;
+  box-shadow: none;
+  transform: scale(1.1);
+}
+
+button.floating:active {
+  background-color: transparent;
+  box-shadow: none;
+  transform: scale(0.9);
+}
+
+div.tasks-panel-task-row.tasks-panel-task-row--todo-editable {
+  cursor: pointer;
+}
+
+div.tasks-panel-task-row.tasks-panel-task-row--todo-editable:hover{
+  transform:scale(1.01);
+}
+
+div.tasks-panel-task-row.tasks-panel-task-row--todo-editable:active{
+  transform:scale(0.99);
+}
+
+div.tasks-panel-task-row.tasks-panel-task-row--todo-startable{
+  overflow: hidden;
+}
+
+button.tasks-panel-task-start-hover{
+  display: none;
+  flex-shrink: 0;
+  width: fit-content;
+  min-width: fit-content;
+  height: calc(100% + 4px);
+  margin: -2px -1em -2px 0;
+  padding: 0 0.7em;
+  border-radius: 0 6px 6px 0;
+  box-shadow: none;
+  transform: none;
+  font-size: 0.85em;
+  gap: 0.2em;
+}
+
+button.tasks-panel-task-start-hover svg{
+  margin: 0;
+  font-size: 1.4em;
+}
+
+div.tasks-panel-task-row.tasks-panel-task-row--todo-startable:hover
+  span.tasks-panel-task-duration--value,
+div.tasks-panel-task-row.tasks-panel-task-row--todo-startable:focus-within
+  span.tasks-panel-task-duration--value{
+  display: none;
+}
+
+div.tasks-panel-task-row.tasks-panel-task-row--todo-startable:hover
+  button.tasks-panel-task-start-hover,
+div.tasks-panel-task-row.tasks-panel-task-row--todo-startable:focus-within
+  button.tasks-panel-task-start-hover{
+  display: inline-flex;
+}
+
+/* Task edit dialog (DialogBox content) */
+div.task-edit-dialog-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+}
+
+div.dialog-panel-body {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  flex-grow: 1;
+}
+
+div.task-edit-duration-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+/* TaskBreakSetup: avoid global `div.input-row` / `div.input-row *` rules that collapse controls */
+div.task-break-setup-duration-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  border: 2px solid rgba(0, 0, 0, 0.14);
+  border-radius: 8px;
+  padding: 6px 10px;
+  box-sizing: border-box;
+  background: #fff;
+}
+
+svg.task-break-setup-duration-icon {
+  flex-shrink: 0;
+  font-size: 28px;
+  opacity: 0.75;
+}
+
+span.task-break-setup-duration-label {
+  flex: 1;
+  min-width: 0;
+  font-weight: 700;
+  padding-left: 8px;
+}
+
+div.task-break-bump-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+button.task-break-bump-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 32px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.07);
+  color: #1a1a1a;
+  cursor: pointer;
+  transition: background-color 0.12s ease, transform 0.1s ease;
+}
+
+button.task-break-bump-btn svg {
+  display: block;
+  font-size: 24px;
+  margin: 0;
+}
+
+button.task-break-bump-btn:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.12);
+}
+
+button.task-break-bump-btn:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+button.task-break-bump-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+div.task-edit-break-group {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+div.task-edit-chips-row {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 10px;
+  min-width: 0;
+}
+
+input.task-edit-date-native {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
 }

@@ -1,11 +1,22 @@
-from ..models import User, Unit, UnitPublic
-from ..date_utils import timestamp_to_string
-from ..routers.curriculum import get_assignments_list_json, get_units_list_json
+import json
+
+from pydantic import BaseModel, TypeAdapter
+
+from ..models import TaskAutofillCreate, User, Unit, UnitPublic, TaskList
+from ..date_utils import parse_timestamp, timestamp_to_string
+from ..routers.curriculum import (
+    build_assignments_list_json,
+    build_assignments_payload,
+    build_units_list_json,
+    compute_assignments_delta,
+    get_assignments_list_json,
+    get_units_list_json,
+)
 from ..routers.reminders import get_reminders_list_json
 from ..routers.users import get_user_biography_text
 from ..dependencies import get_current_user, get_session
 from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel import Session
+from sqlmodel import Session, select
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -72,6 +83,33 @@ with the last assignment task you discussed with them
 from the **most recent** (first) conversation summary, if any.
 """.replace("\n", " ").strip()
     return summaries.strip()
+
+@router.get("/prompt/tasks")
+def get_task_list(
+    user : User = Depends(get_current_user),
+    session : Session = Depends(get_session),
+    unit_id : int | None = None
+) -> str:
+    from ..routers.tasks import get_tasks_list_for_self_json
+    task_list_json = get_tasks_list_for_self_json(
+        user=user,
+        session=session,
+        incomplete_only=True,
+        unit_id=unit_id
+    )
+
+    if task_list_json == "[]": return ""
+    return f"""
+## TASKS
+To help the user complete their assignments,
+you have created a list of tasks for them.
+Each task is mapped to an assignment by its
+assignment ID.
+
+```json
+{task_list_json}
+```
+    """.strip()
 
 @router.get("/prompt/reminders")
 def get_reminder_list(
@@ -150,6 +188,269 @@ Write a maximum of {max_words} words.
 
     return prompt
 
+def _task_creation_prompt_header(tasks_per_day: int) -> str:
+    return f"""
+You are a study assistant. Your goal is to help
+an undergraduate student with ADHD better manage
+their university study load by breaking down their
+assignments into smaller, more manageable tasks.
+
+You will be given the student's list of assignments
+in JSON format and must create tasks representing each
+step required to complete these assignments.
+
+The current date is {datetime.now(ZoneInfo("Australia/Sydney")).date().isoformat()}.
+
+## RESPONSE RULES
+Respond ONLY with the new list of the user's tasks as a JSON object.
+
+## TASK FIELDS
+Each task must have the following fields:
+- id (int | None): The ID number of the task if known, or None if it is a new task.
+- assignment_id (int): The ID number of the student's assignment which this task references.
+- name (str): The name of the task in the format "<Shortened assignment name>: <Task name>". For shortened assignment names, do NOT include the unit name in this field and use descriptive names (e.g., "Multiple Choice Quiz") rather than generic names (e.g., "Assignment 2").
+- description (str): Summary of what steps are needed to complete the task.
+- duration_mins (int): An estimation of how many minutes the student will need to complete this task.
+- due_at (str): Which date the student must work on this task in ISO 8601 format (YYYY-MM-DD).
+- completed (bool): Whether the task has been completed.
+
+## TASK RULES
+1. Each task MUST be assigned to ONE of the student's assignments.
+2. Each task must represent ONE small step needed to complete the assignment.
+3. Each task must not exceed 25 minutes in duration.
+4. Each task must have clear completion criteria.
+5. All tasks must have a due date later than or equal to the current date.
+6. All tasks must be due before their assignment is due.
+7. Break down each assignment with easier and smaller tasks first.
+8. Ensure each day has less than or equal to {tasks_per_day} tasks.
+9. Do NOT delete or modify any tasks which the student has completed.
+
+## ASSIGNMENT PRIORITY RULES
+1. Rank each assignment by urgency (LOWEST number of days remaining).
+2. Rank each assignment by importance (HIGHEST grade contribution %).
+3. Prioritise assignments which have less time left and greater grade contributions FIRST.
+    """.strip()
+
+def _task_creation_prompt_existing_tasks_block(existing_tasks: str) -> str:
+    return f"""
+You have already created a list of tasks for the
+student. Update this list of tasks using these rules:
+
+## TASK LIST UPDATE RULES
+1. Create new tasks for any assignments which do not have any tasks assigned to them.
+2. For all overdue tasks (tasks with a due date earlier than today):
+    a. Update the due date of the overdue task to be later than today.
+    b. Update the due dates of all tasks after the overdue task for the same assignment to be later than the overdue task.
+
+## EXISTING TASKS LIST
+```json
+{existing_tasks}
+```
+""".strip()
+
+class TaskGenerationPrepare(BaseModel):
+    prompt: str
+    bypass_llm: bool = False
+    task_list_if_bypass: TaskList | None = None
+
+def prepare_task_generation(
+    username: str,
+    requesting_user: User,
+    session: Session,
+    tasks_per_day: int = 10,
+) -> TaskGenerationPrepare:
+    from ..routers.tasks import (
+        get_incomplete_tasks_as_task_list,
+        get_tasks_list_for_user_json,
+        user_has_incomplete_overdue_tasks_sydney,
+    )
+
+    target = session.exec(select(User).where(User.username == username)).first()
+    if not target:
+        raise HTTPException(status_code=404, detail=f"User not found: {username}")
+
+    if requesting_user.username != username and not requesting_user.admin:
+        raise HTTPException(status_code=401, detail="Unauthorised")
+
+    existing_tasks = get_tasks_list_for_user_json(
+        username=username,
+        incomplete_only=False,
+        user=requesting_user,
+        session=session
+    )
+    has_existing_tasks = existing_tasks != "[]"
+    payload = build_assignments_payload(user=target, session=session)
+
+    prompt = _task_creation_prompt_header(tasks_per_day)
+    if has_existing_tasks:
+        prompt += "\n\n" + _task_creation_prompt_existing_tasks_block(existing_tasks)
+
+    units_block = f"""
+## UNITS
+The student is enrolled in the following units:
+```json
+{build_units_list_json(user=target, session=session)}
+```
+""".strip()
+
+    if not has_existing_tasks:
+        prompt += "\n\n" + units_block
+        prompt += "\n\n## ASSIGNMENTS\nThe student has the following assignments:\n```json\n"
+        prompt += build_assignments_list_json(user=target, session=session)
+        prompt += "\n```"
+        return TaskGenerationPrepare(prompt=prompt.strip())
+
+    snap = target.tasks_generation_assignments_snapshot
+    if not snap:
+        prompt += "\n\n" + units_block
+        prompt += "\n\n## ASSIGNMENTS\nThe student has the following assignments:\n```json\n"
+        prompt += build_assignments_list_json(user=target, session=session)
+        prompt += "\n```"
+        return TaskGenerationPrepare(prompt=prompt.strip())
+
+    delta = compute_assignments_delta(snap, payload)
+    if delta is None:
+        prompt += "\n\n" + units_block
+        prompt += "\n\n## ASSIGNMENTS\nThe student has the following assignments:\n```json\n"
+        prompt += build_assignments_list_json(user=target, session=session)
+        prompt += "\n```"
+        return TaskGenerationPrepare(prompt=prompt.strip())
+
+    overdue = user_has_incomplete_overdue_tasks_sydney(
+        username=username, user=requesting_user, session=session
+    )
+
+    if delta.is_empty() and not overdue:
+        return TaskGenerationPrepare(
+            prompt="",
+            bypass_llm=True,
+            task_list_if_bypass=get_incomplete_tasks_as_task_list(
+                username=username, user=requesting_user, session=session
+            ),
+        )
+
+    prompt += "\n\n" + units_block
+
+    if delta.is_empty() and overdue:
+        prompt += """
+
+## ASSIGNMENTS
+The student's Canvas assignment set is **unchanged** since the last time tasks were generated (same assignments, due dates, and descriptions as in your snapshot). Do not invent new assignments or new tasks for assignments that were not in that snapshot.
+
+Apply only **TASK LIST UPDATE RULES** above (especially overdue tasks). Return the **full** updated task list as JSON.
+""".strip()
+        return TaskGenerationPrepare(prompt=prompt.strip())
+
+    delta_obj = delta.model_dump(mode="json")
+    prompt += "\n\n## ASSIGNMENT_CHANGES\n"
+    prompt += (
+        "Only these changes occurred since the last task generation. Update the task list accordingly "
+        "(add tasks for new assignments, remove or adjust tasks for removed or changed assignments). "
+        "Preserve tasks for assignments not listed here unless overdue rules require rescheduling.\n```json\n"
+    )
+    prompt += json.dumps(delta_obj, ensure_ascii=False, indent=2)
+    prompt += "\n```"
+    return TaskGenerationPrepare(prompt=prompt.strip())
+
+@router.get("/prompt/tasks/self")
+async def get_task_creation_prompt_for_self(
+    tasks_per_day : int = 10,
+    user : User = Depends(get_current_user),
+    session : Session = Depends(get_session)
+) -> str:
+    return get_task_creation_prompt_for_user(
+        username=user.username,
+        tasks_per_day=tasks_per_day,
+        user=user,
+        session=session
+    )
+
+@router.get("/prompt/tasks/{username}")
+def get_task_creation_prompt_for_user(
+    username : str,
+    tasks_per_day : int = 10,
+    user : User = Depends(get_current_user),
+    session : Session = Depends(get_session)
+) -> str:
+    prep = prepare_task_generation(
+        username=username,
+        requesting_user=user,
+        session=session,
+        tasks_per_day=tasks_per_day,
+    )
+    if prep.bypass_llm:
+        return (
+            "No LLM call would be made: assignments are unchanged since the last committed task generation "
+            "and there are no overdue incomplete tasks. The existing task list would be returned as-is."
+        )
+    return prep.prompt
+
+@router.post("/prompt/task_create/self")
+def get_task_autofill_prompt_for_self(
+    task : TaskAutofillCreate,
+    user : User = Depends(get_current_user),
+    session : Session = Depends(get_session)
+):
+    return get_task_autofill_prompt_for_user(
+        username = user.username,
+        task=task,
+        user=user,
+        session=session
+    )
+
+task_autofill_create_adapter = TypeAdapter(TaskAutofillCreate)
+
+@router.post("/prompt/task_create/{username}")
+def get_task_autofill_prompt_for_user(
+    username : str,
+    task : TaskAutofillCreate,
+    user : User = Depends(get_current_user),
+    session : Session = Depends(get_session)
+) -> str:
+    if not username == user.username and not user.admin:
+        raise HTTPException(status_code=401, detail="Unauthorised")
+    
+    existing_user = session.exec(select(User).where(User.username==username)).first()
+    if not existing_user: raise HTTPException(status_code=404, detail=f"User not found: {username}")
+    
+    if not task.due_at: raise HTTPException(status_code=500, detail="Task missing due date")
+    due_timestamp = parse_timestamp(task.due_at)
+    if due_timestamp: due_timestamp = due_timestamp.isoformat()
+
+    return f"""
+You are a study assistant. Your goal is to help
+an undergraduate student with ADHD create tasks
+representing manageable steps they can take to
+complete their university assignments.
+
+You will be given the name of a new task the
+student is trying to create for one of their
+assignments. Your task is to fill in the missing
+fields for the task using information from the
+student's list of assignments.
+
+The current date is {datetime.now(ZoneInfo("Australia/Sydney")).date().isoformat()}.
+
+## TASK NAME
+The user is trying to create a task with the fields:
+```json
+{task_autofill_create_adapter.dump_json(task).decode("utf-8")}
+```
+
+## TASK FIELDS
+You must return the following fields for the user's task:
+- assignment_id (int | None): The ID number of the student's assignment which this task references, or None if the task doesn't seem to reference any assignment.
+- description (str): Summary of what steps are needed to complete the task.
+- duration_mins (int): An estimation of how many minutes the student will need to complete this task. Should be divisible by 5 and <= 25.
+
+## ASSIGNMENTS
+Use the student's list of assignments to decide which assignment this task should be created for,
+what steps are necessary to complete it, and how long it should take to complete in minutes.
+```json
+{get_assignments_list_json(user=existing_user, session=session)}
+```
+    """.strip()
+
 @router.get("/prompt")
 async def get_system_prompt(
     unit_id : int | None = None,
@@ -185,7 +486,7 @@ Your goal is to help the student plan, manage their time, and improve executive 
 You can achieve this goal by:
 - identifying upcoming assignment deadlines from Canvas LMS,
 - breaking assignments down into smaller tasks,
-- setting reminders for upcoming tasks, and
+- maintaining a list of assignment tasks, and
 - using CBT techniques to reduce stress.
 
 The current date is {timestamp_to_string(datetime.now(ZoneInfo("Australia/Sydney")), include_days_remaining=False)}.
@@ -209,9 +510,11 @@ Remember these principles for helping students with ADHD:
 - Replace depressive / anxious beliefs with more realistic ones.
 
 ## TOOL USAGE RULES
+- Use tools to create, edit, and delete tasks for the student's assignments.
 - Tool dates must be in ISO 8601 format (YYYY-MM-DD).
 - If a tool fails, say: "I'm sorry, I could not complete <action>."
-- DO NOT indicate success or provide closure if a tool fails.
+- If an update/delete tool fails, do NOT call any create/update/delete tool again unless the student explicitly asks to try again.
+- For update/delete requests where task ID is unknown, pass the exact task name as `task_name`.
 - Incorporate tool results naturally, as if you already knew the information.
 
 ## TASK PRIORITY RULES
@@ -234,14 +537,19 @@ The student has the following assignments:
 ```json
 {get_assignments_list_json(user=user, session=session, unit_id=unit_id)}
 ```
-NOTE: Do NOT mention unit or assignment IDs in your response to the student. The IDs are only needed for tool calling.
+
+{get_task_list(
+    user=user,
+    session=session,
+    unit_id=unit_id
+)}
 
 {await get_previous_conversation_summaries(
     user=user,
     session=session
 )}
 
-{get_reminder_list(user=user, session=session)}
+NOTE: Do NOT mention unit, assignment, or task IDs in your response to the student. The IDs are only needed for tool calling.
 
 ## SAFETY
 - DO NOT engage the student in conversations about suicide, self-harm, or harming others.
